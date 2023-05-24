@@ -31,6 +31,48 @@ pub const Error = struct {
     }
 };
 
+/// Wrapper around nvim's typval_T
+pub const TypVal = union(enum) {
+    number: c.varnumber_T,
+    bool: bool,
+    special: c_uint,
+    float: f64,
+    string: [*:0]u8,
+
+    // TODO: implement some more advanced types
+
+    /// Convert to the neovim type
+    pub fn toNvim(self: TypVal) c.typval_T {
+        return switch (self) {
+            .number => |v| .{
+                .v_type = c.VAR_NUMBER,
+                .v_lock = c.VAR_UNLOCKED,
+                .vval = .{ .v_number = v },
+            },
+            .bool => |v| .{
+                .v_type = c.VAR_BOOL,
+                .v_lock = c.VAR_UNLOCKED,
+                .vval = .{ .v_bool = @boolToInt(v) },
+            },
+            .special => |v| .{
+                .v_type = c.VAR_SPECIAL,
+                .v_lock = c.VAR_UNLOCKED,
+                .vval = .{ .v_special = v },
+            },
+            .float => |v| .{
+                .v_type = c.VAR_FLOAT,
+                .v_lock = c.VAR_UNLOCKED,
+                .vval = .{ .v_float = v },
+            },
+            .string => |v| .{
+                .v_type = c.VAR_STRING,
+                .v_lock = c.VAR_UNLOCKED,
+                .vval = .{ .v_string = v },
+            },
+        };
+    }
+};
+
 pub fn nvimString(data: []u8) c.String {
     return .{
         .data = data.ptr,

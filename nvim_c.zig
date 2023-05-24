@@ -1675,6 +1675,7 @@ pub const struct_expand = extern struct {
     xp_pattern: [*c]u8,
     xp_context: c_int,
     xp_pattern_len: usize,
+    xp_prefix: xp_prefix_T,
     xp_arg: [*c]u8,
     xp_luaref: LuaRef,
     xp_script_ctx: sctx_T,
@@ -2031,12 +2032,35 @@ pub const lua_Reader = ?*const fn (?*lua_State, ?*anyopaque, [*c]usize) callconv
 pub const lua_Writer = ?*const fn (?*lua_State, ?*const anyopaque, usize, ?*anyopaque) callconv(.C) c_int;
 pub const lua_Alloc = ?*const fn (?*anyopaque, ?*anyopaque, usize, usize) callconv(.C) ?*anyopaque;
 pub const lua_WarnFunction = ?*const fn (?*anyopaque, [*c]const u8, c_int) callconv(.C) void;
+pub const struct_CallInfo = opaque {};
+pub const struct_lua_Debug = extern struct {
+    event: c_int,
+    name: [*c]const u8,
+    namewhat: [*c]const u8,
+    what: [*c]const u8,
+    source: [*c]const u8,
+    srclen: usize,
+    currentline: c_int,
+    linedefined: c_int,
+    lastlinedefined: c_int,
+    nups: u8,
+    nparams: u8,
+    isvararg: u8,
+    istailcall: u8,
+    ftransfer: c_ushort,
+    ntransfer: c_ushort,
+    short_src: [60]u8,
+    i_ci: ?*struct_CallInfo,
+};
+pub const lua_Debug = struct_lua_Debug;
+pub const lua_Hook = ?*const fn (?*lua_State, [*c]lua_Debug) callconv(.C) void;
 pub const lua_ident: [*c]const u8 = @extern([*c]const u8, .{
     .name = "lua_ident",
 });
 pub extern fn lua_newstate(f: lua_Alloc, ud: ?*anyopaque) ?*lua_State;
 pub extern fn lua_close(L: ?*lua_State) void;
 pub extern fn lua_newthread(L: ?*lua_State) ?*lua_State;
+pub extern fn lua_closethread(L: ?*lua_State, from: ?*lua_State) c_int;
 pub extern fn lua_resetthread(L: ?*lua_State) c_int;
 pub extern fn lua_atpanic(L: ?*lua_State, panicf: lua_CFunction) lua_CFunction;
 pub extern fn lua_version(L: ?*lua_State) lua_Number;
@@ -2118,28 +2142,6 @@ pub extern fn lua_getallocf(L: ?*lua_State, ud: [*c]?*anyopaque) lua_Alloc;
 pub extern fn lua_setallocf(L: ?*lua_State, f: lua_Alloc, ud: ?*anyopaque) void;
 pub extern fn lua_toclose(L: ?*lua_State, idx: c_int) void;
 pub extern fn lua_closeslot(L: ?*lua_State, idx: c_int) void;
-pub const struct_CallInfo = opaque {};
-pub const struct_lua_Debug = extern struct {
-    event: c_int,
-    name: [*c]const u8,
-    namewhat: [*c]const u8,
-    what: [*c]const u8,
-    source: [*c]const u8,
-    srclen: usize,
-    currentline: c_int,
-    linedefined: c_int,
-    lastlinedefined: c_int,
-    nups: u8,
-    nparams: u8,
-    isvararg: u8,
-    istailcall: u8,
-    ftransfer: c_ushort,
-    ntransfer: c_ushort,
-    short_src: [60]u8,
-    i_ci: ?*struct_CallInfo,
-};
-pub const lua_Debug = struct_lua_Debug;
-pub const lua_Hook = ?*const fn (?*lua_State, [*c]lua_Debug) callconv(.C) void;
 pub extern fn lua_getstack(L: ?*lua_State, level: c_int, ar: [*c]lua_Debug) c_int;
 pub extern fn lua_getinfo(L: ?*lua_State, what: [*c]const u8, ar: [*c]lua_Debug) c_int;
 pub extern fn lua_getlocal(L: ?*lua_State, ar: [*c]const lua_Debug, n: c_int) [*c]const u8;
@@ -2544,6 +2546,7 @@ pub const struct_window_S = extern struct {
     w_valid: c_int,
     w_valid_cursor: pos_T,
     w_valid_leftcol: colnr_T,
+    w_valid_skipcol: colnr_T,
     w_viewport_invalid: bool,
     w_viewport_last_topline: linenr_T,
     w_cline_height: c_int,
@@ -2979,6 +2982,7 @@ pub const struct_file_buffer = extern struct {
     b_mapped_ctrl_c: c_int,
     b_marktree: [1]MarkTree,
     b_extmark_ns: [1]Map_uint32_t_uint32_t,
+    b_virt_text_inline: usize,
     b_virt_line_blocks: usize,
     b_signs: usize,
     b_signs_with_text: usize,
@@ -2997,9 +3001,6 @@ pub const bufref_T = extern struct {
     br_fnum: c_int,
     br_buf_free_count: c_int,
 };
-pub extern fn __assert_fail(__assertion: [*c]const u8, __file: [*c]const u8, __line: c_uint, __function: [*c]const u8) noreturn;
-pub extern fn __assert_perror_fail(__errnum: c_int, __file: [*c]const u8, __line: c_uint, __function: [*c]const u8) noreturn;
-pub extern fn __assert(__assertion: [*c]const u8, __file: [*c]const u8, __line: c_int) noreturn;
 pub const __gwchar_t = c_int;
 pub const imaxdiv_t = extern struct {
     quot: c_long,
@@ -3334,55 +3335,12 @@ pub const ListSortItem = extern struct {
     idx: c_int,
 };
 pub const ListSorter = ?*const fn (?*const anyopaque, ?*const anyopaque) callconv(.C) c_int;
-pub extern fn gettext(__msgid: [*c]const u8) [*c]u8;
-pub extern fn dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
-pub extern fn __dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
-pub extern fn dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
-pub extern fn __dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
-pub extern fn ngettext(__msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
-pub extern fn dngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
-pub extern fn dcngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong, __category: c_int) [*c]u8;
-pub extern fn textdomain(__domainname: [*c]const u8) [*c]u8;
-pub extern fn bindtextdomain(__domainname: [*c]const u8, __dirname: [*c]const u8) [*c]u8;
-pub extern fn bind_textdomain_codeset(__domainname: [*c]const u8, __codeset: [*c]const u8) [*c]u8;
-pub extern fn __errno_location() [*c]c_int;
-pub const iconv_t = ?*anyopaque;
-pub extern fn iconv_close(__cd: iconv_t) c_int;
-pub extern fn iconv_open(__tocode: [*c]const u8, __fromcode: [*c]const u8) iconv_t;
-pub extern fn iconv(__cd: iconv_t, noalias __inbuf: [*c][*c]u8, noalias __inbytesleft: [*c]usize, noalias __outbuf: [*c][*c]u8, noalias __outbytesleft: [*c]usize) usize;
-pub const MB_MAXCHAR: c_int = 6;
-const enum_unnamed_51 = c_uint;
-pub const ENC_8BIT: c_int = 1;
-pub const ENC_DBCS: c_int = 2;
-pub const ENC_UNICODE: c_int = 4;
-pub const ENC_ENDIAN_B: c_int = 16;
-pub const ENC_ENDIAN_L: c_int = 32;
-pub const ENC_2BYTE: c_int = 64;
-pub const ENC_4BYTE: c_int = 128;
-pub const ENC_2WORD: c_int = 256;
-pub const ENC_LATIN1: c_int = 512;
-pub const ENC_LATIN9: c_int = 1024;
-pub const ENC_MACROMAN: c_int = 2048;
-const enum_unnamed_52 = c_uint;
-pub const CONV_NONE: c_int = 0;
-pub const CONV_TO_UTF8: c_int = 1;
-pub const CONV_9_TO_UTF8: c_int = 2;
-pub const CONV_TO_LATIN1: c_int = 3;
-pub const CONV_TO_LATIN9: c_int = 4;
-pub const CONV_ICONV: c_int = 5;
-pub const ConvFlags = c_uint;
-pub const vimconv_T = extern struct {
-    vc_type: c_int,
-    vc_factor: c_int,
-    vc_fd: iconv_t,
-    vc_fail: bool,
-};
 pub const kZIndexDefaultGrid: c_int = 0;
 pub const kZIndexFloatDefault: c_int = 50;
 pub const kZIndexPopupMenu: c_int = 100;
 pub const kZIndexMessages: c_int = 200;
 pub const kZIndexCmdlinePopupMenu: c_int = 250;
-const enum_unnamed_53 = c_uint;
+const enum_unnamed_51 = c_uint;
 pub const GridLineEvent = extern struct {
     args: [3]c_int,
     icell: c_int,
@@ -3391,413 +3349,6 @@ pub const GridLineEvent = extern struct {
     cur_attr: c_int,
     clear_width: c_int,
 };
-pub const HlMessageChunk = extern struct {
-    text: String,
-    attr: c_int,
-};
-pub const HlMessage = extern struct {
-    size: usize,
-    capacity: usize,
-    items: [*c]HlMessageChunk,
-};
-pub const struct_msg_hist = extern struct {
-    next: [*c]struct_msg_hist,
-    msg: [*c]u8,
-    kind: [*c]const u8,
-    attr: c_int,
-    multiline: bool,
-    multiattr: HlMessage,
-};
-pub const MessageHistoryEntry = struct_msg_hist;
-pub extern var first_msg_hist: [*c]MessageHistoryEntry;
-pub extern var last_msg_hist: [*c]MessageHistoryEntry;
-pub extern var msg_ext_need_clear: bool;
-pub extern var msg_grid: ScreenGrid;
-pub extern var msg_grid_pos: c_int;
-pub extern var msg_grid_adj: ScreenGrid;
-pub extern var msg_scrolled_at_flush: c_int;
-pub extern var msg_grid_scroll_discount: c_int;
-pub extern fn msg_grid_set_pos(row: c_int, scrolled: bool) void;
-pub extern fn msg_use_grid() bool;
-pub extern fn msg_grid_validate() void;
-pub extern fn msg(s: [*c]const u8) c_int;
-pub extern fn verb_msg(s: [*c]const u8) c_int;
-pub extern fn msg_attr(s: [*c]const u8, attr: c_int) c_int;
-pub extern fn msg_multiline_attr(s: [*c]const u8, attr: c_int, check_int: bool, need_clear: [*c]bool) void;
-pub extern fn msg_multiattr(hl_msg: HlMessage, kind: [*c]const u8, history: bool) void;
-pub extern fn msg_attr_keep(s: [*c]const u8, attr: c_int, keep: bool, multiline: bool) bool;
-pub extern fn msg_strtrunc(s: [*c]const u8, force: c_int) [*c]u8;
-pub extern fn trunc_string(s: [*c]const u8, buf: [*c]u8, room_in: c_int, buflen: c_int) void;
-pub extern fn smsg(s: [*c]const u8, ...) c_int;
-pub extern fn smsg_attr(attr: c_int, s: [*c]const u8, ...) c_int;
-pub extern fn smsg_attr_keep(attr: c_int, s: [*c]const u8, ...) c_int;
-pub extern fn reset_last_sourcing() void;
-pub extern fn msg_source(attr: c_int) void;
-pub extern fn emsg_not_now() c_int;
-pub extern fn emsg(s: [*c]const u8) bool;
-pub extern fn emsg_invreg(name: c_int) void;
-pub extern fn semsg(fmt: [*c]const u8, ...) bool;
-pub extern fn semsg_multiline(fmt: [*c]const u8, ...) bool;
-pub extern fn iemsg(s: [*c]const u8) void;
-pub extern fn siemsg(s: [*c]const u8, ...) void;
-pub extern fn internal_error(where: [*c]const u8) void;
-pub extern fn msg_schedule_semsg(fmt: [*c]const u8, ...) void;
-pub extern fn msg_trunc_attr(s: [*c]u8, force: bool, attr: c_int) [*c]u8;
-pub extern fn msg_may_trunc(force: bool, s: [*c]u8) [*c]u8;
-pub extern fn hl_msg_free(hl_msg: HlMessage) void;
-pub extern fn delete_first_msg() c_int;
-pub extern fn ex_messages(eap_p: ?*anyopaque) void;
-pub extern fn msg_end_prompt() void;
-pub extern fn wait_return(redraw: c_int) void;
-pub extern fn set_keep_msg(s: [*c]const u8, attr: c_int) void;
-pub extern fn messaging() bool;
-pub extern fn msgmore(n: c_long) void;
-pub extern fn msg_ext_set_kind(msg_kind: [*c]const u8) void;
-pub extern fn msg_start() void;
-pub extern fn msg_starthere() void;
-pub extern fn msg_putchar(c: c_int) void;
-pub extern fn msg_putchar_attr(c: c_int, attr: c_int) void;
-pub extern fn msg_outnum(n: c_long) void;
-pub extern fn msg_home_replace(fname: [*c]const u8) void;
-pub extern fn msg_home_replace_hl(fname: [*c]const u8) void;
-pub extern fn msg_outtrans(str: [*c]const u8) c_int;
-pub extern fn msg_outtrans_attr(str: [*c]const u8, attr: c_int) c_int;
-pub extern fn msg_outtrans_len(str: [*c]const u8, len: c_int) c_int;
-pub extern fn msg_outtrans_one(p: [*c]const u8, attr: c_int) [*c]const u8;
-pub extern fn msg_outtrans_len_attr(msgstr: [*c]const u8, len: c_int, attr: c_int) c_int;
-pub extern fn msg_make(arg: [*c]const u8) void;
-pub extern fn msg_outtrans_special(strstart: [*c]const u8, from: bool, maxlen: c_int) c_int;
-pub extern fn str2special_save(str: [*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]u8;
-pub extern fn str2special(sp: [*c][*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]const u8;
-pub extern fn str2specialbuf(sp: [*c]const u8, buf: [*c]u8, len: usize) void;
-pub extern fn msg_prt_line(s: [*c]const u8, list: c_int) void;
-pub extern fn msg_puts(s: [*c]const u8) void;
-pub extern fn msg_puts_title(s: [*c]const u8) void;
-pub extern fn msg_outtrans_long_attr(longstr: [*c]const u8, attr: c_int) void;
-pub extern fn msg_outtrans_long_len_attr(longstr: [*c]const u8, len: c_int, attr: c_int) void;
-pub extern fn msg_puts_attr(s: [*c]const u8, attr: c_int) void;
-pub extern fn msg_puts_attr_len(str: [*c]const u8, len: ptrdiff_t, attr: c_int) void;
-pub extern fn msg_printf_attr(attr: c_int, fmt: [*c]const u8, ...) void;
-pub extern fn message_filtered(msg: [*c]const u8) bool;
-pub extern fn msg_scrollsize() c_int;
-pub extern fn msg_do_throttle() bool;
-pub extern fn msg_scroll_up(may_throttle: bool, zerocmd: bool) void;
-pub extern fn msg_scroll_flush() void;
-pub extern fn msg_reset_scroll() void;
-pub extern fn may_clear_sb_text() void;
-pub extern fn sb_text_start_cmdline() void;
-pub extern fn sb_text_restart_cmdline() void;
-pub extern fn sb_text_end_cmdline() void;
-pub extern fn clear_sb_text(all: c_int) void;
-pub extern fn show_sb_text() void;
-pub extern fn msg_sb_eol() void;
-pub extern fn msg_use_printf() c_int;
-pub extern fn msg_moremsg(full: c_int) void;
-pub extern fn repeat_message() void;
-pub extern fn msg_clr_eos() void;
-pub extern fn msg_clr_eos_force() void;
-pub extern fn msg_clr_cmdline() void;
-pub extern fn msg_end() c_int;
-pub extern fn msg_ext_ui_flush() void;
-pub extern fn msg_ext_flush_showmode() void;
-pub extern fn msg_ext_clear(force: bool) void;
-pub extern fn msg_ext_clear_later() void;
-pub extern fn msg_ext_check_clear() void;
-pub extern fn msg_ext_is_visible() bool;
-pub extern fn msg_check() void;
-pub extern fn redirecting() c_int;
-pub extern fn verbose_enter() void;
-pub extern fn verbose_leave() void;
-pub extern fn verbose_enter_scroll() void;
-pub extern fn verbose_leave_scroll() void;
-pub extern fn verbose_stop() void;
-pub extern fn verbose_open() c_int;
-pub extern fn give_warning(message: [*c]const u8, hl: bool) void;
-pub extern fn give_warning2(message: [*c]const u8, a1: [*c]const u8, hl: bool) void;
-pub extern fn msg_advance(col: c_int) void;
-pub extern fn do_dialog(@"type": c_int, title: [*c]u8, message: [*c]u8, buttons: [*c]u8, dfltbutton: c_int, textfield: [*c]u8, ex_cmd: c_int) c_int;
-pub extern fn display_confirm_msg() void;
-pub extern fn vim_dialog_yesno(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
-pub extern fn vim_dialog_yesnocancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
-pub extern fn vim_dialog_yesnoallcancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
-pub extern fn msg_check_for_delay(check_msg_scroll: bool) void;
-pub inline fn tv_list_ref(l: [*c]list_T) void {
-    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        return;
-    }
-    l.*.lv_refcount += 1;
-}
-pub inline fn tv_list_set_ret(tv: [*c]typval_T, l: [*c]list_T) void {
-    tv.*.v_type = @bitCast(c_uint, VAR_LIST);
-    tv.*.vval.v_list = l;
-    tv_list_ref(l);
-}
-pub fn tv_list_locked(l: [*c]const list_T) callconv(.C) VarLockStatus {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        return @bitCast(c_uint, VAR_FIXED);
-    }
-    return l.*.lv_lock;
-}
-pub fn tv_list_set_lock(l: [*c]list_T, lock: VarLockStatus) callconv(.C) void {
-    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        _ = blk: {
-            _ = @sizeOf(c_int);
-            break :blk blk_1: {
-                break :blk_1 if (lock == @bitCast(c_uint, VAR_FIXED)) {} else {
-                    __assert_fail("lock == VAR_FIXED", "_nvim/src/nvim/eval/typval.h", @bitCast(c_uint, @as(c_int, 151)), "void tv_list_set_lock(list_T *const, const VarLockStatus)");
-                };
-            };
-        };
-        return;
-    }
-    l.*.lv_lock = lock;
-}
-pub fn tv_list_set_copyid(l: [*c]list_T, copyid: c_int) callconv(.C) void {
-    l.*.lv_copyID = copyid;
-}
-pub fn tv_list_len(l: [*c]const list_T) callconv(.C) c_int {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        return 0;
-    }
-    return l.*.lv_len;
-}
-pub fn tv_list_copyid(l: [*c]const list_T) callconv(.C) c_int {
-    return l.*.lv_copyID;
-}
-pub fn tv_list_latest_copy(l: [*c]const list_T) callconv(.C) [*c]list_T {
-    return l.*.lv_copylist;
-}
-pub fn tv_list_uidx(l: [*c]const list_T, arg_n: c_int) callconv(.C) c_int {
-    var n = arg_n;
-    if (n < @as(c_int, 0)) {
-        n += tv_list_len(l);
-    }
-    if ((n < @as(c_int, 0)) or (n >= tv_list_len(l))) {
-        return -@as(c_int, 1);
-    }
-    return n;
-}
-pub fn tv_list_has_watchers(l: [*c]const list_T) callconv(.C) bool {
-    return (l != null) and (l.*.lv_watch != null);
-}
-pub fn tv_list_first(l: [*c]const list_T) callconv(.C) [*c]listitem_T {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        return null;
-    }
-    return l.*.lv_first;
-}
-pub fn tv_list_last(l: [*c]const list_T) callconv(.C) [*c]listitem_T {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        return null;
-    }
-    return l.*.lv_last;
-}
-pub inline fn tv_dict_set_ret(tv: [*c]typval_T, d: [*c]dict_T) void {
-    tv.*.v_type = @bitCast(c_uint, VAR_DICT);
-    tv.*.vval.v_dict = d;
-    if (d != @ptrCast([*c]dict_T, @alignCast(@import("std").meta.alignment([*c]dict_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        d.*.dv_refcount += 1;
-    }
-}
-pub fn tv_dict_len(d: [*c]const dict_T) callconv(.C) c_long {
-    if (d == @ptrCast([*c]const dict_T, @alignCast(@import("std").meta.alignment([*c]const dict_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        return 0;
-    }
-    return @bitCast(c_long, d.*.dv_hashtab.ht_used);
-}
-pub fn tv_dict_is_watched(d: [*c]const dict_T) callconv(.C) bool {
-    return (d != null) and !(QUEUE_EMPTY(&d.*.watchers) != 0);
-}
-pub inline fn tv_blob_set_ret(tv: [*c]typval_T, b: [*c]blob_T) void {
-    tv.*.v_type = @bitCast(c_uint, VAR_BLOB);
-    tv.*.vval.v_blob = b;
-    if (b != @ptrCast([*c]blob_T, @alignCast(@import("std").meta.alignment([*c]blob_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        b.*.bv_refcount += 1;
-    }
-}
-pub fn tv_blob_len(b: [*c]const blob_T) callconv(.C) c_int {
-    if (b == @ptrCast([*c]const blob_T, @alignCast(@import("std").meta.alignment([*c]const blob_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        return 0;
-    }
-    return b.*.bv_ga.ga_len;
-}
-pub inline fn tv_blob_get(b: [*c]const blob_T, arg_idx: c_int) u8 {
-    var idx = arg_idx;
-    return (blk: {
-        const tmp = idx;
-        if (tmp >= 0) break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), b.*.bv_ga.ga_data)) + @intCast(usize, tmp) else break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), b.*.bv_ga.ga_data)) - ~@bitCast(usize, @intCast(isize, tmp) +% -1);
-    }).*;
-}
-pub inline fn tv_blob_set(blob: [*c]blob_T, arg_idx: c_int, arg_c: u8) void {
-    var idx = arg_idx;
-    var c = arg_c;
-    (blk: {
-        const tmp = idx;
-        if (tmp >= 0) break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), blob.*.bv_ga.ga_data)) + @intCast(usize, tmp) else break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), blob.*.bv_ga.ga_data)) - ~@bitCast(usize, @intCast(isize, tmp) +% -1);
-    }).* = c;
-}
-pub fn tv_init(tv: [*c]typval_T) callconv(.C) void {
-    if (tv != @ptrCast([*c]typval_T, @alignCast(@import("std").meta.alignment([*c]typval_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
-        _ = memset(@ptrCast(?*anyopaque, tv), @as(c_int, 0), @sizeOf(typval_T));
-    }
-}
-pub extern const tv_empty_string: [*c]const u8;
-pub extern var tv_in_free_unref_items: bool;
-pub fn tv_get_float_chk(tv: [*c]const typval_T, ret_f: [*c]float_T) callconv(.C) bool {
-    if (tv.*.v_type == @bitCast(c_uint, VAR_FLOAT)) {
-        ret_f.* = tv.*.vval.v_float;
-        return @as(c_int, 1) != 0;
-    }
-    if (tv.*.v_type == @bitCast(c_uint, VAR_NUMBER)) {
-        ret_f.* = @intToFloat(float_T, tv.*.vval.v_number);
-        return @as(c_int, 1) != 0;
-    }
-    _ = semsg("%s", gettext("E808: Number or Float required"));
-    return @as(c_int, 0) != 0;
-}
-pub inline fn tv_dict_watcher_node_data(arg_q: [*c]QUEUE) [*c]DictWatcher {
-    var q = arg_q;
-    return @ptrCast([*c]DictWatcher, @alignCast(@import("std").meta.alignment([*c]DictWatcher), @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), q)) - @offsetOf(struct_dict_watcher, "node")));
-}
-pub fn tv_is_func(tv: typval_T) callconv(.C) bool {
-    return (tv.v_type == @bitCast(c_uint, VAR_FUNC)) or (tv.v_type == @bitCast(c_uint, VAR_PARTIAL));
-}
-pub extern fn tv_list_item_remove(l: [*c]list_T, item: [*c]listitem_T) [*c]listitem_T;
-pub extern fn tv_list_watch_add(l: [*c]list_T, lw: [*c]listwatch_T) void;
-pub extern fn tv_list_watch_remove(l: [*c]list_T, lwrem: [*c]listwatch_T) void;
-pub extern fn tv_list_watch_fix(l: [*c]list_T, item: [*c]const listitem_T) void;
-pub extern fn tv_list_alloc(len: ptrdiff_t) [*c]list_T;
-pub extern fn tv_list_init_static10(sl: [*c]staticList10_T) void;
-pub extern fn tv_list_init_static(l: [*c]list_T) void;
-pub extern fn tv_list_free_contents(l: [*c]list_T) void;
-pub extern fn tv_list_free_list(l: [*c]list_T) void;
-pub extern fn tv_list_free(l: [*c]list_T) void;
-pub extern fn tv_list_unref(l: [*c]list_T) void;
-pub extern fn tv_list_drop_items(l: [*c]list_T, item: [*c]listitem_T, item2: [*c]listitem_T) void;
-pub extern fn tv_list_remove_items(l: [*c]list_T, item: [*c]listitem_T, item2: [*c]listitem_T) void;
-pub extern fn tv_list_move_items(l: [*c]list_T, item: [*c]listitem_T, item2: [*c]listitem_T, tgt_l: [*c]list_T, cnt: c_int) void;
-pub extern fn tv_list_insert(l: [*c]list_T, ni: [*c]listitem_T, item: [*c]listitem_T) void;
-pub extern fn tv_list_insert_tv(l: [*c]list_T, tv: [*c]typval_T, item: [*c]listitem_T) void;
-pub extern fn tv_list_append(l: [*c]list_T, item: [*c]listitem_T) void;
-pub extern fn tv_list_append_tv(l: [*c]list_T, tv: [*c]typval_T) void;
-pub extern fn tv_list_append_owned_tv(l: [*c]list_T, tv: typval_T) void;
-pub extern fn tv_list_append_list(l: [*c]list_T, itemlist: [*c]list_T) void;
-pub extern fn tv_list_append_dict(l: [*c]list_T, dict: [*c]dict_T) void;
-pub extern fn tv_list_append_string(l: [*c]list_T, str: [*c]const u8, len: isize) void;
-pub extern fn tv_list_append_allocated_string(l: [*c]list_T, str: [*c]u8) void;
-pub extern fn tv_list_append_number(l: [*c]list_T, n: varnumber_T) void;
-pub extern fn tv_list_copy(conv: [*c]const vimconv_T, orig: [*c]list_T, deep: bool, copyID: c_int) [*c]list_T;
-pub extern fn tv_list_flatten(list: [*c]list_T, first: [*c]listitem_T, maxitems: c_long, maxdepth: c_long) void;
-pub extern fn tv_list_extend(l1: [*c]list_T, l2: [*c]list_T, bef: [*c]listitem_T) void;
-pub extern fn tv_list_concat(l1: [*c]list_T, l2: [*c]list_T, tv: [*c]typval_T) c_int;
-pub extern fn tv_list_join(gap: [*c]garray_T, l: [*c]list_T, sep: [*c]const u8) c_int;
-pub extern fn f_join(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_list2str(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn tv_list_remove(argvars: [*c]typval_T, rettv: [*c]typval_T, arg_errmsg: [*c]const u8) void;
-pub extern fn f_sort(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_uniq(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn tv_list_equal(l1: [*c]list_T, l2: [*c]list_T, ic: bool, recursive: bool) bool;
-pub extern fn tv_list_reverse(l: [*c]list_T) void;
-pub extern fn tv_list_item_sort(l: [*c]list_T, ptrs: [*c]ListSortItem, item_compare_func: ListSorter, errp: [*c]const bool) void;
-pub extern fn tv_list_find(l: [*c]list_T, n: c_int) [*c]listitem_T;
-pub extern fn tv_list_find_nr(l: [*c]list_T, n: c_int, ret_error: [*c]bool) varnumber_T;
-pub extern fn tv_list_find_str(l: [*c]list_T, n: c_int) [*c]const u8;
-pub extern fn tv_list_idx_of_item(l: [*c]const list_T, item: [*c]const listitem_T) c_long;
-pub extern fn tv_dict_watcher_add(dict: [*c]dict_T, key_pattern: [*c]const u8, key_pattern_len: usize, callback: Callback) void;
-pub extern fn tv_callback_equal(cb1: [*c]const Callback, cb2: [*c]const Callback) bool;
-pub extern fn callback_free(callback: [*c]Callback) void;
-pub extern fn callback_put(cb: [*c]Callback, tv: [*c]typval_T) void;
-pub extern fn callback_copy(dest: [*c]Callback, src: [*c]Callback) void;
-pub extern fn callback_to_string(cb: [*c]Callback) [*c]u8;
-pub extern fn tv_dict_watcher_remove(dict: [*c]dict_T, key_pattern: [*c]const u8, key_pattern_len: usize, callback: Callback) bool;
-pub extern fn tv_dict_watcher_notify(dict: [*c]dict_T, key: [*c]const u8, newtv: [*c]typval_T, oldtv: [*c]typval_T) void;
-pub extern fn tv_dict_item_alloc_len(key: [*c]const u8, key_len: usize) [*c]dictitem_T;
-pub extern fn tv_dict_item_alloc(key: [*c]const u8) [*c]dictitem_T;
-pub extern fn tv_dict_item_free(item: [*c]dictitem_T) void;
-pub extern fn tv_dict_item_copy(di: [*c]dictitem_T) [*c]dictitem_T;
-pub extern fn tv_dict_item_remove(dict: [*c]dict_T, item: [*c]dictitem_T) void;
-pub extern fn tv_dict_alloc() [*c]dict_T;
-pub extern fn tv_dict_free_contents(d: [*c]dict_T) void;
-pub extern fn tv_dict_free_dict(d: [*c]dict_T) void;
-pub extern fn tv_dict_free(d: [*c]dict_T) void;
-pub extern fn tv_dict_unref(d: [*c]dict_T) void;
-pub extern fn tv_dict_find(d: [*c]const dict_T, key: [*c]const u8, len: ptrdiff_t) [*c]dictitem_T;
-pub extern fn tv_dict_get_tv(d: [*c]dict_T, key: [*c]const u8, rettv: [*c]typval_T) c_int;
-pub extern fn tv_dict_get_number(d: [*c]const dict_T, key: [*c]const u8) varnumber_T;
-pub extern fn tv_dict_get_number_def(d: [*c]const dict_T, key: [*c]const u8, def: c_int) varnumber_T;
-pub extern fn tv_dict_to_env(denv: [*c]dict_T) [*c][*c]u8;
-pub extern fn tv_dict_get_string(d: [*c]const dict_T, key: [*c]const u8, save: bool) [*c]u8;
-pub extern fn tv_dict_get_string_buf(d: [*c]const dict_T, key: [*c]const u8, numbuf: [*c]u8) [*c]const u8;
-pub extern fn tv_dict_get_string_buf_chk(d: [*c]const dict_T, key: [*c]const u8, key_len: ptrdiff_t, numbuf: [*c]u8, def: [*c]const u8) [*c]const u8;
-pub extern fn tv_dict_get_callback(d: [*c]dict_T, key: [*c]const u8, key_len: ptrdiff_t, result: [*c]Callback) bool;
-pub extern fn tv_dict_wrong_func_name(d: [*c]dict_T, tv: [*c]typval_T, name: [*c]const u8) c_int;
-pub extern fn tv_dict_add(d: [*c]dict_T, item: [*c]dictitem_T) c_int;
-pub extern fn tv_dict_add_list(d: [*c]dict_T, key: [*c]const u8, key_len: usize, list: [*c]list_T) c_int;
-pub extern fn tv_dict_add_tv(d: [*c]dict_T, key: [*c]const u8, key_len: usize, tv: [*c]typval_T) c_int;
-pub extern fn tv_dict_add_dict(d: [*c]dict_T, key: [*c]const u8, key_len: usize, dict: [*c]dict_T) c_int;
-pub extern fn tv_dict_add_nr(d: [*c]dict_T, key: [*c]const u8, key_len: usize, nr: varnumber_T) c_int;
-pub extern fn tv_dict_add_float(d: [*c]dict_T, key: [*c]const u8, key_len: usize, nr: float_T) c_int;
-pub extern fn tv_dict_add_bool(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: BoolVarValue) c_int;
-pub extern fn tv_dict_add_str(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: [*c]const u8) c_int;
-pub extern fn tv_dict_add_str_len(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: [*c]const u8, len: c_int) c_int;
-pub extern fn tv_dict_add_allocated_str(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: [*c]u8) c_int;
-pub extern fn tv_dict_clear(d: [*c]dict_T) void;
-pub extern fn tv_dict_extend(d1: [*c]dict_T, d2: [*c]dict_T, action: [*c]const u8) void;
-pub extern fn tv_dict_equal(d1: [*c]dict_T, d2: [*c]dict_T, ic: bool, recursive: bool) bool;
-pub extern fn tv_dict_copy(conv: [*c]const vimconv_T, orig: [*c]dict_T, deep: bool, copyID: c_int) [*c]dict_T;
-pub extern fn tv_dict_set_keys_readonly(dict: [*c]dict_T) void;
-pub extern fn tv_blob_alloc() [*c]blob_T;
-pub extern fn tv_blob_free(b: [*c]blob_T) void;
-pub extern fn tv_blob_unref(b: [*c]blob_T) void;
-pub extern fn tv_blob_equal(b1: [*c]const blob_T, b2: [*c]const blob_T) bool;
-pub extern fn tv_blob_check_index(bloblen: c_int, n1: varnumber_T, quiet: bool) c_int;
-pub extern fn tv_blob_check_range(bloblen: c_int, n1: varnumber_T, n2: varnumber_T, quiet: bool) c_int;
-pub extern fn tv_blob_set_range(dest: [*c]blob_T, n1: c_int, n2: c_int, src: [*c]typval_T) c_int;
-pub extern fn tv_blob_set_append(blob: [*c]blob_T, idx: c_int, byte: u8) void;
-pub extern fn tv_blob_remove(argvars: [*c]typval_T, rettv: [*c]typval_T, arg_errmsg: [*c]const u8) void;
-pub extern fn f_blob2list(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_list2blob(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn tv_list_alloc_ret(ret_tv: [*c]typval_T, len: ptrdiff_t) [*c]list_T;
-pub extern fn tv_dict_alloc_lock(lock: VarLockStatus) [*c]dict_T;
-pub extern fn tv_dict_alloc_ret(ret_tv: [*c]typval_T) void;
-pub extern fn f_items(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_keys(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_values(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_has_key(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn tv_dict_remove(argvars: [*c]typval_T, rettv: [*c]typval_T, arg_errmsg: [*c]const u8) void;
-pub extern fn tv_blob_alloc_ret(ret_tv: [*c]typval_T) void;
-pub extern fn tv_blob_copy(from: [*c]typval_T, to: [*c]typval_T) void;
-pub extern fn tv_clear(tv: [*c]typval_T) void;
-pub extern fn tv_free(tv: [*c]typval_T) void;
-pub extern fn tv_copy(from: [*c]const typval_T, to: [*c]typval_T) void;
-pub extern fn tv_item_lock(tv: [*c]typval_T, deep: c_int, lock: bool, check_refcount: bool) void;
-pub extern fn tv_islocked(tv: [*c]const typval_T) bool;
-pub extern fn tv_check_lock(tv: [*c]const typval_T, name: [*c]const u8, name_len: usize) bool;
-pub extern fn value_check_lock(lock: VarLockStatus, name: [*c]const u8, name_len: usize) bool;
-pub extern fn tv_equal(tv1: [*c]typval_T, tv2: [*c]typval_T, ic: bool, recursive: bool) bool;
-pub extern fn tv_check_str_or_nr(tv: [*c]const typval_T) bool;
-pub extern fn tv_check_num(tv: [*c]const typval_T) bool;
-pub extern fn tv_check_str(tv: [*c]const typval_T) bool;
-pub extern fn tv_get_number(tv: [*c]const typval_T) varnumber_T;
-pub extern fn tv_get_number_chk(tv: [*c]const typval_T, ret_error: [*c]bool) varnumber_T;
-pub extern fn tv_get_lnum(tv: [*c]const typval_T) linenr_T;
-pub extern fn tv_get_float(tv: [*c]const typval_T) float_T;
-pub extern fn tv_check_for_string_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_nonempty_string_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_number_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_opt_number_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_blob_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_list_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_dict_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_opt_dict_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_string_or_list_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_string_or_func_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_check_for_list_or_blob_arg(args: [*c]const typval_T, idx: c_int) c_int;
-pub extern fn tv_get_string_buf_chk(tv: [*c]const typval_T, buf: [*c]u8) [*c]const u8;
-pub extern fn tv_get_string_chk(tv: [*c]const typval_T) [*c]const u8;
-pub extern fn tv_get_string(tv: [*c]const typval_T) [*c]const u8;
-pub extern fn tv_get_string_buf(tv: [*c]const typval_T, buf: [*c]u8) [*c]const u8;
-pub extern fn tv2bool(tv: [*c]const typval_T) bool;
 pub const RgbValue = i32;
 pub const HL_INVERSE: c_int = 1;
 pub const HL_BOLD: c_int = 2;
@@ -3970,712 +3521,581 @@ pub fn __ac_Wang_hash(arg_key: khint_t) callconv(.C) khint_t {
     return key;
 }
 pub const kh_cstr_t = [*c]const u8;
-pub const VirtTextChunk = extern struct {
-    text: [*c]u8,
-    hl_id: c_int,
-};
-pub const VirtText = extern struct {
-    size: usize,
-    capacity: usize,
-    items: [*c]VirtTextChunk,
-};
-const union_unnamed_54 = extern union {
-    splice: ExtmarkSplice,
-    move: ExtmarkMove,
-    savepos: ExtmarkSavePos,
-};
-pub const struct_undo_object = extern struct {
-    type: UndoObjectType,
-    data: union_unnamed_54,
-};
-pub const ExtmarkUndoObject = struct_undo_object;
-pub const extmark_undo_vec_t = extern struct {
-    size: usize,
-    capacity: usize,
-    items: [*c]ExtmarkUndoObject,
-};
-pub const kExtmarkNOOP: c_int = 0;
-pub const kExtmarkUndo: c_int = 1;
-pub const kExtmarkNoUndo: c_int = 2;
-pub const kExtmarkUndoNoRedo: c_int = 3;
-pub const ExtmarkOp = c_uint;
-pub const kDecorLevelNone: c_int = 0;
-pub const kDecorLevelVisible: c_int = 1;
-pub const kDecorLevelVirtLine: c_int = 2;
-pub const DecorLevel = c_uint;
 pub const cstr_t = [*c]const u8;
 pub const ptr_t = ?*anyopaque;
-pub const KITTY_KEY_ESCAPE: c_int = 57344;
-pub const KITTY_KEY_ENTER: c_int = 57345;
-pub const KITTY_KEY_TAB: c_int = 57346;
-pub const KITTY_KEY_BACKSPACE: c_int = 57347;
-pub const KITTY_KEY_INSERT: c_int = 57348;
-pub const KITTY_KEY_DELETE: c_int = 57349;
-pub const KITTY_KEY_LEFT: c_int = 57350;
-pub const KITTY_KEY_RIGHT: c_int = 57351;
-pub const KITTY_KEY_UP: c_int = 57352;
-pub const KITTY_KEY_DOWN: c_int = 57353;
-pub const KITTY_KEY_PAGE_UP: c_int = 57354;
-pub const KITTY_KEY_PAGE_DOWN: c_int = 57355;
-pub const KITTY_KEY_HOME: c_int = 57356;
-pub const KITTY_KEY_END: c_int = 57357;
-pub const KITTY_KEY_CAPS_LOCK: c_int = 57358;
-pub const KITTY_KEY_SCROLL_LOCK: c_int = 57359;
-pub const KITTY_KEY_NUM_LOCK: c_int = 57360;
-pub const KITTY_KEY_PRINT_SCREEN: c_int = 57361;
-pub const KITTY_KEY_PAUSE: c_int = 57362;
-pub const KITTY_KEY_MENU: c_int = 57363;
-pub const KITTY_KEY_F1: c_int = 57364;
-pub const KITTY_KEY_F2: c_int = 57365;
-pub const KITTY_KEY_F3: c_int = 57366;
-pub const KITTY_KEY_F4: c_int = 57367;
-pub const KITTY_KEY_F5: c_int = 57368;
-pub const KITTY_KEY_F6: c_int = 57369;
-pub const KITTY_KEY_F7: c_int = 57370;
-pub const KITTY_KEY_F8: c_int = 57371;
-pub const KITTY_KEY_F9: c_int = 57372;
-pub const KITTY_KEY_F10: c_int = 57373;
-pub const KITTY_KEY_F11: c_int = 57374;
-pub const KITTY_KEY_F12: c_int = 57375;
-pub const KITTY_KEY_F13: c_int = 57376;
-pub const KITTY_KEY_F14: c_int = 57377;
-pub const KITTY_KEY_F15: c_int = 57378;
-pub const KITTY_KEY_F16: c_int = 57379;
-pub const KITTY_KEY_F17: c_int = 57380;
-pub const KITTY_KEY_F18: c_int = 57381;
-pub const KITTY_KEY_F19: c_int = 57382;
-pub const KITTY_KEY_F20: c_int = 57383;
-pub const KITTY_KEY_F21: c_int = 57384;
-pub const KITTY_KEY_F22: c_int = 57385;
-pub const KITTY_KEY_F23: c_int = 57386;
-pub const KITTY_KEY_F24: c_int = 57387;
-pub const KITTY_KEY_F25: c_int = 57388;
-pub const KITTY_KEY_F26: c_int = 57389;
-pub const KITTY_KEY_F27: c_int = 57390;
-pub const KITTY_KEY_F28: c_int = 57391;
-pub const KITTY_KEY_F29: c_int = 57392;
-pub const KITTY_KEY_F30: c_int = 57393;
-pub const KITTY_KEY_F31: c_int = 57394;
-pub const KITTY_KEY_F32: c_int = 57395;
-pub const KITTY_KEY_F33: c_int = 57396;
-pub const KITTY_KEY_F34: c_int = 57397;
-pub const KITTY_KEY_F35: c_int = 57398;
-pub const KITTY_KEY_KP_0: c_int = 57399;
-pub const KITTY_KEY_KP_1: c_int = 57400;
-pub const KITTY_KEY_KP_2: c_int = 57401;
-pub const KITTY_KEY_KP_3: c_int = 57402;
-pub const KITTY_KEY_KP_4: c_int = 57403;
-pub const KITTY_KEY_KP_5: c_int = 57404;
-pub const KITTY_KEY_KP_6: c_int = 57405;
-pub const KITTY_KEY_KP_7: c_int = 57406;
-pub const KITTY_KEY_KP_8: c_int = 57407;
-pub const KITTY_KEY_KP_9: c_int = 57408;
-pub const KITTY_KEY_KP_DECIMAL: c_int = 57409;
-pub const KITTY_KEY_KP_DIVIDE: c_int = 57410;
-pub const KITTY_KEY_KP_MULTIPLY: c_int = 57411;
-pub const KITTY_KEY_KP_SUBTRACT: c_int = 57412;
-pub const KITTY_KEY_KP_ADD: c_int = 57413;
-pub const KITTY_KEY_KP_ENTER: c_int = 57414;
-pub const KITTY_KEY_KP_EQUAL: c_int = 57415;
-pub const KITTY_KEY_KP_SEPARATOR: c_int = 57416;
-pub const KITTY_KEY_KP_LEFT: c_int = 57417;
-pub const KITTY_KEY_KP_RIGHT: c_int = 57418;
-pub const KITTY_KEY_KP_UP: c_int = 57419;
-pub const KITTY_KEY_KP_DOWN: c_int = 57420;
-pub const KITTY_KEY_KP_PAGE_UP: c_int = 57421;
-pub const KITTY_KEY_KP_PAGE_DOWN: c_int = 57422;
-pub const KITTY_KEY_KP_HOME: c_int = 57423;
-pub const KITTY_KEY_KP_END: c_int = 57424;
-pub const KITTY_KEY_KP_INSERT: c_int = 57425;
-pub const KITTY_KEY_KP_DELETE: c_int = 57426;
-pub const KITTY_KEY_KP_BEGIN: c_int = 57427;
-pub const KITTY_KEY_MEDIA_PLAY: c_int = 57428;
-pub const KITTY_KEY_MEDIA_PAUSE: c_int = 57429;
-pub const KITTY_KEY_MEDIA_PLAY_PAUSE: c_int = 57430;
-pub const KITTY_KEY_MEDIA_REVERSE: c_int = 57431;
-pub const KITTY_KEY_MEDIA_STOP: c_int = 57432;
-pub const KITTY_KEY_MEDIA_FAST_FORWARD: c_int = 57433;
-pub const KITTY_KEY_MEDIA_REWIND: c_int = 57434;
-pub const KITTY_KEY_MEDIA_TRACK_NEXT: c_int = 57435;
-pub const KITTY_KEY_MEDIA_TRACK_PREVIOUS: c_int = 57436;
-pub const KITTY_KEY_MEDIA_RECORD: c_int = 57437;
-pub const KITTY_KEY_LOWER_VOLUME: c_int = 57438;
-pub const KITTY_KEY_RAISE_VOLUME: c_int = 57439;
-pub const KITTY_KEY_MUTE_VOLUME: c_int = 57440;
-pub const KITTY_KEY_LEFT_SHIFT: c_int = 57441;
-pub const KITTY_KEY_LEFT_CONTROL: c_int = 57442;
-pub const KITTY_KEY_LEFT_ALT: c_int = 57443;
-pub const KITTY_KEY_LEFT_SUPER: c_int = 57444;
-pub const KITTY_KEY_LEFT_HYPER: c_int = 57445;
-pub const KITTY_KEY_LEFT_META: c_int = 57446;
-pub const KITTY_KEY_RIGHT_SHIFT: c_int = 57447;
-pub const KITTY_KEY_RIGHT_CONTROL: c_int = 57448;
-pub const KITTY_KEY_RIGHT_ALT: c_int = 57449;
-pub const KITTY_KEY_RIGHT_SUPER: c_int = 57450;
-pub const KITTY_KEY_RIGHT_HYPER: c_int = 57451;
-pub const KITTY_KEY_RIGHT_META: c_int = 57452;
-pub const KITTY_KEY_ISO_LEVEL3_SHIFT: c_int = 57453;
-pub const KITTY_KEY_ISO_LEVEL5_SHIFT: c_int = 57454;
-pub const KittyKey = c_uint;
-pub const UIClientHandler = extern struct {
-    name: [*c]const u8,
-    @"fn": ?*const fn (Array) callconv(.C) void,
-};
-pub extern var grid_line_buf_size: usize;
-pub extern var grid_line_buf_char: [*c]schar_T;
-pub extern var grid_line_buf_attr: [*c]sattr_T;
-pub extern var ui_client_channel_id: u64;
-pub extern var ui_client_attached: bool;
-pub extern var ui_client_bg_response: TriState;
-pub extern var ui_client_forward_stdin: bool;
-pub extern fn ui_client_start_server(argc: c_int, argv: [*c][*c]u8) u64;
-pub extern fn ui_client_attach(width: c_int, height: c_int, term: [*c]u8) void;
-pub extern fn ui_client_detach() void;
-pub extern fn ui_client_run(remote_ui: bool) noreturn;
-pub extern fn ui_client_stop() void;
-pub extern fn ui_client_set_size(width: c_int, height: c_int) void;
-pub extern fn ui_client_get_redraw_handler(name: [*c]const u8, name_len: usize, @"error": [*c]Error) UIClientHandler;
-pub extern fn handle_ui_client_redraw(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
-pub extern fn ui_client_event_grid_resize(args: Array) void;
-pub extern fn ui_client_event_grid_line(args: Array) noreturn;
-pub extern fn ui_client_event_raw_line(g: [*c]GridLineEvent) void;
-pub extern fn ui_client_event_mode_info_set(args: Array) void;
-pub extern fn ui_client_event_update_menu(args: Array) void;
-pub extern fn ui_client_event_busy_start(args: Array) void;
-pub extern fn ui_client_event_busy_stop(args: Array) void;
-pub extern fn ui_client_event_mouse_on(args: Array) void;
-pub extern fn ui_client_event_mouse_off(args: Array) void;
-pub extern fn ui_client_event_mode_change(args: Array) void;
-pub extern fn ui_client_event_bell(args: Array) void;
-pub extern fn ui_client_event_visual_bell(args: Array) void;
-pub extern fn ui_client_event_flush(args: Array) void;
-pub extern fn ui_client_event_suspend(args: Array) void;
-pub extern fn ui_client_event_set_title(args: Array) void;
-pub extern fn ui_client_event_set_icon(args: Array) void;
-pub extern fn ui_client_event_screenshot(args: Array) void;
-pub extern fn ui_client_event_option_set(args: Array) void;
-pub extern fn ui_client_event_default_colors_set(args: Array) void;
-pub extern fn ui_client_event_hl_attr_define(args: Array) void;
-pub extern fn ui_client_event_grid_clear(args: Array) void;
-pub extern fn ui_client_event_grid_cursor_goto(args: Array) void;
-pub extern fn ui_client_event_grid_scroll(args: Array) void;
-pub extern fn ui_client_handler_hash(str: [*c]const u8, len: usize) c_int;
-pub const kh_int_int_map_t = extern struct {
+pub const kh_int_t = extern struct {
     n_buckets: khint_t,
     size: khint_t,
     n_occupied: khint_t,
     upper_bound: khint_t,
     flags: [*c]khint32_t,
     keys: [*c]c_int,
-    vals: [*c]c_int,
+    vals_buf: [*c]u8,
 };
-pub extern fn kh_init_int_int_map() [*c]kh_int_int_map_t;
-pub extern fn kh_dealloc_int_int_map(h: [*c]kh_int_int_map_t) void;
-pub extern fn kh_destroy_int_int_map(h: [*c]kh_int_int_map_t) void;
-pub extern fn kh_clear_int_int_map(h: [*c]kh_int_int_map_t) void;
-pub extern fn kh_get_int_int_map(h: [*c]const kh_int_int_map_t, key: c_int) khint_t;
-pub extern fn kh_resize_int_int_map(h: [*c]kh_int_int_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_int_int_map(h: [*c]kh_int_int_map_t, key: c_int, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_int_int_map(h: [*c]kh_int_int_map_t, x: khint_t) void;
-pub const Map_int_int = extern struct {
-    table: kh_int_int_map_t,
-};
-pub extern fn map_int_int_new() [*c]Map_int_int;
-pub extern fn map_int_int_free(map: [*c]Map_int_int) void;
-pub extern fn map_int_int_destroy(map: [*c]Map_int_int) void;
-pub extern fn map_int_int_get(map: [*c]Map_int_int, key: c_int) c_int;
-pub extern fn map_int_int_has(map: [*c]Map_int_int, key: c_int) bool;
-pub extern fn map_int_int_key(map: [*c]Map_int_int, key: c_int) c_int;
-pub extern fn map_int_int_put(map: [*c]Map_int_int, key: c_int, value: c_int) c_int;
-pub extern fn map_int_int_ref(map: [*c]Map_int_int, key: c_int, put: bool) [*c]c_int;
-pub extern fn map_int_int_del(map: [*c]Map_int_int, key: c_int) c_int;
-pub extern fn map_int_int_clear(map: [*c]Map_int_int) void;
-pub const kh_int_cstr_t_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]c_int,
-    vals: [*c]cstr_t,
-};
-pub extern fn kh_init_int_cstr_t_map() [*c]kh_int_cstr_t_map_t;
-pub extern fn kh_dealloc_int_cstr_t_map(h: [*c]kh_int_cstr_t_map_t) void;
-pub extern fn kh_destroy_int_cstr_t_map(h: [*c]kh_int_cstr_t_map_t) void;
-pub extern fn kh_clear_int_cstr_t_map(h: [*c]kh_int_cstr_t_map_t) void;
-pub extern fn kh_get_int_cstr_t_map(h: [*c]const kh_int_cstr_t_map_t, key: c_int) khint_t;
-pub extern fn kh_resize_int_cstr_t_map(h: [*c]kh_int_cstr_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_int_cstr_t_map(h: [*c]kh_int_cstr_t_map_t, key: c_int, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_int_cstr_t_map(h: [*c]kh_int_cstr_t_map_t, x: khint_t) void;
-pub const Map_int_cstr_t = extern struct {
-    table: kh_int_cstr_t_map_t,
-};
-pub extern fn map_int_cstr_t_new() [*c]Map_int_cstr_t;
-pub extern fn map_int_cstr_t_free(map: [*c]Map_int_cstr_t) void;
-pub extern fn map_int_cstr_t_destroy(map: [*c]Map_int_cstr_t) void;
-pub extern fn map_int_cstr_t_get(map: [*c]Map_int_cstr_t, key: c_int) cstr_t;
-pub extern fn map_int_cstr_t_has(map: [*c]Map_int_cstr_t, key: c_int) bool;
-pub extern fn map_int_cstr_t_key(map: [*c]Map_int_cstr_t, key: c_int) c_int;
-pub extern fn map_int_cstr_t_put(map: [*c]Map_int_cstr_t, key: c_int, value: cstr_t) cstr_t;
-pub extern fn map_int_cstr_t_ref(map: [*c]Map_int_cstr_t, key: c_int, put: bool) [*c]cstr_t;
-pub extern fn map_int_cstr_t_del(map: [*c]Map_int_cstr_t, key: c_int) cstr_t;
-pub extern fn map_int_cstr_t_clear(map: [*c]Map_int_cstr_t) void;
-pub const kh_cstr_t_ptr_t_map_t = extern struct {
+pub extern fn kh_init_int() [*c]kh_int_t;
+pub extern fn kh_dealloc_int(h: [*c]kh_int_t) void;
+pub extern fn kh_destroy_int(h: [*c]kh_int_t) void;
+pub extern fn kh_clear_int(h: [*c]kh_int_t) void;
+pub extern fn kh_get_int(h: [*c]const kh_int_t, key: c_int) khint_t;
+pub extern fn kh_resize_int(h: [*c]kh_int_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_int(h: [*c]kh_int_t, key: c_int, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_int(h: [*c]kh_int_t, x: khint_t) void;
+pub fn set_put_int(arg_set: [*c]kh_int_t, arg_key: c_int, arg_key_alloc: [*c][*c]c_int) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_int(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_int(arg_set: [*c]kh_int_t, arg_key: c_int) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_int(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_int(set, k);
+    }
+}
+pub fn set_has_int(arg_set: [*c]kh_int_t, arg_key: c_int) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_int(set, key) != set.*.n_buckets;
+}
+pub const kh_cstr_t_t = extern struct {
     n_buckets: khint_t,
     size: khint_t,
     n_occupied: khint_t,
     upper_bound: khint_t,
     flags: [*c]khint32_t,
     keys: [*c]cstr_t,
-    vals: [*c]ptr_t,
+    vals_buf: [*c]u8,
 };
-pub extern fn kh_init_cstr_t_ptr_t_map() [*c]kh_cstr_t_ptr_t_map_t;
-pub extern fn kh_dealloc_cstr_t_ptr_t_map(h: [*c]kh_cstr_t_ptr_t_map_t) void;
-pub extern fn kh_destroy_cstr_t_ptr_t_map(h: [*c]kh_cstr_t_ptr_t_map_t) void;
-pub extern fn kh_clear_cstr_t_ptr_t_map(h: [*c]kh_cstr_t_ptr_t_map_t) void;
-pub extern fn kh_get_cstr_t_ptr_t_map(h: [*c]const kh_cstr_t_ptr_t_map_t, key: cstr_t) khint_t;
-pub extern fn kh_resize_cstr_t_ptr_t_map(h: [*c]kh_cstr_t_ptr_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_cstr_t_ptr_t_map(h: [*c]kh_cstr_t_ptr_t_map_t, key: cstr_t, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_cstr_t_ptr_t_map(h: [*c]kh_cstr_t_ptr_t_map_t, x: khint_t) void;
-pub const Map_cstr_t_ptr_t = extern struct {
-    table: kh_cstr_t_ptr_t_map_t,
-};
-pub extern fn map_cstr_t_ptr_t_new() [*c]Map_cstr_t_ptr_t;
-pub extern fn map_cstr_t_ptr_t_free(map: [*c]Map_cstr_t_ptr_t) void;
-pub extern fn map_cstr_t_ptr_t_destroy(map: [*c]Map_cstr_t_ptr_t) void;
-pub extern fn map_cstr_t_ptr_t_get(map: [*c]Map_cstr_t_ptr_t, key: cstr_t) ptr_t;
-pub extern fn map_cstr_t_ptr_t_has(map: [*c]Map_cstr_t_ptr_t, key: cstr_t) bool;
-pub extern fn map_cstr_t_ptr_t_key(map: [*c]Map_cstr_t_ptr_t, key: cstr_t) cstr_t;
-pub extern fn map_cstr_t_ptr_t_put(map: [*c]Map_cstr_t_ptr_t, key: cstr_t, value: ptr_t) ptr_t;
-pub extern fn map_cstr_t_ptr_t_ref(map: [*c]Map_cstr_t_ptr_t, key: cstr_t, put: bool) [*c]ptr_t;
-pub extern fn map_cstr_t_ptr_t_del(map: [*c]Map_cstr_t_ptr_t, key: cstr_t) ptr_t;
-pub extern fn map_cstr_t_ptr_t_clear(map: [*c]Map_cstr_t_ptr_t) void;
-pub const kh_cstr_t_int_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]cstr_t,
-    vals: [*c]c_int,
-};
-pub extern fn kh_init_cstr_t_int_map() [*c]kh_cstr_t_int_map_t;
-pub extern fn kh_dealloc_cstr_t_int_map(h: [*c]kh_cstr_t_int_map_t) void;
-pub extern fn kh_destroy_cstr_t_int_map(h: [*c]kh_cstr_t_int_map_t) void;
-pub extern fn kh_clear_cstr_t_int_map(h: [*c]kh_cstr_t_int_map_t) void;
-pub extern fn kh_get_cstr_t_int_map(h: [*c]const kh_cstr_t_int_map_t, key: cstr_t) khint_t;
-pub extern fn kh_resize_cstr_t_int_map(h: [*c]kh_cstr_t_int_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_cstr_t_int_map(h: [*c]kh_cstr_t_int_map_t, key: cstr_t, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_cstr_t_int_map(h: [*c]kh_cstr_t_int_map_t, x: khint_t) void;
-pub const Map_cstr_t_int = extern struct {
-    table: kh_cstr_t_int_map_t,
-};
-pub extern fn map_cstr_t_int_new() [*c]Map_cstr_t_int;
-pub extern fn map_cstr_t_int_free(map: [*c]Map_cstr_t_int) void;
-pub extern fn map_cstr_t_int_destroy(map: [*c]Map_cstr_t_int) void;
-pub extern fn map_cstr_t_int_get(map: [*c]Map_cstr_t_int, key: cstr_t) c_int;
-pub extern fn map_cstr_t_int_has(map: [*c]Map_cstr_t_int, key: cstr_t) bool;
-pub extern fn map_cstr_t_int_key(map: [*c]Map_cstr_t_int, key: cstr_t) cstr_t;
-pub extern fn map_cstr_t_int_put(map: [*c]Map_cstr_t_int, key: cstr_t, value: c_int) c_int;
-pub extern fn map_cstr_t_int_ref(map: [*c]Map_cstr_t_int, key: cstr_t, put: bool) [*c]c_int;
-pub extern fn map_cstr_t_int_del(map: [*c]Map_cstr_t_int, key: cstr_t) c_int;
-pub extern fn map_cstr_t_int_clear(map: [*c]Map_cstr_t_int) void;
-pub const kh_ptr_t_ptr_t_map_t = extern struct {
+pub extern fn kh_init_cstr_t() [*c]kh_cstr_t_t;
+pub extern fn kh_dealloc_cstr_t(h: [*c]kh_cstr_t_t) void;
+pub extern fn kh_destroy_cstr_t(h: [*c]kh_cstr_t_t) void;
+pub extern fn kh_clear_cstr_t(h: [*c]kh_cstr_t_t) void;
+pub extern fn kh_get_cstr_t(h: [*c]const kh_cstr_t_t, key: cstr_t) khint_t;
+pub extern fn kh_resize_cstr_t(h: [*c]kh_cstr_t_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_cstr_t(h: [*c]kh_cstr_t_t, key: cstr_t, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_cstr_t(h: [*c]kh_cstr_t_t, x: khint_t) void;
+pub fn set_put_cstr_t(arg_set: [*c]kh_cstr_t_t, arg_key: cstr_t, arg_key_alloc: [*c][*c]cstr_t) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_cstr_t(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_cstr_t(arg_set: [*c]kh_cstr_t_t, arg_key: cstr_t) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_cstr_t(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_cstr_t(set, k);
+    }
+}
+pub fn set_has_cstr_t(arg_set: [*c]kh_cstr_t_t, arg_key: cstr_t) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_cstr_t(set, key) != set.*.n_buckets;
+}
+pub const kh_ptr_t_t = extern struct {
     n_buckets: khint_t,
     size: khint_t,
     n_occupied: khint_t,
     upper_bound: khint_t,
     flags: [*c]khint32_t,
     keys: [*c]ptr_t,
-    vals: [*c]ptr_t,
+    vals_buf: [*c]u8,
 };
-pub extern fn kh_init_ptr_t_ptr_t_map() [*c]kh_ptr_t_ptr_t_map_t;
-pub extern fn kh_dealloc_ptr_t_ptr_t_map(h: [*c]kh_ptr_t_ptr_t_map_t) void;
-pub extern fn kh_destroy_ptr_t_ptr_t_map(h: [*c]kh_ptr_t_ptr_t_map_t) void;
-pub extern fn kh_clear_ptr_t_ptr_t_map(h: [*c]kh_ptr_t_ptr_t_map_t) void;
-pub extern fn kh_get_ptr_t_ptr_t_map(h: [*c]const kh_ptr_t_ptr_t_map_t, key: ptr_t) khint_t;
-pub extern fn kh_resize_ptr_t_ptr_t_map(h: [*c]kh_ptr_t_ptr_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_ptr_t_ptr_t_map(h: [*c]kh_ptr_t_ptr_t_map_t, key: ptr_t, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_ptr_t_ptr_t_map(h: [*c]kh_ptr_t_ptr_t_map_t, x: khint_t) void;
-pub const Map_ptr_t_ptr_t = extern struct {
-    table: kh_ptr_t_ptr_t_map_t,
+pub extern fn kh_init_ptr_t() [*c]kh_ptr_t_t;
+pub extern fn kh_dealloc_ptr_t(h: [*c]kh_ptr_t_t) void;
+pub extern fn kh_destroy_ptr_t(h: [*c]kh_ptr_t_t) void;
+pub extern fn kh_clear_ptr_t(h: [*c]kh_ptr_t_t) void;
+pub extern fn kh_get_ptr_t(h: [*c]const kh_ptr_t_t, key: ptr_t) khint_t;
+pub extern fn kh_resize_ptr_t(h: [*c]kh_ptr_t_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_ptr_t(h: [*c]kh_ptr_t_t, key: ptr_t, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_ptr_t(h: [*c]kh_ptr_t_t, x: khint_t) void;
+pub fn set_put_ptr_t(arg_set: [*c]kh_ptr_t_t, arg_key: ptr_t, arg_key_alloc: [*c][*c]ptr_t) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_ptr_t(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_ptr_t(arg_set: [*c]kh_ptr_t_t, arg_key: ptr_t) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_ptr_t(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_ptr_t(set, k);
+    }
+}
+pub fn set_has_ptr_t(arg_set: [*c]kh_ptr_t_t, arg_key: ptr_t) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_ptr_t(set, key) != set.*.n_buckets;
+}
+pub const kh_uint64_t_t = extern struct {
+    n_buckets: khint_t,
+    size: khint_t,
+    n_occupied: khint_t,
+    upper_bound: khint_t,
+    flags: [*c]khint32_t,
+    keys: [*c]u64,
+    vals_buf: [*c]u8,
 };
-pub extern fn map_ptr_t_ptr_t_new() [*c]Map_ptr_t_ptr_t;
-pub extern fn map_ptr_t_ptr_t_free(map: [*c]Map_ptr_t_ptr_t) void;
-pub extern fn map_ptr_t_ptr_t_destroy(map: [*c]Map_ptr_t_ptr_t) void;
-pub extern fn map_ptr_t_ptr_t_get(map: [*c]Map_ptr_t_ptr_t, key: ptr_t) ptr_t;
-pub extern fn map_ptr_t_ptr_t_has(map: [*c]Map_ptr_t_ptr_t, key: ptr_t) bool;
-pub extern fn map_ptr_t_ptr_t_key(map: [*c]Map_ptr_t_ptr_t, key: ptr_t) ptr_t;
-pub extern fn map_ptr_t_ptr_t_put(map: [*c]Map_ptr_t_ptr_t, key: ptr_t, value: ptr_t) ptr_t;
-pub extern fn map_ptr_t_ptr_t_ref(map: [*c]Map_ptr_t_ptr_t, key: ptr_t, put: bool) [*c]ptr_t;
-pub extern fn map_ptr_t_ptr_t_del(map: [*c]Map_ptr_t_ptr_t, key: ptr_t) ptr_t;
-pub extern fn map_ptr_t_ptr_t_clear(map: [*c]Map_ptr_t_ptr_t) void;
-pub const kh_uint32_t_ptr_t_map_t = extern struct {
+pub extern fn kh_init_uint64_t() [*c]kh_uint64_t_t;
+pub extern fn kh_dealloc_uint64_t(h: [*c]kh_uint64_t_t) void;
+pub extern fn kh_destroy_uint64_t(h: [*c]kh_uint64_t_t) void;
+pub extern fn kh_clear_uint64_t(h: [*c]kh_uint64_t_t) void;
+pub extern fn kh_get_uint64_t(h: [*c]const kh_uint64_t_t, key: u64) khint_t;
+pub extern fn kh_resize_uint64_t(h: [*c]kh_uint64_t_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_uint64_t(h: [*c]kh_uint64_t_t, key: u64, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_uint64_t(h: [*c]kh_uint64_t_t, x: khint_t) void;
+pub fn set_put_uint64_t(arg_set: [*c]kh_uint64_t_t, arg_key: u64, arg_key_alloc: [*c][*c]u64) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_uint64_t(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_uint64_t(arg_set: [*c]kh_uint64_t_t, arg_key: u64) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_uint64_t(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_uint64_t(set, k);
+    }
+}
+pub fn set_has_uint64_t(arg_set: [*c]kh_uint64_t_t, arg_key: u64) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_uint64_t(set, key) != set.*.n_buckets;
+}
+pub const kh_uint32_t_t = extern struct {
     n_buckets: khint_t,
     size: khint_t,
     n_occupied: khint_t,
     upper_bound: khint_t,
     flags: [*c]khint32_t,
     keys: [*c]u32,
-    vals: [*c]ptr_t,
+    vals_buf: [*c]u8,
 };
-pub extern fn kh_init_uint32_t_ptr_t_map() [*c]kh_uint32_t_ptr_t_map_t;
-pub extern fn kh_dealloc_uint32_t_ptr_t_map(h: [*c]kh_uint32_t_ptr_t_map_t) void;
-pub extern fn kh_destroy_uint32_t_ptr_t_map(h: [*c]kh_uint32_t_ptr_t_map_t) void;
-pub extern fn kh_clear_uint32_t_ptr_t_map(h: [*c]kh_uint32_t_ptr_t_map_t) void;
-pub extern fn kh_get_uint32_t_ptr_t_map(h: [*c]const kh_uint32_t_ptr_t_map_t, key: u32) khint_t;
-pub extern fn kh_resize_uint32_t_ptr_t_map(h: [*c]kh_uint32_t_ptr_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_uint32_t_ptr_t_map(h: [*c]kh_uint32_t_ptr_t_map_t, key: u32, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_uint32_t_ptr_t_map(h: [*c]kh_uint32_t_ptr_t_map_t, x: khint_t) void;
-pub const Map_uint32_t_ptr_t = extern struct {
-    table: kh_uint32_t_ptr_t_map_t,
-};
-pub extern fn map_uint32_t_ptr_t_new() [*c]Map_uint32_t_ptr_t;
-pub extern fn map_uint32_t_ptr_t_free(map: [*c]Map_uint32_t_ptr_t) void;
-pub extern fn map_uint32_t_ptr_t_destroy(map: [*c]Map_uint32_t_ptr_t) void;
-pub extern fn map_uint32_t_ptr_t_get(map: [*c]Map_uint32_t_ptr_t, key: u32) ptr_t;
-pub extern fn map_uint32_t_ptr_t_has(map: [*c]Map_uint32_t_ptr_t, key: u32) bool;
-pub extern fn map_uint32_t_ptr_t_key(map: [*c]Map_uint32_t_ptr_t, key: u32) u32;
-pub extern fn map_uint32_t_ptr_t_put(map: [*c]Map_uint32_t_ptr_t, key: u32, value: ptr_t) ptr_t;
-pub extern fn map_uint32_t_ptr_t_ref(map: [*c]Map_uint32_t_ptr_t, key: u32, put: bool) [*c]ptr_t;
-pub extern fn map_uint32_t_ptr_t_del(map: [*c]Map_uint32_t_ptr_t, key: u32) ptr_t;
-pub extern fn map_uint32_t_ptr_t_clear(map: [*c]Map_uint32_t_ptr_t) void;
-pub const kh_uint64_t_ptr_t_map_t = extern struct {
+pub extern fn kh_init_uint32_t() [*c]kh_uint32_t_t;
+pub extern fn kh_dealloc_uint32_t(h: [*c]kh_uint32_t_t) void;
+pub extern fn kh_destroy_uint32_t(h: [*c]kh_uint32_t_t) void;
+pub extern fn kh_clear_uint32_t(h: [*c]kh_uint32_t_t) void;
+pub extern fn kh_get_uint32_t(h: [*c]const kh_uint32_t_t, key: u32) khint_t;
+pub extern fn kh_resize_uint32_t(h: [*c]kh_uint32_t_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_uint32_t(h: [*c]kh_uint32_t_t, key: u32, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_uint32_t(h: [*c]kh_uint32_t_t, x: khint_t) void;
+pub fn set_put_uint32_t(arg_set: [*c]kh_uint32_t_t, arg_key: u32, arg_key_alloc: [*c][*c]u32) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_uint32_t(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_uint32_t(arg_set: [*c]kh_uint32_t_t, arg_key: u32) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_uint32_t(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_uint32_t(set, k);
+    }
+}
+pub fn set_has_uint32_t(arg_set: [*c]kh_uint32_t_t, arg_key: u32) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_uint32_t(set, key) != set.*.n_buckets;
+}
+pub const kh_String_t = extern struct {
     n_buckets: khint_t,
     size: khint_t,
     n_occupied: khint_t,
     upper_bound: khint_t,
     flags: [*c]khint32_t,
-    keys: [*c]u64,
-    vals: [*c]ptr_t,
+    keys: [*c]String,
+    vals_buf: [*c]u8,
 };
-pub extern fn kh_init_uint64_t_ptr_t_map() [*c]kh_uint64_t_ptr_t_map_t;
-pub extern fn kh_dealloc_uint64_t_ptr_t_map(h: [*c]kh_uint64_t_ptr_t_map_t) void;
-pub extern fn kh_destroy_uint64_t_ptr_t_map(h: [*c]kh_uint64_t_ptr_t_map_t) void;
-pub extern fn kh_clear_uint64_t_ptr_t_map(h: [*c]kh_uint64_t_ptr_t_map_t) void;
-pub extern fn kh_get_uint64_t_ptr_t_map(h: [*c]const kh_uint64_t_ptr_t_map_t, key: u64) khint_t;
-pub extern fn kh_resize_uint64_t_ptr_t_map(h: [*c]kh_uint64_t_ptr_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_uint64_t_ptr_t_map(h: [*c]kh_uint64_t_ptr_t_map_t, key: u64, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_uint64_t_ptr_t_map(h: [*c]kh_uint64_t_ptr_t_map_t, x: khint_t) void;
-pub const Map_uint64_t_ptr_t = extern struct {
-    table: kh_uint64_t_ptr_t_map_t,
-};
-pub extern fn map_uint64_t_ptr_t_new() [*c]Map_uint64_t_ptr_t;
-pub extern fn map_uint64_t_ptr_t_free(map: [*c]Map_uint64_t_ptr_t) void;
-pub extern fn map_uint64_t_ptr_t_destroy(map: [*c]Map_uint64_t_ptr_t) void;
-pub extern fn map_uint64_t_ptr_t_get(map: [*c]Map_uint64_t_ptr_t, key: u64) ptr_t;
-pub extern fn map_uint64_t_ptr_t_has(map: [*c]Map_uint64_t_ptr_t, key: u64) bool;
-pub extern fn map_uint64_t_ptr_t_key(map: [*c]Map_uint64_t_ptr_t, key: u64) u64;
-pub extern fn map_uint64_t_ptr_t_put(map: [*c]Map_uint64_t_ptr_t, key: u64, value: ptr_t) ptr_t;
-pub extern fn map_uint64_t_ptr_t_ref(map: [*c]Map_uint64_t_ptr_t, key: u64, put: bool) [*c]ptr_t;
-pub extern fn map_uint64_t_ptr_t_del(map: [*c]Map_uint64_t_ptr_t, key: u64) ptr_t;
-pub extern fn map_uint64_t_ptr_t_clear(map: [*c]Map_uint64_t_ptr_t) void;
-pub const kh_uint64_t_ssize_t_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]u64,
-    vals: [*c]isize,
-};
-pub extern fn kh_init_uint64_t_ssize_t_map() [*c]kh_uint64_t_ssize_t_map_t;
-pub extern fn kh_dealloc_uint64_t_ssize_t_map(h: [*c]kh_uint64_t_ssize_t_map_t) void;
-pub extern fn kh_destroy_uint64_t_ssize_t_map(h: [*c]kh_uint64_t_ssize_t_map_t) void;
-pub extern fn kh_clear_uint64_t_ssize_t_map(h: [*c]kh_uint64_t_ssize_t_map_t) void;
-pub extern fn kh_get_uint64_t_ssize_t_map(h: [*c]const kh_uint64_t_ssize_t_map_t, key: u64) khint_t;
-pub extern fn kh_resize_uint64_t_ssize_t_map(h: [*c]kh_uint64_t_ssize_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_uint64_t_ssize_t_map(h: [*c]kh_uint64_t_ssize_t_map_t, key: u64, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_uint64_t_ssize_t_map(h: [*c]kh_uint64_t_ssize_t_map_t, x: khint_t) void;
-pub const Map_uint64_t_ssize_t = extern struct {
-    table: kh_uint64_t_ssize_t_map_t,
-};
-pub extern fn map_uint64_t_ssize_t_new() [*c]Map_uint64_t_ssize_t;
-pub extern fn map_uint64_t_ssize_t_free(map: [*c]Map_uint64_t_ssize_t) void;
-pub extern fn map_uint64_t_ssize_t_destroy(map: [*c]Map_uint64_t_ssize_t) void;
-pub extern fn map_uint64_t_ssize_t_get(map: [*c]Map_uint64_t_ssize_t, key: u64) isize;
-pub extern fn map_uint64_t_ssize_t_has(map: [*c]Map_uint64_t_ssize_t, key: u64) bool;
-pub extern fn map_uint64_t_ssize_t_key(map: [*c]Map_uint64_t_ssize_t, key: u64) u64;
-pub extern fn map_uint64_t_ssize_t_put(map: [*c]Map_uint64_t_ssize_t, key: u64, value: isize) isize;
-pub extern fn map_uint64_t_ssize_t_ref(map: [*c]Map_uint64_t_ssize_t, key: u64, put: bool) [*c]isize;
-pub extern fn map_uint64_t_ssize_t_del(map: [*c]Map_uint64_t_ssize_t, key: u64) isize;
-pub extern fn map_uint64_t_ssize_t_clear(map: [*c]Map_uint64_t_ssize_t) void;
-pub const kh_uint64_t_uint64_t_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]u64,
-    vals: [*c]u64,
-};
-pub extern fn kh_init_uint64_t_uint64_t_map() [*c]kh_uint64_t_uint64_t_map_t;
-pub extern fn kh_dealloc_uint64_t_uint64_t_map(h: [*c]kh_uint64_t_uint64_t_map_t) void;
-pub extern fn kh_destroy_uint64_t_uint64_t_map(h: [*c]kh_uint64_t_uint64_t_map_t) void;
-pub extern fn kh_clear_uint64_t_uint64_t_map(h: [*c]kh_uint64_t_uint64_t_map_t) void;
-pub extern fn kh_get_uint64_t_uint64_t_map(h: [*c]const kh_uint64_t_uint64_t_map_t, key: u64) khint_t;
-pub extern fn kh_resize_uint64_t_uint64_t_map(h: [*c]kh_uint64_t_uint64_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_uint64_t_uint64_t_map(h: [*c]kh_uint64_t_uint64_t_map_t, key: u64, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_uint64_t_uint64_t_map(h: [*c]kh_uint64_t_uint64_t_map_t, x: khint_t) void;
-pub const Map_uint64_t_uint64_t = extern struct {
-    table: kh_uint64_t_uint64_t_map_t,
-};
-pub extern fn map_uint64_t_uint64_t_new() [*c]Map_uint64_t_uint64_t;
-pub extern fn map_uint64_t_uint64_t_free(map: [*c]Map_uint64_t_uint64_t) void;
-pub extern fn map_uint64_t_uint64_t_destroy(map: [*c]Map_uint64_t_uint64_t) void;
-pub extern fn map_uint64_t_uint64_t_get(map: [*c]Map_uint64_t_uint64_t, key: u64) u64;
-pub extern fn map_uint64_t_uint64_t_has(map: [*c]Map_uint64_t_uint64_t, key: u64) bool;
-pub extern fn map_uint64_t_uint64_t_key(map: [*c]Map_uint64_t_uint64_t, key: u64) u64;
-pub extern fn map_uint64_t_uint64_t_put(map: [*c]Map_uint64_t_uint64_t, key: u64, value: u64) u64;
-pub extern fn map_uint64_t_uint64_t_ref(map: [*c]Map_uint64_t_uint64_t, key: u64, put: bool) [*c]u64;
-pub extern fn map_uint64_t_uint64_t_del(map: [*c]Map_uint64_t_uint64_t, key: u64) u64;
-pub extern fn map_uint64_t_uint64_t_clear(map: [*c]Map_uint64_t_uint64_t) void;
-pub const kh_uint32_t_uint32_t_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]u32,
-    vals: [*c]u32,
-};
-pub extern fn kh_init_uint32_t_uint32_t_map() [*c]kh_uint32_t_uint32_t_map_t;
-pub extern fn kh_dealloc_uint32_t_uint32_t_map(h: [*c]kh_uint32_t_uint32_t_map_t) void;
-pub extern fn kh_destroy_uint32_t_uint32_t_map(h: [*c]kh_uint32_t_uint32_t_map_t) void;
-pub extern fn kh_clear_uint32_t_uint32_t_map(h: [*c]kh_uint32_t_uint32_t_map_t) void;
-pub extern fn kh_get_uint32_t_uint32_t_map(h: [*c]const kh_uint32_t_uint32_t_map_t, key: u32) khint_t;
-pub extern fn kh_resize_uint32_t_uint32_t_map(h: [*c]kh_uint32_t_uint32_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_uint32_t_uint32_t_map(h: [*c]kh_uint32_t_uint32_t_map_t, key: u32, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_uint32_t_uint32_t_map(h: [*c]kh_uint32_t_uint32_t_map_t, x: khint_t) void;
-pub const Map_uint32_t_uint32_t = extern struct {
-    table: kh_uint32_t_uint32_t_map_t,
-};
-pub extern fn map_uint32_t_uint32_t_new() [*c]Map_uint32_t_uint32_t;
-pub extern fn map_uint32_t_uint32_t_free(map: [*c]Map_uint32_t_uint32_t) void;
-pub extern fn map_uint32_t_uint32_t_destroy(map: [*c]Map_uint32_t_uint32_t) void;
-pub extern fn map_uint32_t_uint32_t_get(map: [*c]Map_uint32_t_uint32_t, key: u32) u32;
-pub extern fn map_uint32_t_uint32_t_has(map: [*c]Map_uint32_t_uint32_t, key: u32) bool;
-pub extern fn map_uint32_t_uint32_t_key(map: [*c]Map_uint32_t_uint32_t, key: u32) u32;
-pub extern fn map_uint32_t_uint32_t_put(map: [*c]Map_uint32_t_uint32_t, key: u32, value: u32) u32;
-pub extern fn map_uint32_t_uint32_t_ref(map: [*c]Map_uint32_t_uint32_t, key: u32, put: bool) [*c]u32;
-pub extern fn map_uint32_t_uint32_t_del(map: [*c]Map_uint32_t_uint32_t, key: u32) u32;
-pub extern fn map_uint32_t_uint32_t_clear(map: [*c]Map_uint32_t_uint32_t) void;
-pub const kh_handle_T_ptr_t_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]handle_T,
-    vals: [*c]ptr_t,
-};
-pub extern fn kh_init_handle_T_ptr_t_map() [*c]kh_handle_T_ptr_t_map_t;
-pub extern fn kh_dealloc_handle_T_ptr_t_map(h: [*c]kh_handle_T_ptr_t_map_t) void;
-pub extern fn kh_destroy_handle_T_ptr_t_map(h: [*c]kh_handle_T_ptr_t_map_t) void;
-pub extern fn kh_clear_handle_T_ptr_t_map(h: [*c]kh_handle_T_ptr_t_map_t) void;
-pub extern fn kh_get_handle_T_ptr_t_map(h: [*c]const kh_handle_T_ptr_t_map_t, key: handle_T) khint_t;
-pub extern fn kh_resize_handle_T_ptr_t_map(h: [*c]kh_handle_T_ptr_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_handle_T_ptr_t_map(h: [*c]kh_handle_T_ptr_t_map_t, key: handle_T, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_handle_T_ptr_t_map(h: [*c]kh_handle_T_ptr_t_map_t, x: khint_t) void;
-pub const Map_handle_T_ptr_t = extern struct {
-    table: kh_handle_T_ptr_t_map_t,
-};
-pub extern fn map_handle_T_ptr_t_new() [*c]Map_handle_T_ptr_t;
-pub extern fn map_handle_T_ptr_t_free(map: [*c]Map_handle_T_ptr_t) void;
-pub extern fn map_handle_T_ptr_t_destroy(map: [*c]Map_handle_T_ptr_t) void;
-pub extern fn map_handle_T_ptr_t_get(map: [*c]Map_handle_T_ptr_t, key: handle_T) ptr_t;
-pub extern fn map_handle_T_ptr_t_has(map: [*c]Map_handle_T_ptr_t, key: handle_T) bool;
-pub extern fn map_handle_T_ptr_t_key(map: [*c]Map_handle_T_ptr_t, key: handle_T) handle_T;
-pub extern fn map_handle_T_ptr_t_put(map: [*c]Map_handle_T_ptr_t, key: handle_T, value: ptr_t) ptr_t;
-pub extern fn map_handle_T_ptr_t_ref(map: [*c]Map_handle_T_ptr_t, key: handle_T, put: bool) [*c]ptr_t;
-pub extern fn map_handle_T_ptr_t_del(map: [*c]Map_handle_T_ptr_t, key: handle_T) ptr_t;
-pub extern fn map_handle_T_ptr_t_clear(map: [*c]Map_handle_T_ptr_t) void;
-pub const kh_HlEntry_int_map_t = extern struct {
+pub extern fn kh_init_String() [*c]kh_String_t;
+pub extern fn kh_dealloc_String(h: [*c]kh_String_t) void;
+pub extern fn kh_destroy_String(h: [*c]kh_String_t) void;
+pub extern fn kh_clear_String(h: [*c]kh_String_t) void;
+pub extern fn kh_get_String(h: [*c]const kh_String_t, key: String) khint_t;
+pub extern fn kh_resize_String(h: [*c]kh_String_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_String(h: [*c]kh_String_t, key: String, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_String(h: [*c]kh_String_t, x: khint_t) void;
+pub fn set_put_String(arg_set: [*c]kh_String_t, arg_key: String, arg_key_alloc: [*c][*c]String) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_String(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_String(arg_set: [*c]kh_String_t, arg_key: String) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_String(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_String(set, k);
+    }
+}
+pub fn set_has_String(arg_set: [*c]kh_String_t, arg_key: String) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_String(set, key) != set.*.n_buckets;
+}
+pub const kh_HlEntry_t = extern struct {
     n_buckets: khint_t,
     size: khint_t,
     n_occupied: khint_t,
     upper_bound: khint_t,
     flags: [*c]khint32_t,
     keys: [*c]HlEntry,
-    vals: [*c]c_int,
+    vals_buf: [*c]u8,
 };
-pub extern fn kh_init_HlEntry_int_map() [*c]kh_HlEntry_int_map_t;
-pub extern fn kh_dealloc_HlEntry_int_map(h: [*c]kh_HlEntry_int_map_t) void;
-pub extern fn kh_destroy_HlEntry_int_map(h: [*c]kh_HlEntry_int_map_t) void;
-pub extern fn kh_clear_HlEntry_int_map(h: [*c]kh_HlEntry_int_map_t) void;
-pub extern fn kh_get_HlEntry_int_map(h: [*c]const kh_HlEntry_int_map_t, key: HlEntry) khint_t;
-pub extern fn kh_resize_HlEntry_int_map(h: [*c]kh_HlEntry_int_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_HlEntry_int_map(h: [*c]kh_HlEntry_int_map_t, key: HlEntry, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_HlEntry_int_map(h: [*c]kh_HlEntry_int_map_t, x: khint_t) void;
-pub const Map_HlEntry_int = extern struct {
-    table: kh_HlEntry_int_map_t,
-};
-pub extern fn map_HlEntry_int_new() [*c]Map_HlEntry_int;
-pub extern fn map_HlEntry_int_free(map: [*c]Map_HlEntry_int) void;
-pub extern fn map_HlEntry_int_destroy(map: [*c]Map_HlEntry_int) void;
-pub extern fn map_HlEntry_int_get(map: [*c]Map_HlEntry_int, key: HlEntry) c_int;
-pub extern fn map_HlEntry_int_has(map: [*c]Map_HlEntry_int, key: HlEntry) bool;
-pub extern fn map_HlEntry_int_key(map: [*c]Map_HlEntry_int, key: HlEntry) HlEntry;
-pub extern fn map_HlEntry_int_put(map: [*c]Map_HlEntry_int, key: HlEntry, value: c_int) c_int;
-pub extern fn map_HlEntry_int_ref(map: [*c]Map_HlEntry_int, key: HlEntry, put: bool) [*c]c_int;
-pub extern fn map_HlEntry_int_del(map: [*c]Map_HlEntry_int, key: HlEntry) c_int;
-pub extern fn map_HlEntry_int_clear(map: [*c]Map_HlEntry_int) void;
-pub const kh_String_handle_T_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]String,
-    vals: [*c]handle_T,
-};
-pub extern fn kh_init_String_handle_T_map() [*c]kh_String_handle_T_map_t;
-pub extern fn kh_dealloc_String_handle_T_map(h: [*c]kh_String_handle_T_map_t) void;
-pub extern fn kh_destroy_String_handle_T_map(h: [*c]kh_String_handle_T_map_t) void;
-pub extern fn kh_clear_String_handle_T_map(h: [*c]kh_String_handle_T_map_t) void;
-pub extern fn kh_get_String_handle_T_map(h: [*c]const kh_String_handle_T_map_t, key: String) khint_t;
-pub extern fn kh_resize_String_handle_T_map(h: [*c]kh_String_handle_T_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_String_handle_T_map(h: [*c]kh_String_handle_T_map_t, key: String, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_String_handle_T_map(h: [*c]kh_String_handle_T_map_t, x: khint_t) void;
-pub const Map_String_handle_T = extern struct {
-    table: kh_String_handle_T_map_t,
-};
-pub extern fn map_String_handle_T_new() [*c]Map_String_handle_T;
-pub extern fn map_String_handle_T_free(map: [*c]Map_String_handle_T) void;
-pub extern fn map_String_handle_T_destroy(map: [*c]Map_String_handle_T) void;
-pub extern fn map_String_handle_T_get(map: [*c]Map_String_handle_T, key: String) handle_T;
-pub extern fn map_String_handle_T_has(map: [*c]Map_String_handle_T, key: String) bool;
-pub extern fn map_String_handle_T_key(map: [*c]Map_String_handle_T, key: String) String;
-pub extern fn map_String_handle_T_put(map: [*c]Map_String_handle_T, key: String, value: handle_T) handle_T;
-pub extern fn map_String_handle_T_ref(map: [*c]Map_String_handle_T, key: String, put: bool) [*c]handle_T;
-pub extern fn map_String_handle_T_del(map: [*c]Map_String_handle_T, key: String) handle_T;
-pub extern fn map_String_handle_T_clear(map: [*c]Map_String_handle_T) void;
-pub const kh_String_int_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]String,
-    vals: [*c]c_int,
-};
-pub extern fn kh_init_String_int_map() [*c]kh_String_int_map_t;
-pub extern fn kh_dealloc_String_int_map(h: [*c]kh_String_int_map_t) void;
-pub extern fn kh_destroy_String_int_map(h: [*c]kh_String_int_map_t) void;
-pub extern fn kh_clear_String_int_map(h: [*c]kh_String_int_map_t) void;
-pub extern fn kh_get_String_int_map(h: [*c]const kh_String_int_map_t, key: String) khint_t;
-pub extern fn kh_resize_String_int_map(h: [*c]kh_String_int_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_String_int_map(h: [*c]kh_String_int_map_t, key: String, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_String_int_map(h: [*c]kh_String_int_map_t, x: khint_t) void;
-pub const Map_String_int = extern struct {
-    table: kh_String_int_map_t,
-};
-pub extern fn map_String_int_new() [*c]Map_String_int;
-pub extern fn map_String_int_free(map: [*c]Map_String_int) void;
-pub extern fn map_String_int_destroy(map: [*c]Map_String_int) void;
-pub extern fn map_String_int_get(map: [*c]Map_String_int, key: String) c_int;
-pub extern fn map_String_int_has(map: [*c]Map_String_int, key: String) bool;
-pub extern fn map_String_int_key(map: [*c]Map_String_int, key: String) String;
-pub extern fn map_String_int_put(map: [*c]Map_String_int, key: String, value: c_int) c_int;
-pub extern fn map_String_int_ref(map: [*c]Map_String_int, key: String, put: bool) [*c]c_int;
-pub extern fn map_String_int_del(map: [*c]Map_String_int, key: String) c_int;
-pub extern fn map_String_int_clear(map: [*c]Map_String_int) void;
-pub const kh_int_String_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]c_int,
-    vals: [*c]String,
-};
-pub extern fn kh_init_int_String_map() [*c]kh_int_String_map_t;
-pub extern fn kh_dealloc_int_String_map(h: [*c]kh_int_String_map_t) void;
-pub extern fn kh_destroy_int_String_map(h: [*c]kh_int_String_map_t) void;
-pub extern fn kh_clear_int_String_map(h: [*c]kh_int_String_map_t) void;
-pub extern fn kh_get_int_String_map(h: [*c]const kh_int_String_map_t, key: c_int) khint_t;
-pub extern fn kh_resize_int_String_map(h: [*c]kh_int_String_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_int_String_map(h: [*c]kh_int_String_map_t, key: c_int, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_int_String_map(h: [*c]kh_int_String_map_t, x: khint_t) void;
-pub const Map_int_String = extern struct {
-    table: kh_int_String_map_t,
-};
-pub extern fn map_int_String_new() [*c]Map_int_String;
-pub extern fn map_int_String_free(map: [*c]Map_int_String) void;
-pub extern fn map_int_String_destroy(map: [*c]Map_int_String) void;
-pub extern fn map_int_String_get(map: [*c]Map_int_String, key: c_int) String;
-pub extern fn map_int_String_has(map: [*c]Map_int_String, key: c_int) bool;
-pub extern fn map_int_String_key(map: [*c]Map_int_String, key: c_int) c_int;
-pub extern fn map_int_String_put(map: [*c]Map_int_String, key: c_int, value: String) String;
-pub extern fn map_int_String_ref(map: [*c]Map_int_String, key: c_int, put: bool) [*c]String;
-pub extern fn map_int_String_del(map: [*c]Map_int_String, key: c_int) String;
-pub extern fn map_int_String_clear(map: [*c]Map_int_String) void;
-pub const kh_ColorKey_ColorItem_map_t = extern struct {
+pub extern fn kh_init_HlEntry() [*c]kh_HlEntry_t;
+pub extern fn kh_dealloc_HlEntry(h: [*c]kh_HlEntry_t) void;
+pub extern fn kh_destroy_HlEntry(h: [*c]kh_HlEntry_t) void;
+pub extern fn kh_clear_HlEntry(h: [*c]kh_HlEntry_t) void;
+pub extern fn kh_get_HlEntry(h: [*c]const kh_HlEntry_t, key: HlEntry) khint_t;
+pub extern fn kh_resize_HlEntry(h: [*c]kh_HlEntry_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_HlEntry(h: [*c]kh_HlEntry_t, key: HlEntry, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_HlEntry(h: [*c]kh_HlEntry_t, x: khint_t) void;
+pub fn set_put_HlEntry(arg_set: [*c]kh_HlEntry_t, arg_key: HlEntry, arg_key_alloc: [*c][*c]HlEntry) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_HlEntry(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_HlEntry(arg_set: [*c]kh_HlEntry_t, arg_key: HlEntry) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_HlEntry(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_HlEntry(set, k);
+    }
+}
+pub fn set_has_HlEntry(arg_set: [*c]kh_HlEntry_t, arg_key: HlEntry) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_HlEntry(set, key) != set.*.n_buckets;
+}
+pub const kh_ColorKey_t = extern struct {
     n_buckets: khint_t,
     size: khint_t,
     n_occupied: khint_t,
     upper_bound: khint_t,
     flags: [*c]khint32_t,
     keys: [*c]ColorKey,
-    vals: [*c]ColorItem,
+    vals_buf: [*c]u8,
 };
-pub extern fn kh_init_ColorKey_ColorItem_map() [*c]kh_ColorKey_ColorItem_map_t;
-pub extern fn kh_dealloc_ColorKey_ColorItem_map(h: [*c]kh_ColorKey_ColorItem_map_t) void;
-pub extern fn kh_destroy_ColorKey_ColorItem_map(h: [*c]kh_ColorKey_ColorItem_map_t) void;
-pub extern fn kh_clear_ColorKey_ColorItem_map(h: [*c]kh_ColorKey_ColorItem_map_t) void;
-pub extern fn kh_get_ColorKey_ColorItem_map(h: [*c]const kh_ColorKey_ColorItem_map_t, key: ColorKey) khint_t;
-pub extern fn kh_resize_ColorKey_ColorItem_map(h: [*c]kh_ColorKey_ColorItem_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_ColorKey_ColorItem_map(h: [*c]kh_ColorKey_ColorItem_map_t, key: ColorKey, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_ColorKey_ColorItem_map(h: [*c]kh_ColorKey_ColorItem_map_t, x: khint_t) void;
+pub extern fn kh_init_ColorKey() [*c]kh_ColorKey_t;
+pub extern fn kh_dealloc_ColorKey(h: [*c]kh_ColorKey_t) void;
+pub extern fn kh_destroy_ColorKey(h: [*c]kh_ColorKey_t) void;
+pub extern fn kh_clear_ColorKey(h: [*c]kh_ColorKey_t) void;
+pub extern fn kh_get_ColorKey(h: [*c]const kh_ColorKey_t, key: ColorKey) khint_t;
+pub extern fn kh_resize_ColorKey(h: [*c]kh_ColorKey_t, new_n_buckets: khint_t, val_size: usize) void;
+pub extern fn kh_put_ColorKey(h: [*c]kh_ColorKey_t, key: ColorKey, ret: [*c]c_int, val_size: usize) khint_t;
+pub extern fn kh_del_ColorKey(h: [*c]kh_ColorKey_t, x: khint_t) void;
+pub fn set_put_ColorKey(arg_set: [*c]kh_ColorKey_t, arg_key: ColorKey, arg_key_alloc: [*c][*c]ColorKey) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    var key_alloc = arg_key_alloc;
+    var kh_ret: c_int = undefined;
+    var k: khiter_t = kh_put_ColorKey(set, key, &kh_ret, @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    if (key_alloc != null) {
+        key_alloc.* = &set.*.keys[k];
+    }
+    return kh_ret != 0;
+}
+pub fn set_del_ColorKey(arg_set: [*c]kh_ColorKey_t, arg_key: ColorKey) callconv(.C) void {
+    var set = arg_set;
+    var key = arg_key;
+    var k: khiter_t = undefined;
+    if ((blk: {
+        const tmp = kh_get_ColorKey(set, key);
+        k = tmp;
+        break :blk tmp;
+    }) != set.*.n_buckets) {
+        kh_del_ColorKey(set, k);
+    }
+}
+pub fn set_has_ColorKey(arg_set: [*c]kh_ColorKey_t, arg_key: ColorKey) callconv(.C) bool {
+    var set = arg_set;
+    var key = arg_key;
+    return kh_get_ColorKey(set, key) != set.*.n_buckets;
+}
+pub const Map_int_int = extern struct {
+    table: kh_int_t,
+};
+pub extern fn map_int_int_get(map: [*c]Map_int_int, key: c_int) c_int;
+pub fn map_int_int_has(arg_map: [*c]Map_int_int, arg_key: c_int) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_int(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_int_int_put(map: [*c]Map_int_int, key: c_int, value: c_int) c_int;
+pub extern fn map_int_int_ref(map: [*c]Map_int_int, key: c_int, key_alloc: [*c][*c]c_int) [*c]c_int;
+pub extern fn map_int_int_put_ref(map: [*c]Map_int_int, key: c_int, key_alloc: [*c][*c]c_int, new_item: [*c]bool) [*c]c_int;
+pub extern fn map_int_int_del(map: [*c]Map_int_int, key: c_int, key_alloc: [*c]c_int) c_int;
+pub const Map_int_ptr_t = extern struct {
+    table: kh_int_t,
+};
+pub extern fn map_int_ptr_t_get(map: [*c]Map_int_ptr_t, key: c_int) ptr_t;
+pub fn map_int_ptr_t_has(arg_map: [*c]Map_int_ptr_t, arg_key: c_int) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_int(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_int_ptr_t_put(map: [*c]Map_int_ptr_t, key: c_int, value: ptr_t) ptr_t;
+pub extern fn map_int_ptr_t_ref(map: [*c]Map_int_ptr_t, key: c_int, key_alloc: [*c][*c]c_int) [*c]ptr_t;
+pub extern fn map_int_ptr_t_put_ref(map: [*c]Map_int_ptr_t, key: c_int, key_alloc: [*c][*c]c_int, new_item: [*c]bool) [*c]ptr_t;
+pub extern fn map_int_ptr_t_del(map: [*c]Map_int_ptr_t, key: c_int, key_alloc: [*c]c_int) ptr_t;
+pub const Map_int_cstr_t = extern struct {
+    table: kh_int_t,
+};
+pub extern fn map_int_cstr_t_get(map: [*c]Map_int_cstr_t, key: c_int) cstr_t;
+pub fn map_int_cstr_t_has(arg_map: [*c]Map_int_cstr_t, arg_key: c_int) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_int(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_int_cstr_t_put(map: [*c]Map_int_cstr_t, key: c_int, value: cstr_t) cstr_t;
+pub extern fn map_int_cstr_t_ref(map: [*c]Map_int_cstr_t, key: c_int, key_alloc: [*c][*c]c_int) [*c]cstr_t;
+pub extern fn map_int_cstr_t_put_ref(map: [*c]Map_int_cstr_t, key: c_int, key_alloc: [*c][*c]c_int, new_item: [*c]bool) [*c]cstr_t;
+pub extern fn map_int_cstr_t_del(map: [*c]Map_int_cstr_t, key: c_int, key_alloc: [*c]c_int) cstr_t;
+pub const Map_cstr_t_ptr_t = extern struct {
+    table: kh_cstr_t_t,
+};
+pub extern fn map_cstr_t_ptr_t_get(map: [*c]Map_cstr_t_ptr_t, key: cstr_t) ptr_t;
+pub fn map_cstr_t_ptr_t_has(arg_map: [*c]Map_cstr_t_ptr_t, arg_key: cstr_t) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_cstr_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_cstr_t_ptr_t_put(map: [*c]Map_cstr_t_ptr_t, key: cstr_t, value: ptr_t) ptr_t;
+pub extern fn map_cstr_t_ptr_t_ref(map: [*c]Map_cstr_t_ptr_t, key: cstr_t, key_alloc: [*c][*c]cstr_t) [*c]ptr_t;
+pub extern fn map_cstr_t_ptr_t_put_ref(map: [*c]Map_cstr_t_ptr_t, key: cstr_t, key_alloc: [*c][*c]cstr_t, new_item: [*c]bool) [*c]ptr_t;
+pub extern fn map_cstr_t_ptr_t_del(map: [*c]Map_cstr_t_ptr_t, key: cstr_t, key_alloc: [*c]cstr_t) ptr_t;
+pub const Map_cstr_t_int = extern struct {
+    table: kh_cstr_t_t,
+};
+pub extern fn map_cstr_t_int_get(map: [*c]Map_cstr_t_int, key: cstr_t) c_int;
+pub fn map_cstr_t_int_has(arg_map: [*c]Map_cstr_t_int, arg_key: cstr_t) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_cstr_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_cstr_t_int_put(map: [*c]Map_cstr_t_int, key: cstr_t, value: c_int) c_int;
+pub extern fn map_cstr_t_int_ref(map: [*c]Map_cstr_t_int, key: cstr_t, key_alloc: [*c][*c]cstr_t) [*c]c_int;
+pub extern fn map_cstr_t_int_put_ref(map: [*c]Map_cstr_t_int, key: cstr_t, key_alloc: [*c][*c]cstr_t, new_item: [*c]bool) [*c]c_int;
+pub extern fn map_cstr_t_int_del(map: [*c]Map_cstr_t_int, key: cstr_t, key_alloc: [*c]cstr_t) c_int;
+pub const Map_ptr_t_ptr_t = extern struct {
+    table: kh_ptr_t_t,
+};
+pub extern fn map_ptr_t_ptr_t_get(map: [*c]Map_ptr_t_ptr_t, key: ptr_t) ptr_t;
+pub fn map_ptr_t_ptr_t_has(arg_map: [*c]Map_ptr_t_ptr_t, arg_key: ptr_t) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_ptr_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_ptr_t_ptr_t_put(map: [*c]Map_ptr_t_ptr_t, key: ptr_t, value: ptr_t) ptr_t;
+pub extern fn map_ptr_t_ptr_t_ref(map: [*c]Map_ptr_t_ptr_t, key: ptr_t, key_alloc: [*c][*c]ptr_t) [*c]ptr_t;
+pub extern fn map_ptr_t_ptr_t_put_ref(map: [*c]Map_ptr_t_ptr_t, key: ptr_t, key_alloc: [*c][*c]ptr_t, new_item: [*c]bool) [*c]ptr_t;
+pub extern fn map_ptr_t_ptr_t_del(map: [*c]Map_ptr_t_ptr_t, key: ptr_t, key_alloc: [*c]ptr_t) ptr_t;
+pub const Map_uint32_t_ptr_t = extern struct {
+    table: kh_uint32_t_t,
+};
+pub extern fn map_uint32_t_ptr_t_get(map: [*c]Map_uint32_t_ptr_t, key: u32) ptr_t;
+pub fn map_uint32_t_ptr_t_has(arg_map: [*c]Map_uint32_t_ptr_t, arg_key: u32) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_uint32_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_uint32_t_ptr_t_put(map: [*c]Map_uint32_t_ptr_t, key: u32, value: ptr_t) ptr_t;
+pub extern fn map_uint32_t_ptr_t_ref(map: [*c]Map_uint32_t_ptr_t, key: u32, key_alloc: [*c][*c]u32) [*c]ptr_t;
+pub extern fn map_uint32_t_ptr_t_put_ref(map: [*c]Map_uint32_t_ptr_t, key: u32, key_alloc: [*c][*c]u32, new_item: [*c]bool) [*c]ptr_t;
+pub extern fn map_uint32_t_ptr_t_del(map: [*c]Map_uint32_t_ptr_t, key: u32, key_alloc: [*c]u32) ptr_t;
+pub const Map_uint64_t_ptr_t = extern struct {
+    table: kh_uint64_t_t,
+};
+pub extern fn map_uint64_t_ptr_t_get(map: [*c]Map_uint64_t_ptr_t, key: u64) ptr_t;
+pub fn map_uint64_t_ptr_t_has(arg_map: [*c]Map_uint64_t_ptr_t, arg_key: u64) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_uint64_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_uint64_t_ptr_t_put(map: [*c]Map_uint64_t_ptr_t, key: u64, value: ptr_t) ptr_t;
+pub extern fn map_uint64_t_ptr_t_ref(map: [*c]Map_uint64_t_ptr_t, key: u64, key_alloc: [*c][*c]u64) [*c]ptr_t;
+pub extern fn map_uint64_t_ptr_t_put_ref(map: [*c]Map_uint64_t_ptr_t, key: u64, key_alloc: [*c][*c]u64, new_item: [*c]bool) [*c]ptr_t;
+pub extern fn map_uint64_t_ptr_t_del(map: [*c]Map_uint64_t_ptr_t, key: u64, key_alloc: [*c]u64) ptr_t;
+pub const Map_uint64_t_ssize_t = extern struct {
+    table: kh_uint64_t_t,
+};
+pub extern fn map_uint64_t_ssize_t_get(map: [*c]Map_uint64_t_ssize_t, key: u64) isize;
+pub fn map_uint64_t_ssize_t_has(arg_map: [*c]Map_uint64_t_ssize_t, arg_key: u64) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_uint64_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_uint64_t_ssize_t_put(map: [*c]Map_uint64_t_ssize_t, key: u64, value: isize) isize;
+pub extern fn map_uint64_t_ssize_t_ref(map: [*c]Map_uint64_t_ssize_t, key: u64, key_alloc: [*c][*c]u64) [*c]isize;
+pub extern fn map_uint64_t_ssize_t_put_ref(map: [*c]Map_uint64_t_ssize_t, key: u64, key_alloc: [*c][*c]u64, new_item: [*c]bool) [*c]isize;
+pub extern fn map_uint64_t_ssize_t_del(map: [*c]Map_uint64_t_ssize_t, key: u64, key_alloc: [*c]u64) isize;
+pub const Map_uint64_t_uint64_t = extern struct {
+    table: kh_uint64_t_t,
+};
+pub extern fn map_uint64_t_uint64_t_get(map: [*c]Map_uint64_t_uint64_t, key: u64) u64;
+pub fn map_uint64_t_uint64_t_has(arg_map: [*c]Map_uint64_t_uint64_t, arg_key: u64) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_uint64_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_uint64_t_uint64_t_put(map: [*c]Map_uint64_t_uint64_t, key: u64, value: u64) u64;
+pub extern fn map_uint64_t_uint64_t_ref(map: [*c]Map_uint64_t_uint64_t, key: u64, key_alloc: [*c][*c]u64) [*c]u64;
+pub extern fn map_uint64_t_uint64_t_put_ref(map: [*c]Map_uint64_t_uint64_t, key: u64, key_alloc: [*c][*c]u64, new_item: [*c]bool) [*c]u64;
+pub extern fn map_uint64_t_uint64_t_del(map: [*c]Map_uint64_t_uint64_t, key: u64, key_alloc: [*c]u64) u64;
+pub const Map_uint32_t_uint32_t = extern struct {
+    table: kh_uint32_t_t,
+};
+pub extern fn map_uint32_t_uint32_t_get(map: [*c]Map_uint32_t_uint32_t, key: u32) u32;
+pub fn map_uint32_t_uint32_t_has(arg_map: [*c]Map_uint32_t_uint32_t, arg_key: u32) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_uint32_t(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_uint32_t_uint32_t_put(map: [*c]Map_uint32_t_uint32_t, key: u32, value: u32) u32;
+pub extern fn map_uint32_t_uint32_t_ref(map: [*c]Map_uint32_t_uint32_t, key: u32, key_alloc: [*c][*c]u32) [*c]u32;
+pub extern fn map_uint32_t_uint32_t_put_ref(map: [*c]Map_uint32_t_uint32_t, key: u32, key_alloc: [*c][*c]u32, new_item: [*c]bool) [*c]u32;
+pub extern fn map_uint32_t_uint32_t_del(map: [*c]Map_uint32_t_uint32_t, key: u32, key_alloc: [*c]u32) u32;
+pub const Map_HlEntry_int = extern struct {
+    table: kh_HlEntry_t,
+};
+pub extern fn map_HlEntry_int_get(map: [*c]Map_HlEntry_int, key: HlEntry) c_int;
+pub fn map_HlEntry_int_has(arg_map: [*c]Map_HlEntry_int, arg_key: HlEntry) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_HlEntry(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_HlEntry_int_put(map: [*c]Map_HlEntry_int, key: HlEntry, value: c_int) c_int;
+pub extern fn map_HlEntry_int_ref(map: [*c]Map_HlEntry_int, key: HlEntry, key_alloc: [*c][*c]HlEntry) [*c]c_int;
+pub extern fn map_HlEntry_int_put_ref(map: [*c]Map_HlEntry_int, key: HlEntry, key_alloc: [*c][*c]HlEntry, new_item: [*c]bool) [*c]c_int;
+pub extern fn map_HlEntry_int_del(map: [*c]Map_HlEntry_int, key: HlEntry, key_alloc: [*c]HlEntry) c_int;
+pub const Map_String_handle_T = extern struct {
+    table: kh_String_t,
+};
+pub extern fn map_String_handle_T_get(map: [*c]Map_String_handle_T, key: String) handle_T;
+pub fn map_String_handle_T_has(arg_map: [*c]Map_String_handle_T, arg_key: String) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_String(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_String_handle_T_put(map: [*c]Map_String_handle_T, key: String, value: handle_T) handle_T;
+pub extern fn map_String_handle_T_ref(map: [*c]Map_String_handle_T, key: String, key_alloc: [*c][*c]String) [*c]handle_T;
+pub extern fn map_String_handle_T_put_ref(map: [*c]Map_String_handle_T, key: String, key_alloc: [*c][*c]String, new_item: [*c]bool) [*c]handle_T;
+pub extern fn map_String_handle_T_del(map: [*c]Map_String_handle_T, key: String, key_alloc: [*c]String) handle_T;
+pub const Map_String_int = extern struct {
+    table: kh_String_t,
+};
+pub extern fn map_String_int_get(map: [*c]Map_String_int, key: String) c_int;
+pub fn map_String_int_has(arg_map: [*c]Map_String_int, arg_key: String) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_String(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_String_int_put(map: [*c]Map_String_int, key: String, value: c_int) c_int;
+pub extern fn map_String_int_ref(map: [*c]Map_String_int, key: String, key_alloc: [*c][*c]String) [*c]c_int;
+pub extern fn map_String_int_put_ref(map: [*c]Map_String_int, key: String, key_alloc: [*c][*c]String, new_item: [*c]bool) [*c]c_int;
+pub extern fn map_String_int_del(map: [*c]Map_String_int, key: String, key_alloc: [*c]String) c_int;
+pub const Map_int_String = extern struct {
+    table: kh_int_t,
+};
+pub extern fn map_int_String_get(map: [*c]Map_int_String, key: c_int) String;
+pub fn map_int_String_has(arg_map: [*c]Map_int_String, arg_key: c_int) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_int(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
+pub extern fn map_int_String_put(map: [*c]Map_int_String, key: c_int, value: String) String;
+pub extern fn map_int_String_ref(map: [*c]Map_int_String, key: c_int, key_alloc: [*c][*c]c_int) [*c]String;
+pub extern fn map_int_String_put_ref(map: [*c]Map_int_String, key: c_int, key_alloc: [*c][*c]c_int, new_item: [*c]bool) [*c]String;
+pub extern fn map_int_String_del(map: [*c]Map_int_String, key: c_int, key_alloc: [*c]c_int) String;
 pub const Map_ColorKey_ColorItem = extern struct {
-    table: kh_ColorKey_ColorItem_map_t,
+    table: kh_ColorKey_t,
 };
-pub extern fn map_ColorKey_ColorItem_new() [*c]Map_ColorKey_ColorItem;
-pub extern fn map_ColorKey_ColorItem_free(map: [*c]Map_ColorKey_ColorItem) void;
-pub extern fn map_ColorKey_ColorItem_destroy(map: [*c]Map_ColorKey_ColorItem) void;
 pub extern fn map_ColorKey_ColorItem_get(map: [*c]Map_ColorKey_ColorItem, key: ColorKey) ColorItem;
-pub extern fn map_ColorKey_ColorItem_has(map: [*c]Map_ColorKey_ColorItem, key: ColorKey) bool;
-pub extern fn map_ColorKey_ColorItem_key(map: [*c]Map_ColorKey_ColorItem, key: ColorKey) ColorKey;
+pub fn map_ColorKey_ColorItem_has(arg_map: [*c]Map_ColorKey_ColorItem, arg_key: ColorKey) callconv(.C) bool {
+    var map = arg_map;
+    var key = arg_key;
+    return kh_get_ColorKey(&map.*.table, key) != (&map.*.table).*.n_buckets;
+}
 pub extern fn map_ColorKey_ColorItem_put(map: [*c]Map_ColorKey_ColorItem, key: ColorKey, value: ColorItem) ColorItem;
-pub extern fn map_ColorKey_ColorItem_ref(map: [*c]Map_ColorKey_ColorItem, key: ColorKey, put: bool) [*c]ColorItem;
-pub extern fn map_ColorKey_ColorItem_del(map: [*c]Map_ColorKey_ColorItem, key: ColorKey) ColorItem;
-pub extern fn map_ColorKey_ColorItem_clear(map: [*c]Map_ColorKey_ColorItem) void;
-pub const kh_KittyKey_cstr_t_map_t = extern struct {
-    n_buckets: khint_t,
-    size: khint_t,
-    n_occupied: khint_t,
-    upper_bound: khint_t,
-    flags: [*c]khint32_t,
-    keys: [*c]KittyKey,
-    vals: [*c]cstr_t,
-};
-pub extern fn kh_init_KittyKey_cstr_t_map() [*c]kh_KittyKey_cstr_t_map_t;
-pub extern fn kh_dealloc_KittyKey_cstr_t_map(h: [*c]kh_KittyKey_cstr_t_map_t) void;
-pub extern fn kh_destroy_KittyKey_cstr_t_map(h: [*c]kh_KittyKey_cstr_t_map_t) void;
-pub extern fn kh_clear_KittyKey_cstr_t_map(h: [*c]kh_KittyKey_cstr_t_map_t) void;
-pub extern fn kh_get_KittyKey_cstr_t_map(h: [*c]const kh_KittyKey_cstr_t_map_t, key: KittyKey) khint_t;
-pub extern fn kh_resize_KittyKey_cstr_t_map(h: [*c]kh_KittyKey_cstr_t_map_t, new_n_buckets: khint_t) void;
-pub extern fn kh_put_KittyKey_cstr_t_map(h: [*c]kh_KittyKey_cstr_t_map_t, key: KittyKey, ret: [*c]c_int) khint_t;
-pub extern fn kh_del_KittyKey_cstr_t_map(h: [*c]kh_KittyKey_cstr_t_map_t, x: khint_t) void;
-pub const Map_KittyKey_cstr_t = extern struct {
-    table: kh_KittyKey_cstr_t_map_t,
-};
-pub extern fn map_KittyKey_cstr_t_new() [*c]Map_KittyKey_cstr_t;
-pub extern fn map_KittyKey_cstr_t_free(map: [*c]Map_KittyKey_cstr_t) void;
-pub extern fn map_KittyKey_cstr_t_destroy(map: [*c]Map_KittyKey_cstr_t) void;
-pub extern fn map_KittyKey_cstr_t_get(map: [*c]Map_KittyKey_cstr_t, key: KittyKey) cstr_t;
-pub extern fn map_KittyKey_cstr_t_has(map: [*c]Map_KittyKey_cstr_t, key: KittyKey) bool;
-pub extern fn map_KittyKey_cstr_t_key(map: [*c]Map_KittyKey_cstr_t, key: KittyKey) KittyKey;
-pub extern fn map_KittyKey_cstr_t_put(map: [*c]Map_KittyKey_cstr_t, key: KittyKey, value: cstr_t) cstr_t;
-pub extern fn map_KittyKey_cstr_t_ref(map: [*c]Map_KittyKey_cstr_t, key: KittyKey, put: bool) [*c]cstr_t;
-pub extern fn map_KittyKey_cstr_t_del(map: [*c]Map_KittyKey_cstr_t, key: KittyKey) cstr_t;
-pub extern fn map_KittyKey_cstr_t_clear(map: [*c]Map_KittyKey_cstr_t) void;
+pub extern fn map_ColorKey_ColorItem_ref(map: [*c]Map_ColorKey_ColorItem, key: ColorKey, key_alloc: [*c][*c]ColorKey) [*c]ColorItem;
+pub extern fn map_ColorKey_ColorItem_put_ref(map: [*c]Map_ColorKey_ColorItem, key: ColorKey, key_alloc: [*c][*c]ColorKey, new_item: [*c]bool) [*c]ColorItem;
+pub extern fn map_ColorKey_ColorItem_del(map: [*c]Map_ColorKey_ColorItem, key: ColorKey, key_alloc: [*c]ColorKey) ColorItem;
 pub extern fn pmap_del2(map: [*c]Map_cstr_t_ptr_t, key: [*c]const u8) void;
-pub extern fn time_init() void;
 pub extern fn os_hrtime() u64;
 pub extern fn os_now() u64;
 pub extern fn os_delay(ms: u64, ignoreinput: bool) void;
-pub extern fn os_microdelay(us: u64, ignoreinput: bool) void;
+pub extern fn os_sleep(ms: u64) void;
 pub extern fn os_localtime_r(noalias clock: [*c]const time_t, noalias result: [*c]struct_tm) [*c]struct_tm;
 pub extern fn os_localtime(result: [*c]struct_tm) [*c]struct_tm;
 pub extern fn os_ctime_r(noalias clock: [*c]const time_t, noalias result: [*c]u8, result_len: usize, add_newline: bool) [*c]u8;
@@ -4700,6 +4120,9 @@ pub const kMarkBufLocal: c_int = 0;
 pub const kMarkAll: c_int = 1;
 pub const kMarkAllNoResolve: c_int = 2;
 pub const MarkGet = c_uint;
+pub extern fn __assert_fail(__assertion: [*c]const u8, __file: [*c]const u8, __line: c_uint, __function: [*c]const u8) noreturn;
+pub extern fn __assert_perror_fail(__errnum: c_int, __file: [*c]const u8, __line: c_uint, __function: [*c]const u8) noreturn;
+pub extern fn __assert(__assertion: [*c]const u8, __file: [*c]const u8, __line: c_int) noreturn;
 pub const mtnode_t = struct_mtnode_s;
 pub const struct_mtnode_s = extern struct {
     n: i32 align(8),
@@ -4716,7 +4139,7 @@ pub const mtpos_t = extern struct {
     row: i32,
     col: i32,
 };
-const struct_unnamed_55 = extern struct {
+const struct_unnamed_52 = extern struct {
     oldcol: c_int,
     i: c_int,
 };
@@ -4725,7 +4148,7 @@ pub const MarkTreeIter = extern struct {
     lvl: c_int,
     node: [*c]mtnode_t,
     i: c_int,
-    s: [20]struct_unnamed_55,
+    s: [20]struct_unnamed_52,
     intersect_idx: usize,
     intersect_pos: mtpos_t,
 };
@@ -4775,7 +4198,7 @@ pub fn mt_flags(arg_right_gravity: bool, arg_decor_level: u8) callconv(.C) u16 {
         _ = @sizeOf(c_int);
         break :blk blk_1: {
             break :blk_1 if (@bitCast(c_int, @as(c_uint, decor_level)) < @as(c_int, 4)) {} else {
-                __assert_fail("decor_level < DECOR_LEVELS", "_nvim/src/nvim/marktree.h", @bitCast(c_uint, @as(c_int, 116)), "uint16_t mt_flags(_Bool, uint8_t)");
+                __assert_fail("decor_level < DECOR_LEVELS", "_nvim/src/nvim/marktree.h", @bitCast(c_uint, @as(c_int, 115)), "uint16_t mt_flags(_Bool, uint8_t)");
             };
         };
     };
@@ -4816,6 +4239,39 @@ pub extern fn marktree_check(b: [*c]MarkTree) void;
 pub extern fn marktree_check_node(b: [*c]MarkTree, x: [*c]mtnode_t, last: [*c]mtpos_t, last_right: [*c]bool) usize;
 pub extern fn mt_inspect_rec(b: [*c]MarkTree) [*c]u8;
 pub extern fn mt_inspect_node(b: [*c]MarkTree, ga: [*c]garray_T, n: [*c]mtnode_t, off: mtpos_t) void;
+pub const VirtTextChunk = extern struct {
+    text: [*c]u8,
+    hl_id: c_int,
+};
+pub const VirtText = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]VirtTextChunk,
+};
+const union_unnamed_53 = extern union {
+    splice: ExtmarkSplice,
+    move: ExtmarkMove,
+    savepos: ExtmarkSavePos,
+};
+pub const struct_undo_object = extern struct {
+    type: UndoObjectType,
+    data: union_unnamed_53,
+};
+pub const ExtmarkUndoObject = struct_undo_object;
+pub const extmark_undo_vec_t = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]ExtmarkUndoObject,
+};
+pub const kExtmarkNOOP: c_int = 0;
+pub const kExtmarkUndo: c_int = 1;
+pub const kExtmarkNoUndo: c_int = 2;
+pub const kExtmarkUndoNoRedo: c_int = 3;
+pub const ExtmarkOp = c_uint;
+pub const kDecorLevelNone: c_int = 0;
+pub const kDecorLevelVisible: c_int = 1;
+pub const kDecorLevelVirtLine: c_int = 2;
+pub const DecorLevel = c_uint;
 pub const OPT_FREE: c_int = 1;
 pub const OPT_GLOBAL: c_int = 2;
 pub const OPT_LOCAL: c_int = 4;
@@ -4850,7 +4306,7 @@ pub const SHM_RECORDING: c_int = 113;
 pub const SHM_FILEINFO: c_int = 70;
 pub const SHM_SEARCHCOUNT: c_int = 83;
 pub const SHM_LEN: c_int = 30;
-const enum_unnamed_56 = c_uint;
+const enum_unnamed_54 = c_uint;
 pub const STL_FILEPATH: c_int = 102;
 pub const STL_FULLPATH: c_int = 70;
 pub const STL_FILENAME: c_int = 116;
@@ -4891,7 +4347,7 @@ pub const STL_HIGHLIGHT: c_int = 35;
 pub const STL_TABPAGENR: c_int = 84;
 pub const STL_TABCLOSENR: c_int = 88;
 pub const STL_CLICK_FUNC: c_int = 64;
-const enum_unnamed_57 = c_uint;
+const enum_unnamed_55 = c_uint;
 pub extern var p_ambw: [*c]u8;
 pub extern var p_acd: c_int;
 pub extern var p_ai: c_int;
@@ -5295,7 +4751,7 @@ pub const BV_WM: c_int = 85;
 pub const BV_VSTS: c_int = 86;
 pub const BV_VTS: c_int = 87;
 pub const BV_COUNT: c_int = 88;
-const enum_unnamed_58 = c_uint;
+const enum_unnamed_56 = c_uint;
 pub const WV_LIST: c_int = 0;
 pub const WV_ARAB: c_int = 1;
 pub const WV_COCU: c_int = 2;
@@ -5324,27 +4780,54 @@ pub const WV_RL: c_int = 24;
 pub const WV_RLC: c_int = 25;
 pub const WV_SCBIND: c_int = 26;
 pub const WV_SCROLL: c_int = 27;
-pub const WV_SISO: c_int = 28;
-pub const WV_SO: c_int = 29;
-pub const WV_SPELL: c_int = 30;
-pub const WV_CUC: c_int = 31;
-pub const WV_CUL: c_int = 32;
-pub const WV_CULOPT: c_int = 33;
-pub const WV_CC: c_int = 34;
-pub const WV_SBR: c_int = 35;
-pub const WV_STC: c_int = 36;
-pub const WV_STL: c_int = 37;
-pub const WV_WFH: c_int = 38;
-pub const WV_WFW: c_int = 39;
-pub const WV_WRAP: c_int = 40;
-pub const WV_SCL: c_int = 41;
-pub const WV_WINHL: c_int = 42;
-pub const WV_LCS: c_int = 43;
-pub const WV_FCS: c_int = 44;
-pub const WV_WINBL: c_int = 45;
-pub const WV_WBR: c_int = 46;
-pub const WV_COUNT: c_int = 47;
-const enum_unnamed_59 = c_uint;
+pub const WV_SMS: c_int = 28;
+pub const WV_SISO: c_int = 29;
+pub const WV_SO: c_int = 30;
+pub const WV_SPELL: c_int = 31;
+pub const WV_CUC: c_int = 32;
+pub const WV_CUL: c_int = 33;
+pub const WV_CULOPT: c_int = 34;
+pub const WV_CC: c_int = 35;
+pub const WV_SBR: c_int = 36;
+pub const WV_STC: c_int = 37;
+pub const WV_STL: c_int = 38;
+pub const WV_WFH: c_int = 39;
+pub const WV_WFW: c_int = 40;
+pub const WV_WRAP: c_int = 41;
+pub const WV_SCL: c_int = 42;
+pub const WV_WINHL: c_int = 43;
+pub const WV_LCS: c_int = 44;
+pub const WV_FCS: c_int = 45;
+pub const WV_WINBL: c_int = 46;
+pub const WV_WBR: c_int = 47;
+pub const WV_COUNT: c_int = 48;
+const enum_unnamed_57 = c_uint;
+const union_unnamed_58 = extern union {
+    number: c_long,
+    boolean: bool,
+    string: [*c]const u8,
+};
+const union_unnamed_59 = extern union {
+    number: c_long,
+    boolean: bool,
+    string: [*c]const u8,
+};
+pub const optset_T = extern struct {
+    os_varp: [*c]u8,
+    os_idx: c_int,
+    os_flags: c_int,
+    os_oldval: union_unnamed_58,
+    os_newval: union_unnamed_59,
+    os_doskip: c_int,
+    os_value_checked: c_int,
+    os_value_changed: c_int,
+    os_restore_chartab: c_int,
+    os_errbuf: [*c]u8,
+    os_errbuflen: usize,
+    os_win: ?*anyopaque,
+    os_buf: ?*anyopaque,
+};
+pub const opt_did_set_cb_T = ?*const fn ([*c]optset_T) callconv(.C) [*c]const u8;
 pub const LastSet = extern struct {
     script_ctx: sctx_T,
     channel_id: u64,
@@ -5358,6 +4841,7 @@ pub const struct_vimoption = extern struct {
     flags: u32,
     @"var": [*c]u8,
     indir: idopt_T,
+    opt_did_set_cb: opt_did_set_cb_T,
     def_val: [*c]u8,
     last_set: LastSet,
 };
@@ -5442,6 +4926,7 @@ pub const struct_mf_blocknr_trans_item = extern struct {
     nt_new_bnum: blocknr_T,
 };
 pub const mf_blocknr_trans_item_T = struct_mf_blocknr_trans_item;
+pub extern fn __errno_location() [*c]c_int;
 pub const struct_flock = extern struct {
     l_type: c_short,
     l_whence: c_short,
@@ -7672,6 +7157,7 @@ pub const winopt_T = extern struct {
     wo_rl: c_int,
     wo_rlc: [*c]u8,
     wo_scr: c_long,
+    wo_sms: c_int,
     wo_spell: c_int,
     wo_cuc: c_int,
     wo_cul: c_int,
@@ -7695,7 +7181,7 @@ pub const winopt_T = extern struct {
     wo_lcs: [*c]u8,
     wo_fcs: [*c]u8,
     wo_winbl: c_long,
-    wo_script_ctx: [47]LastSet,
+    wo_script_ctx: [48]LastSet,
 };
 pub const struct_argentry = extern struct {
     ae_fname: [*c]u8,
@@ -7918,6 +7404,7 @@ pub const kVTEndOfLine: c_int = 0;
 pub const kVTOverlay: c_int = 1;
 pub const kVTWinCol: c_int = 2;
 pub const kVTRightAlign: c_int = 3;
+pub const kVTInline: c_int = 4;
 pub const VirtTextPos = c_uint;
 pub const virt_text_pos_str: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
     .name = "virt_text_pos_str",
@@ -7969,6 +7456,7 @@ pub const DecorState = extern struct {
     conceal_char: c_int,
     conceal_attr: c_int,
     spell: TriState,
+    running_on_lines: bool,
 };
 pub extern var decor_state: DecorState;
 pub fn decor_has_sign(arg_decor: [*c]Decoration) callconv(.C) bool {
@@ -8723,6 +8211,10 @@ pub const CSL_HAD_ENDLOOP: c_int = 2;
 pub const CSL_HAD_CONT: c_int = 4;
 pub const CSL_HAD_FINA: c_int = 8;
 const enum_unnamed_113 = c_uint;
+pub const XP_PREFIX_NONE: c_int = 0;
+pub const XP_PREFIX_NO: c_int = 1;
+pub const XP_PREFIX_INV: c_int = 2;
+pub const xp_prefix_T = c_uint;
 pub const CMOD_SANDBOX: c_int = 1;
 pub const CMOD_SILENT: c_int = 2;
 pub const CMOD_ERRSILENT: c_int = 4;
@@ -8802,7 +8294,6 @@ pub extern fn ex_substitute(eap: [*c]exarg_T) void;
 pub extern fn ex_substitute_preview(eap: [*c]exarg_T, cmdpreview_ns: c_long, cmdpreview_bufnr: handle_T) c_int;
 pub extern fn skip_vimgrep_pat(p: [*c]u8, s: [*c][*c]u8, flags: [*c]c_int) [*c]u8;
 pub extern fn ex_oldfiles(eap: [*c]exarg_T) void;
-pub extern fn ex_trust(eap: [*c]exarg_T) void;
 pub extern fn nvim_parse_cmd(str: String, opts: Dictionary, err: [*c]Error) Dictionary;
 pub extern fn nvim_cmd(channel_id: u64, cmd: [*c]KeyDict_cmd, opts: [*c]KeyDict_cmd_opts, err: [*c]Error) String;
 pub extern fn nvim_create_user_command(channel_id: u64, name: String, command: Object, opts: [*c]KeyDict_user_command, err: [*c]Error) void;
@@ -8835,6 +8326,12 @@ pub extern fn tabpage_del_var(tabpage: Tabpage, name: String, err: [*c]Error) Ob
 pub extern fn vim_set_var(name: String, value: Object, err: [*c]Error) Object;
 pub extern fn vim_del_var(name: String, err: [*c]Error) Object;
 pub extern fn nvim_get_option_info(name: String, err: [*c]Error) Dictionary;
+pub extern fn nvim_set_option(channel_id: u64, name: String, value: Object, err: [*c]Error) void;
+pub extern fn nvim_get_option(name: String, arena: [*c]Arena, err: [*c]Error) Object;
+pub extern fn nvim_buf_get_option(buffer: Buffer, name: String, arena: [*c]Arena, err: [*c]Error) Object;
+pub extern fn nvim_buf_set_option(channel_id: u64, buffer: Buffer, name: String, value: Object, err: [*c]Error) void;
+pub extern fn nvim_win_get_option(window: Window, name: String, arena: [*c]Arena, err: [*c]Error) Object;
+pub extern fn nvim_win_set_option(channel_id: u64, window: Window, name: String, value: Object, err: [*c]Error) void;
 pub extern var namespace_ids: Map_String_handle_T;
 pub extern var next_namespace_id: handle_T;
 pub extern fn api_extmark_free_all_mem() void;
@@ -8851,17 +8348,109 @@ pub extern fn nvim_buf_add_highlight(buffer: Buffer, ns_id: Integer, hl_group: S
 pub extern fn nvim_buf_clear_namespace(buffer: Buffer, ns_id: Integer, line_start: Integer, line_end: Integer, err: [*c]Error) void;
 pub extern fn nvim_set_decoration_provider(ns_id: Integer, opts: [*c]KeyDict_set_decoration_provider, err: [*c]Error) void;
 pub extern fn parse_virt_text(chunks: Array, err: [*c]Error, width: [*c]c_int) VirtText;
+pub const gov_unknown: c_int = 0;
+pub const gov_bool: c_int = 1;
+pub const gov_number: c_int = 2;
+pub const gov_string: c_int = 3;
+pub const gov_hidden_bool: c_int = 4;
+pub const gov_hidden_number: c_int = 5;
+pub const gov_hidden_string: c_int = 6;
+pub const getoption_T = c_uint;
+pub extern fn set_init_tablocal() void;
+pub extern fn set_init_1(clean_arg: bool) void;
+pub extern fn set_number_default(name: [*c]u8, val: c_long) void;
+pub extern fn set_init_2(headless: bool) void;
+pub extern fn set_init_3() void;
+pub extern fn set_helplang_default(lang: [*c]const u8) void;
+pub extern fn set_title_defaults() void;
+pub extern fn ex_set(eap: [*c]exarg_T) void;
+pub extern fn do_set(arg: [*c]u8, opt_flags: c_int) c_int;
+pub extern fn did_set_option(opt_idx: c_int, opt_flags: c_int, new_value: c_int, value_checked: c_int) void;
+pub extern fn string_to_key(arg: [*c]u8) c_int;
+pub extern fn did_set_title() void;
+pub extern fn set_options_bin(oldval: c_int, newval: c_int, opt_flags: c_int) void;
+pub extern fn get_shada_parameter(@"type": c_int) c_int;
+pub extern fn find_shada_parameter(@"type": c_int) [*c]u8;
+pub extern fn check_options() void;
+pub extern fn was_set_insecurely(wp: [*c]win_T, opt: [*c]u8, opt_flags: c_int) c_int;
+pub extern fn redraw_titles() void;
+pub extern fn valid_name(val: [*c]const u8, allowed: [*c]const u8) bool;
+pub extern fn check_blending(wp: [*c]win_T) void;
+pub extern fn parse_winhl_opt(wp: [*c]win_T) bool;
+pub extern fn get_option_sctx(name: [*c]const u8) [*c]sctx_T;
+pub extern fn set_option_sctx_idx(opt_idx: c_int, opt_flags: c_int, script_ctx: sctx_T) void;
+pub extern fn did_set_global_undolevels(value: c_long, old_value: c_long) [*c]const u8;
+pub extern fn did_set_buflocal_undolevels(buf: [*c]buf_T, value: c_long, old_value: c_long) [*c]const u8;
+pub extern fn check_redraw_for(buf: [*c]buf_T, win: [*c]win_T, flags: u32) void;
+pub extern fn check_redraw(flags: u32) void;
+pub extern fn findoption_len(arg: [*c]const u8, len: usize) c_int;
+pub extern fn is_tty_option(name: [*c]const u8) bool;
+pub extern fn get_tty_option(name: [*c]const u8, value: [*c][*c]u8) bool;
+pub extern fn set_tty_option(name: [*c]const u8, value: [*c]u8) bool;
+pub extern fn set_tty_background(value: [*c]const u8) void;
+pub extern fn findoption(arg: [*c]const u8) c_int;
+pub extern fn get_option_value(name: [*c]const u8, numval: [*c]c_long, stringval: [*c][*c]u8, flagsp: [*c]u32, scope: c_int) getoption_T;
+pub extern fn get_option_value_strict(name: [*c]u8, numval: [*c]i64, stringval: [*c][*c]u8, opt_type: c_int, from: ?*anyopaque) c_int;
+pub extern fn get_option(opt_idx: c_int) [*c]vimoption_T;
+pub extern fn set_option_value(name: [*c]const u8, number: c_long, string: [*c]const u8, opt_flags: c_int) [*c]const u8;
+pub extern fn set_option_value_give_err(name: [*c]const u8, number: c_long, string: [*c]const u8, opt_flags: c_int) void;
+pub extern fn is_option_allocated(name: [*c]const u8) bool;
+pub extern fn is_string_option(name: [*c]const u8) bool;
+pub extern fn find_key_option_len(arg_arg: [*c]const u8, len: usize, has_lt: bool) c_int;
+pub extern fn ui_refresh_options() void;
+pub extern fn makeset(fd: [*c]FILE, opt_flags: c_int, local_only: c_int) c_int;
+pub extern fn makefoldset(fd: [*c]FILE) c_int;
+pub extern fn unset_global_local_option(name: [*c]u8, from: ?*anyopaque) void;
+pub extern fn get_varp_scope_from(p: [*c]vimoption_T, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
+pub extern fn get_varp_scope(p: [*c]vimoption_T, scope: c_int) [*c]u8;
+pub extern fn get_option_varp_scope_from(opt_idx: c_int, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
+pub extern fn get_option_did_set_cb(opt_idx: c_int) opt_did_set_cb_T;
+pub extern fn get_equalprg() [*c]u8;
+pub extern fn win_copy_options(wp_from: [*c]win_T, wp_to: [*c]win_T) void;
+pub extern fn copy_winopt(from: [*c]winopt_T, to: [*c]winopt_T) void;
+pub extern fn check_win_options(win: [*c]win_T) void;
+pub extern fn clear_winopt(wop: [*c]winopt_T) void;
+pub extern fn didset_window_options(wp: [*c]win_T, valid_cursor: bool) void;
+pub extern fn buf_copy_options(buf: [*c]buf_T, flags: c_int) void;
+pub extern fn reset_modifiable() void;
+pub extern fn set_iminsert_global(buf: [*c]buf_T) void;
+pub extern fn set_imsearch_global(buf: [*c]buf_T) void;
+pub extern fn set_context_in_set_cmd(xp: [*c]expand_T, arg: [*c]u8, opt_flags: c_int) void;
+pub extern fn ExpandSettings(xp: [*c]expand_T, regmatch: [*c]regmatch_T, fuzzystr: [*c]u8, numMatches: [*c]c_int, matches: [*c][*c][*c]u8, can_fuzzy: bool) c_int;
+pub extern fn ExpandOldSetting(numMatches: [*c]c_int, matches: [*c][*c][*c]u8) void;
+pub extern fn shortmess(x: c_int) bool;
+pub extern fn vimrc_found(fname: [*c]u8, envname: [*c]u8) void;
+pub extern fn option_was_set(name: [*c]const u8) bool;
+pub extern fn reset_option_was_set(name: [*c]const u8) void;
+pub extern fn fill_culopt_flags(val: [*c]u8, wp: [*c]win_T) c_int;
+pub extern fn magic_isset() bool;
+pub extern fn option_set_callback_func(optval: [*c]u8, optcb: [*c]Callback) c_int;
+pub extern fn can_bs(what: c_int) bool;
+pub extern fn get_bkc_value(buf: [*c]buf_T) c_uint;
+pub extern fn get_flp_value(buf: [*c]buf_T) [*c]u8;
+pub extern fn get_ve_flags() c_uint;
+pub extern fn get_showbreak_value(win: [*c]win_T) [*c]u8;
+pub extern fn get_fileformat(buf: [*c]const buf_T) c_int;
+pub extern fn get_fileformat_force(buf: [*c]const buf_T, eap: [*c]const exarg_T) c_int;
+pub extern fn default_fileformat() c_int;
+pub extern fn set_fileformat(eol_style: c_int, opt_flags: c_int) void;
+pub extern fn skip_to_option_part(p: [*c]const u8) [*c]u8;
+pub extern fn copy_option_part(option: [*c][*c]u8, buf: [*c]u8, maxlen: usize, sep_chars: [*c]u8) usize;
+pub extern fn csh_like_shell() c_int;
+pub extern fn fish_like_shell() bool;
+pub extern fn win_signcol_count(wp: [*c]win_T) c_int;
+pub extern fn win_no_signcol(wp: [*c]win_T) bool;
+pub extern fn win_signcol_configured(wp: [*c]win_T, is_fixed: [*c]c_int) c_int;
+pub extern fn get_winbuf_options(bufopt: c_int) [*c]dict_T;
+pub extern fn get_scrolloff_value(wp: [*c]win_T) c_long;
+pub extern fn get_sidescrolloff_value(wp: [*c]win_T) c_long;
+pub extern fn get_vimoption(name: String, scope: c_int, buf: [*c]buf_T, win: [*c]win_T, err: [*c]Error) Dictionary;
+pub extern fn get_all_vimoptions() Dictionary;
 pub extern fn nvim_get_option_value(name: String, opts: [*c]KeyDict_option, err: [*c]Error) Object;
 pub extern fn nvim_set_option_value(channel_id: u64, name: String, value: Object, opts: [*c]KeyDict_option, err: [*c]Error) void;
 pub extern fn nvim_get_all_options_info(err: [*c]Error) Dictionary;
 pub extern fn nvim_get_option_info2(name: String, opts: [*c]KeyDict_option, err: [*c]Error) Dictionary;
-pub extern fn nvim_set_option(channel_id: u64, name: String, value: Object, err: [*c]Error) void;
-pub extern fn nvim_get_option(name: String, arena: [*c]Arena, err: [*c]Error) Object;
-pub extern fn nvim_buf_get_option(buffer: Buffer, name: String, arena: [*c]Arena, err: [*c]Error) Object;
-pub extern fn nvim_buf_set_option(channel_id: u64, buffer: Buffer, name: String, value: Object, err: [*c]Error) void;
-pub extern fn nvim_win_get_option(window: Window, name: String, arena: [*c]Arena, err: [*c]Error) Object;
-pub extern fn nvim_win_set_option(channel_id: u64, window: Window, name: String, value: Object, err: [*c]Error) void;
-pub extern fn set_option_to(channel_id: u64, to: ?*anyopaque, @"type": c_int, name: String, value: Object, err: [*c]Error) void;
+pub extern fn access_option_value_for(key: [*c]u8, numval: [*c]c_long, stringval: [*c][*c]u8, opt_flags: c_int, opt_type: c_int, from: ?*anyopaque, get: bool, err: [*c]Error) getoption_T;
 pub extern fn nvim_tabpage_list_wins(tabpage: Tabpage, err: [*c]Error) Array;
 pub extern fn nvim_tabpage_get_var(tabpage: Tabpage, name: String, err: [*c]Error) Object;
 pub extern fn nvim_tabpage_set_var(tabpage: Tabpage, name: String, value: Object, err: [*c]Error) void;
@@ -9136,6 +8725,37 @@ pub const struct_cleanup_stuff = extern struct {
     exception: [*c]except_T,
 };
 pub const cleanup_T = struct_cleanup_stuff;
+pub const iconv_t = ?*anyopaque;
+pub extern fn iconv_close(__cd: iconv_t) c_int;
+pub extern fn iconv_open(__tocode: [*c]const u8, __fromcode: [*c]const u8) iconv_t;
+pub extern fn iconv(__cd: iconv_t, noalias __inbuf: [*c][*c]u8, noalias __inbytesleft: [*c]usize, noalias __outbuf: [*c][*c]u8, noalias __outbytesleft: [*c]usize) usize;
+pub const MB_MAXCHAR: c_int = 6;
+const enum_unnamed_118 = c_uint;
+pub const ENC_8BIT: c_int = 1;
+pub const ENC_DBCS: c_int = 2;
+pub const ENC_UNICODE: c_int = 4;
+pub const ENC_ENDIAN_B: c_int = 16;
+pub const ENC_ENDIAN_L: c_int = 32;
+pub const ENC_2BYTE: c_int = 64;
+pub const ENC_4BYTE: c_int = 128;
+pub const ENC_2WORD: c_int = 256;
+pub const ENC_LATIN1: c_int = 512;
+pub const ENC_LATIN9: c_int = 1024;
+pub const ENC_MACROMAN: c_int = 2048;
+const enum_unnamed_119 = c_uint;
+pub const CONV_NONE: c_int = 0;
+pub const CONV_TO_UTF8: c_int = 1;
+pub const CONV_9_TO_UTF8: c_int = 2;
+pub const CONV_TO_LATIN1: c_int = 3;
+pub const CONV_TO_LATIN9: c_int = 4;
+pub const CONV_ICONV: c_int = 5;
+pub const ConvFlags = c_uint;
+pub const vimconv_T = extern struct {
+    vc_type: c_int,
+    vc_factor: c_int,
+    vc_fd: iconv_t,
+    vc_fail: bool,
+};
 pub extern const utf8len_tab_zero: [256]u8;
 pub extern const utf8len_tab: [256]u8;
 pub extern fn enc_canon_props(name: [*c]const u8) c_int;
@@ -9192,12 +8812,14 @@ pub extern fn mb_adjust_cursor() void;
 pub extern fn mb_check_adjust_col(win_: ?*anyopaque) void;
 pub extern fn mb_prevptr(line: [*c]u8, p: [*c]u8) [*c]u8;
 pub extern fn mb_charlen(str: [*c]const u8) c_int;
+pub extern fn mb_charlen2bytelen(str: [*c]const u8, charlen: c_int) c_int;
 pub extern fn mb_charlen_len(str: [*c]const u8, len: c_int) c_int;
 pub extern fn mb_unescape(pp: [*c][*c]const u8) [*c]const u8;
 pub extern fn enc_skip(p: [*c]u8) [*c]u8;
 pub extern fn enc_canonize(enc: [*c]u8) [*c]u8;
 pub extern fn enc_locale() [*c]u8;
 pub extern fn my_iconv_open(to: [*c]u8, from: [*c]u8) ?*anyopaque;
+pub extern fn f_iconv(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn convert_setup(vcp: [*c]vimconv_T, from: [*c]u8, to: [*c]u8) c_int;
 pub extern fn convert_setup_ext(vcp: [*c]vimconv_T, from: [*c]u8, from_unicode_is_utf8: bool, to: [*c]u8, to_unicode_is_utf8: bool) c_int;
 pub extern fn string_convert(vcp: [*c]const vimconv_T, ptr: [*c]u8, lenp: [*c]usize) [*c]u8;
@@ -9221,7 +8843,7 @@ pub const MENU_INDEX_CMDLINE: c_int = 5;
 pub const MENU_INDEX_TERMINAL: c_int = 6;
 pub const MENU_INDEX_TIP: c_int = 7;
 pub const MENU_MODES: c_int = 8;
-const enum_unnamed_118 = c_int;
+const enum_unnamed_120 = c_int;
 pub const MENU_NORMAL_MODE: c_int = 1;
 pub const MENU_VISUAL_MODE: c_int = 2;
 pub const MENU_SELECT_MODE: c_int = 4;
@@ -9231,7 +8853,7 @@ pub const MENU_CMDLINE_MODE: c_int = 32;
 pub const MENU_TERMINAL_MODE: c_int = 64;
 pub const MENU_TIP_MODE: c_int = 128;
 pub const MENU_ALL_MODES: c_int = 127;
-const enum_unnamed_119 = c_uint;
+const enum_unnamed_121 = c_uint;
 pub const vimmenu_T = struct_VimMenu;
 pub const struct_VimMenu = extern struct {
     modes: c_int,
@@ -9250,29 +8872,6 @@ pub const struct_VimMenu = extern struct {
     parent: [*c]vimmenu_T,
     next: [*c]vimmenu_T,
 };
-pub const AutoCmd = struct_AutoCmd_S;
-pub const struct_AutoCmd_S = extern struct {
-    exec: AucmdExecutable,
-    once: bool,
-    nested: bool,
-    last: bool,
-    id: i64,
-    script_ctx: sctx_T,
-    desc: [*c]u8,
-    next: [*c]AutoCmd,
-};
-pub const struct_AutoPat_S = extern struct {
-    next: [*c]AutoPat,
-    pat: [*c]u8,
-    reg_prog: [*c]regprog_T,
-    cmds: [*c]AutoCmd,
-    group: c_int,
-    patlen: c_int,
-    buflocal_nr: c_int,
-    allow_dirs: u8,
-    last: u8,
-};
-pub const AutoPat = struct_AutoPat_S;
 pub const EVENT_BUFADD: c_int = 0;
 pub const EVENT_BUFDELETE: c_int = 1;
 pub const EVENT_BUFENTER: c_int = 2;
@@ -9404,12 +9003,13 @@ pub const enum_auto_event = c_uint;
 pub const event_T = enum_auto_event;
 pub const AutoPatCmd = struct_AutoPatCmd_S;
 pub const struct_AutoPatCmd_S = extern struct {
-    curpat: [*c]AutoPat,
-    nextcmd: [*c]AutoCmd,
-    group: c_int,
+    lastpat: [*c]AutoPat,
+    auidx: usize,
+    ausize: usize,
     fname: [*c]u8,
     sfname: [*c]u8,
     tail: [*c]u8,
+    group: c_int,
     event: event_T,
     script_ctx: sctx_T,
     arg_bufnr: c_int,
@@ -9427,11 +9027,34 @@ pub const aco_save_T = extern struct {
     save_VIsual_active: bool,
     save_State: c_int,
 };
+pub const AutoPat = extern struct {
+    refcount: usize,
+    pat: [*c]u8,
+    reg_prog: [*c]regprog_T,
+    group: c_int,
+    patlen: c_int,
+    buflocal_nr: c_int,
+    allow_dirs: u8,
+};
+pub const AutoCmd = extern struct {
+    exec: AucmdExecutable,
+    pat: [*c]AutoPat,
+    id: i64,
+    desc: [*c]u8,
+    script_ctx: sctx_T,
+    once: bool,
+    nested: bool,
+};
+pub const AutoCmdVec = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]AutoCmd,
+};
 pub extern var au_did_filetype: bool;
-pub extern fn aupat_del_for_event_and_group(event: event_T, group: c_int) void;
-pub extern fn au_get_autopat_for_event(event: event_T) [*c]AutoPat;
+pub extern fn aucmd_del_for_event_and_group(event: event_T, group: c_int) void;
+pub extern fn au_get_autocmds_for_event(event: event_T) [*c]AutoCmdVec;
 pub extern fn aubuflocal_remove(buf: [*c]buf_T) void;
-pub extern fn augroup_add(name: [*c]u8) c_int;
+pub extern fn augroup_add(name: [*c]const u8) c_int;
 pub extern fn augroup_del(name: [*c]u8, stupid_legacy_mode: bool) void;
 pub extern fn augroup_find(name: [*c]const u8) c_int;
 pub extern fn augroup_name(group: c_int) [*c]u8;
@@ -9444,11 +9067,11 @@ pub extern fn check_ei() c_int;
 pub extern fn au_event_disable(what: [*c]u8) [*c]u8;
 pub extern fn au_event_restore(old_ei: [*c]u8) void;
 pub extern fn do_autocmd(eap: [*c]exarg_T, arg_in: [*c]u8, forceit: c_int) void;
-pub extern fn do_all_autocmd_events(pat: [*c]u8, once: bool, nested: c_int, cmd: [*c]u8, del: bool, group: c_int) void;
-pub extern fn do_autocmd_event(event: event_T, pat: [*c]u8, once: bool, nested: c_int, cmd: [*c]u8, del: bool, group: c_int) c_int;
-pub extern fn autocmd_register(id: i64, event: event_T, pat: [*c]u8, patlen: c_int, group: c_int, once: bool, nested: bool, desc: [*c]u8, aucmd: AucmdExecutable) c_int;
-pub extern fn aucmd_pattern_length(pat: [*c]u8) usize;
-pub extern fn aucmd_next_pattern(pat: [*c]u8, patlen: usize) [*c]u8;
+pub extern fn do_all_autocmd_events(pat: [*c]const u8, once: bool, nested: c_int, cmd: [*c]u8, del: bool, group: c_int) void;
+pub extern fn do_autocmd_event(event: event_T, pat: [*c]const u8, once: bool, nested: c_int, cmd: [*c]u8, del: bool, group: c_int) c_int;
+pub extern fn autocmd_register(id: i64, event: event_T, pat: [*c]const u8, patlen: c_int, group: c_int, once: bool, nested: bool, desc: [*c]u8, aucmd: AucmdExecutable) c_int;
+pub extern fn aucmd_pattern_length(pat: [*c]const u8) usize;
+pub extern fn aucmd_next_pattern(pat: [*c]const u8, patlen: usize) [*c]const u8;
 pub extern fn do_doautocmd(arg_start: [*c]u8, do_msg: bool, did_something: [*c]bool) c_int;
 pub extern fn ex_doautoall(eap: [*c]exarg_T) void;
 pub extern fn check_nomodeline(argp: [*c][*c]u8) bool;
@@ -9464,7 +9087,6 @@ pub extern fn apply_autocmds_group(event: event_T, fname: [*c]u8, fname_io: [*c]
 pub extern fn block_autocmds() void;
 pub extern fn unblock_autocmds() void;
 pub extern fn is_autocmd_blocked() bool;
-pub extern fn auto_next_pat(apc: [*c]AutoPatCmd, stop_at_last: c_int) void;
 pub extern fn getnextac(c: c_int, cookie: ?*anyopaque, indent: c_int, do_concat: bool) [*c]u8;
 pub extern fn has_autocmd(event: event_T, sfname: [*c]u8, buf: [*c]buf_T) bool;
 pub extern fn expand_get_augroup_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
@@ -9472,15 +9094,14 @@ pub extern fn set_context_in_autocmd(xp: [*c]expand_T, arg: [*c]u8, doautocmd: c
 pub extern fn expand_get_event_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
 pub extern fn autocmd_supported(event: [*c]const u8) bool;
 pub extern fn au_exists(arg: [*c]const u8) bool;
-pub extern fn aupat_is_buflocal(pat: [*c]u8, patlen: c_int) bool;
-pub extern fn aupat_get_buflocal_nr(pat: [*c]u8, patlen: c_int) c_int;
-pub extern fn aupat_normalize_buflocal_pat(dest: [*c]u8, pat: [*c]u8, patlen: c_int, buflocal_nr: c_int) void;
-pub extern fn autocmd_delete_event(group: c_int, event: event_T, pat: [*c]u8) c_int;
+pub extern fn aupat_is_buflocal(pat: [*c]const u8, patlen: c_int) bool;
+pub extern fn aupat_get_buflocal_nr(pat: [*c]const u8, patlen: c_int) c_int;
+pub extern fn aupat_normalize_buflocal_pat(dest: [*c]u8, pat: [*c]const u8, patlen: c_int, buflocal_nr: c_int) void;
+pub extern fn autocmd_delete_event(group: c_int, event: event_T, pat: [*c]const u8) c_int;
 pub extern fn autocmd_delete_id(id: i64) bool;
 pub extern fn aucmd_exec_to_string(ac: [*c]AutoCmd, acc: AucmdExecutable) [*c]u8;
 pub extern fn aucmd_exec_free(acc: [*c]AucmdExecutable) void;
 pub extern fn aucmd_exec_copy(src: AucmdExecutable) AucmdExecutable;
-pub extern fn aucmd_exec_is_deleted(acc: AucmdExecutable) bool;
 pub extern fn au_event_is_empty(event: event_T) bool;
 pub extern fn do_autocmd_uienter(chanid: u64, attached: bool) void;
 pub extern fn do_autocmd_focusgained(gained: bool) void;
@@ -9496,7 +9117,7 @@ pub const ETYPE_ENV: c_int = 7;
 pub const ETYPE_INTERNAL: c_int = 8;
 pub const ETYPE_SPELL: c_int = 9;
 pub const etype_T = c_uint;
-const union_unnamed_120 = extern union {
+const union_unnamed_122 = extern union {
     sctx: [*c]sctx_T,
     ufunc: [*c]ufunc_T,
     aucmd: [*c]AutoPatCmd,
@@ -9506,7 +9127,7 @@ pub const estack_T = extern struct {
     es_lnum: linenr_T,
     es_name: [*c]u8,
     es_type: etype_T,
-    es_info: union_unnamed_120,
+    es_info: union_unnamed_122,
 };
 pub extern var exestack: garray_T;
 pub const ESTACK_NONE: c_int = 0;
@@ -9573,7 +9194,7 @@ pub extern fn runtime_get_named_thread(lua: bool, pat: Array, all: bool) Array;
 pub extern fn runtime_get_named_common(lua: bool, pat: Array, all: bool, path: RuntimeSearchPath, buf: [*c]u8, buf_len: usize) Array;
 pub extern fn do_in_path_and_pp(path: [*c]u8, name: [*c]u8, flags: c_int, callback: DoInRuntimepathCB, cookie: ?*anyopaque) c_int;
 pub extern fn runtime_search_path_build() RuntimeSearchPath;
-pub extern fn runtime_search_path_invalidate() void;
+pub extern fn did_set_runtimepackpath(args: [*c]optset_T) [*c]const u8;
 pub extern fn runtime_search_path_free(path: RuntimeSearchPath) void;
 pub extern fn runtime_search_path_validate() void;
 pub extern fn do_in_runtimepath(name: [*c]u8, flags: c_int, callback: DoInRuntimepathCB, cookie: ?*anyopaque) c_int;
@@ -9747,12 +9368,12 @@ pub const aucmdwin_T = extern struct {
     auc_win: [*c]win_T,
     auc_win_used: bool,
 };
-const struct_unnamed_121 = extern struct {
+const struct_unnamed_123 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]aucmdwin_T,
 };
-pub extern var aucmd_win_vec: struct_unnamed_121;
+pub extern var aucmd_win_vec: struct_unnamed_123;
 pub extern var topframe: [*c]frame_T;
 pub extern var first_tabpage: [*c]tabpage_T;
 pub extern var curtab: [*c]tabpage_T;
@@ -9902,7 +9523,7 @@ pub extern var wild_menu_showing: c_int;
 pub const WM_SHOWN: c_int = 1;
 pub const WM_SCROLLED: c_int = 2;
 pub const WM_LIST: c_int = 3;
-const enum_unnamed_122 = c_uint;
+const enum_unnamed_124 = c_uint;
 pub extern var globaldir: [*c]u8;
 pub extern var last_chdir_reason: [*c]u8;
 pub extern var km_stopsel: bool;
@@ -10225,9 +9846,6 @@ pub const e_signdata: [*c]const u8 = @extern([*c]const u8, .{
 pub const e_swapclose: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_swapclose",
 });
-pub const e_tagstack: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_tagstack",
-});
 pub const e_toocompl: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_toocompl",
 });
@@ -10270,11 +9888,8 @@ pub const e_usingsid: [*c]const u8 = @extern([*c]const u8, .{
 pub const e_missingparen: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_missingparen",
 });
-pub const e_maxmempat: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_maxmempat",
-});
-pub const e_emptybuf: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_emptybuf",
+pub const e_empty_buffer: [*c]const u8 = @extern([*c]const u8, .{
+    .name = "e_empty_buffer",
 });
 pub const e_nobufnr: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_nobufnr",
@@ -10300,8 +9915,8 @@ pub const e_dirnotf: [*c]const u8 = @extern([*c]const u8, .{
 pub const e_au_recursive: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_au_recursive",
 });
-pub const e_menuothermode: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_menuothermode",
+pub const e_menu_only_exists_in_another_mode: [*c]const u8 = @extern([*c]const u8, .{
+    .name = "e_menu_only_exists_in_another_mode",
 });
 pub const e_autocmd_close: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_autocmd_close",
@@ -10315,23 +9930,17 @@ pub const e_unsupportedoption: [*c]const u8 = @extern([*c]const u8, .{
 pub const e_fnametoolong: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_fnametoolong",
 });
-pub const e_float_as_string: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_float_as_string",
-});
-pub const e_inval_string: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_inval_string",
+pub const e_using_float_as_string: [*c]const u8 = @extern([*c]const u8, .{
+    .name = "e_using_float_as_string",
 });
 pub const e_cannot_edit_other_buf: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_cannot_edit_other_buf",
 });
+pub const e_using_number_as_bool_nr: [*c]const u8 = @extern([*c]const u8, .{
+    .name = "e_using_number_as_bool_nr",
+});
 pub const e_not_callable_type_str: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_not_callable_type_str",
-});
-pub const e_cmdmap_err: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_cmdmap_err",
-});
-pub const e_cmdmap_repeated: [*c]const u8 = @extern([*c]const u8, .{
-    .name = "e_cmdmap_repeated",
 });
 pub const e_api_error: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_api_error",
@@ -10445,7 +10054,7 @@ pub const ui_ext_names: [*c][*c]const u8 = @extern([*c][*c]const u8, .{
 pub const UI = struct_ui_t;
 pub const kLineFlagWrap: c_int = 1;
 pub const kLineFlagInvalid: c_int = 2;
-const enum_unnamed_123 = c_uint;
+const enum_unnamed_125 = c_uint;
 pub const LineFlags = c_int;
 pub const UIData = extern struct {
     channel_id: u64,
@@ -10758,6 +10367,436 @@ pub extern fn f_argc(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncD
 pub extern fn f_argidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn f_arglistid(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn f_argv(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn gettext(__msgid: [*c]const u8) [*c]u8;
+pub extern fn dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
+pub extern fn __dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
+pub extern fn dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
+pub extern fn __dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
+pub extern fn ngettext(__msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
+pub extern fn dngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
+pub extern fn dcngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong, __category: c_int) [*c]u8;
+pub extern fn textdomain(__domainname: [*c]const u8) [*c]u8;
+pub extern fn bindtextdomain(__domainname: [*c]const u8, __dirname: [*c]const u8) [*c]u8;
+pub extern fn bind_textdomain_codeset(__domainname: [*c]const u8, __codeset: [*c]const u8) [*c]u8;
+pub const HlMessageChunk = extern struct {
+    text: String,
+    attr: c_int,
+};
+pub const HlMessage = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]HlMessageChunk,
+};
+pub const struct_msg_hist = extern struct {
+    next: [*c]struct_msg_hist,
+    msg: [*c]u8,
+    kind: [*c]const u8,
+    attr: c_int,
+    multiline: bool,
+    multiattr: HlMessage,
+};
+pub const MessageHistoryEntry = struct_msg_hist;
+pub extern var first_msg_hist: [*c]MessageHistoryEntry;
+pub extern var last_msg_hist: [*c]MessageHistoryEntry;
+pub extern var msg_ext_need_clear: bool;
+pub extern var msg_grid: ScreenGrid;
+pub extern var msg_grid_pos: c_int;
+pub extern var msg_grid_adj: ScreenGrid;
+pub extern var msg_scrolled_at_flush: c_int;
+pub extern var msg_grid_scroll_discount: c_int;
+pub extern fn msg_grid_set_pos(row: c_int, scrolled: bool) void;
+pub extern fn msg_use_grid() bool;
+pub extern fn msg_grid_validate() void;
+pub extern fn msg(s: [*c]const u8) c_int;
+pub extern fn verb_msg(s: [*c]const u8) c_int;
+pub extern fn msg_attr(s: [*c]const u8, attr: c_int) c_int;
+pub extern fn msg_multiline_attr(s: [*c]const u8, attr: c_int, check_int: bool, need_clear: [*c]bool) void;
+pub extern fn msg_multiattr(hl_msg: HlMessage, kind: [*c]const u8, history: bool) void;
+pub extern fn msg_attr_keep(s: [*c]const u8, attr: c_int, keep: bool, multiline: bool) bool;
+pub extern fn msg_strtrunc(s: [*c]const u8, force: c_int) [*c]u8;
+pub extern fn trunc_string(s: [*c]const u8, buf: [*c]u8, room_in: c_int, buflen: c_int) void;
+pub extern fn smsg(s: [*c]const u8, ...) c_int;
+pub extern fn smsg_attr(attr: c_int, s: [*c]const u8, ...) c_int;
+pub extern fn smsg_attr_keep(attr: c_int, s: [*c]const u8, ...) c_int;
+pub extern fn reset_last_sourcing() void;
+pub extern fn msg_source(attr: c_int) void;
+pub extern fn emsg_not_now() c_int;
+pub extern fn emsg(s: [*c]const u8) bool;
+pub extern fn emsg_invreg(name: c_int) void;
+pub extern fn semsg(fmt: [*c]const u8, ...) bool;
+pub extern fn semsg_multiline(fmt: [*c]const u8, ...) bool;
+pub extern fn iemsg(s: [*c]const u8) void;
+pub extern fn siemsg(s: [*c]const u8, ...) void;
+pub extern fn internal_error(where: [*c]const u8) void;
+pub extern fn msg_schedule_semsg(fmt: [*c]const u8, ...) void;
+pub extern fn msg_trunc_attr(s: [*c]u8, force: bool, attr: c_int) [*c]u8;
+pub extern fn msg_may_trunc(force: bool, s: [*c]u8) [*c]u8;
+pub extern fn hl_msg_free(hl_msg: HlMessage) void;
+pub extern fn delete_first_msg() c_int;
+pub extern fn ex_messages(eap_p: ?*anyopaque) void;
+pub extern fn msg_end_prompt() void;
+pub extern fn wait_return(redraw: c_int) void;
+pub extern fn set_keep_msg(s: [*c]const u8, attr: c_int) void;
+pub extern fn messaging() bool;
+pub extern fn msgmore(n: c_long) void;
+pub extern fn msg_ext_set_kind(msg_kind: [*c]const u8) void;
+pub extern fn msg_start() void;
+pub extern fn msg_starthere() void;
+pub extern fn msg_putchar(c: c_int) void;
+pub extern fn msg_putchar_attr(c: c_int, attr: c_int) void;
+pub extern fn msg_outnum(n: c_long) void;
+pub extern fn msg_home_replace(fname: [*c]const u8) void;
+pub extern fn msg_home_replace_hl(fname: [*c]const u8) void;
+pub extern fn msg_outtrans(str: [*c]const u8) c_int;
+pub extern fn msg_outtrans_attr(str: [*c]const u8, attr: c_int) c_int;
+pub extern fn msg_outtrans_len(str: [*c]const u8, len: c_int) c_int;
+pub extern fn msg_outtrans_one(p: [*c]const u8, attr: c_int) [*c]const u8;
+pub extern fn msg_outtrans_len_attr(msgstr: [*c]const u8, len: c_int, attr: c_int) c_int;
+pub extern fn msg_make(arg: [*c]const u8) void;
+pub extern fn msg_outtrans_special(strstart: [*c]const u8, from: bool, maxlen: c_int) c_int;
+pub extern fn str2special_save(str: [*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]u8;
+pub extern fn str2special(sp: [*c][*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]const u8;
+pub extern fn str2specialbuf(sp: [*c]const u8, buf: [*c]u8, len: usize) void;
+pub extern fn msg_prt_line(s: [*c]const u8, list: c_int) void;
+pub extern fn msg_puts(s: [*c]const u8) void;
+pub extern fn msg_puts_title(s: [*c]const u8) void;
+pub extern fn msg_outtrans_long_attr(longstr: [*c]const u8, attr: c_int) void;
+pub extern fn msg_outtrans_long_len_attr(longstr: [*c]const u8, len: c_int, attr: c_int) void;
+pub extern fn msg_puts_attr(s: [*c]const u8, attr: c_int) void;
+pub extern fn msg_puts_attr_len(str: [*c]const u8, len: ptrdiff_t, attr: c_int) void;
+pub extern fn msg_printf_attr(attr: c_int, fmt: [*c]const u8, ...) void;
+pub extern fn message_filtered(msg: [*c]const u8) bool;
+pub extern fn msg_scrollsize() c_int;
+pub extern fn msg_do_throttle() bool;
+pub extern fn msg_scroll_up(may_throttle: bool, zerocmd: bool) void;
+pub extern fn msg_scroll_flush() void;
+pub extern fn msg_reset_scroll() void;
+pub extern fn may_clear_sb_text() void;
+pub extern fn sb_text_start_cmdline() void;
+pub extern fn sb_text_restart_cmdline() void;
+pub extern fn sb_text_end_cmdline() void;
+pub extern fn clear_sb_text(all: c_int) void;
+pub extern fn show_sb_text() void;
+pub extern fn msg_sb_eol() void;
+pub extern fn msg_use_printf() c_int;
+pub extern fn msg_moremsg(full: c_int) void;
+pub extern fn repeat_message() void;
+pub extern fn msg_clr_eos() void;
+pub extern fn msg_clr_eos_force() void;
+pub extern fn msg_clr_cmdline() void;
+pub extern fn msg_end() c_int;
+pub extern fn msg_ext_ui_flush() void;
+pub extern fn msg_ext_flush_showmode() void;
+pub extern fn msg_ext_clear(force: bool) void;
+pub extern fn msg_ext_clear_later() void;
+pub extern fn msg_ext_check_clear() void;
+pub extern fn msg_ext_is_visible() bool;
+pub extern fn msg_check() void;
+pub extern fn redirecting() c_int;
+pub extern fn verbose_enter() void;
+pub extern fn verbose_leave() void;
+pub extern fn verbose_enter_scroll() void;
+pub extern fn verbose_leave_scroll() void;
+pub extern fn verbose_stop() void;
+pub extern fn verbose_open() c_int;
+pub extern fn give_warning(message: [*c]const u8, hl: bool) void;
+pub extern fn give_warning2(message: [*c]const u8, a1: [*c]const u8, hl: bool) void;
+pub extern fn msg_advance(col: c_int) void;
+pub extern fn do_dialog(@"type": c_int, title: [*c]u8, message: [*c]u8, buttons: [*c]u8, dfltbutton: c_int, textfield: [*c]u8, ex_cmd: c_int) c_int;
+pub extern fn display_confirm_msg() void;
+pub extern fn vim_dialog_yesno(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
+pub extern fn vim_dialog_yesnocancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
+pub extern fn vim_dialog_yesnoallcancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
+pub extern fn msg_check_for_delay(check_msg_scroll: bool) void;
+pub inline fn tv_list_ref(l: [*c]list_T) void {
+    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        return;
+    }
+    l.*.lv_refcount += 1;
+}
+pub inline fn tv_list_set_ret(tv: [*c]typval_T, l: [*c]list_T) void {
+    tv.*.v_type = @bitCast(c_uint, VAR_LIST);
+    tv.*.vval.v_list = l;
+    tv_list_ref(l);
+}
+pub fn tv_list_locked(l: [*c]const list_T) callconv(.C) VarLockStatus {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        return @bitCast(c_uint, VAR_FIXED);
+    }
+    return l.*.lv_lock;
+}
+pub fn tv_list_set_lock(l: [*c]list_T, lock: VarLockStatus) callconv(.C) void {
+    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        _ = blk: {
+            _ = @sizeOf(c_int);
+            break :blk blk_1: {
+                break :blk_1 if (lock == @bitCast(c_uint, VAR_FIXED)) {} else {
+                    __assert_fail("lock == VAR_FIXED", "_nvim/src/nvim/eval/typval.h", @bitCast(c_uint, @as(c_int, 151)), "void tv_list_set_lock(list_T *const, const VarLockStatus)");
+                };
+            };
+        };
+        return;
+    }
+    l.*.lv_lock = lock;
+}
+pub fn tv_list_set_copyid(l: [*c]list_T, copyid: c_int) callconv(.C) void {
+    l.*.lv_copyID = copyid;
+}
+pub fn tv_list_len(l: [*c]const list_T) callconv(.C) c_int {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        return 0;
+    }
+    return l.*.lv_len;
+}
+pub fn tv_list_copyid(l: [*c]const list_T) callconv(.C) c_int {
+    return l.*.lv_copyID;
+}
+pub fn tv_list_latest_copy(l: [*c]const list_T) callconv(.C) [*c]list_T {
+    return l.*.lv_copylist;
+}
+pub fn tv_list_uidx(l: [*c]const list_T, arg_n: c_int) callconv(.C) c_int {
+    var n = arg_n;
+    if (n < @as(c_int, 0)) {
+        n += tv_list_len(l);
+    }
+    if ((n < @as(c_int, 0)) or (n >= tv_list_len(l))) {
+        return -@as(c_int, 1);
+    }
+    return n;
+}
+pub fn tv_list_has_watchers(l: [*c]const list_T) callconv(.C) bool {
+    return (l != null) and (l.*.lv_watch != null);
+}
+pub fn tv_list_first(l: [*c]const list_T) callconv(.C) [*c]listitem_T {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        return null;
+    }
+    return l.*.lv_first;
+}
+pub fn tv_list_last(l: [*c]const list_T) callconv(.C) [*c]listitem_T {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        return null;
+    }
+    return l.*.lv_last;
+}
+pub inline fn tv_dict_set_ret(tv: [*c]typval_T, d: [*c]dict_T) void {
+    tv.*.v_type = @bitCast(c_uint, VAR_DICT);
+    tv.*.vval.v_dict = d;
+    if (d != @ptrCast([*c]dict_T, @alignCast(@import("std").meta.alignment([*c]dict_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        d.*.dv_refcount += 1;
+    }
+}
+pub fn tv_dict_len(d: [*c]const dict_T) callconv(.C) c_long {
+    if (d == @ptrCast([*c]const dict_T, @alignCast(@import("std").meta.alignment([*c]const dict_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        return 0;
+    }
+    return @bitCast(c_long, d.*.dv_hashtab.ht_used);
+}
+pub fn tv_dict_is_watched(d: [*c]const dict_T) callconv(.C) bool {
+    return (d != null) and !(QUEUE_EMPTY(&d.*.watchers) != 0);
+}
+pub inline fn tv_blob_set_ret(tv: [*c]typval_T, b: [*c]blob_T) void {
+    tv.*.v_type = @bitCast(c_uint, VAR_BLOB);
+    tv.*.vval.v_blob = b;
+    if (b != @ptrCast([*c]blob_T, @alignCast(@import("std").meta.alignment([*c]blob_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        b.*.bv_refcount += 1;
+    }
+}
+pub fn tv_blob_len(b: [*c]const blob_T) callconv(.C) c_int {
+    if (b == @ptrCast([*c]const blob_T, @alignCast(@import("std").meta.alignment([*c]const blob_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        return 0;
+    }
+    return b.*.bv_ga.ga_len;
+}
+pub inline fn tv_blob_get(b: [*c]const blob_T, arg_idx: c_int) u8 {
+    var idx = arg_idx;
+    return (blk: {
+        const tmp = idx;
+        if (tmp >= 0) break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), b.*.bv_ga.ga_data)) + @intCast(usize, tmp) else break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), b.*.bv_ga.ga_data)) - ~@bitCast(usize, @intCast(isize, tmp) +% -1);
+    }).*;
+}
+pub inline fn tv_blob_set(blob: [*c]blob_T, arg_idx: c_int, arg_c: u8) void {
+    var idx = arg_idx;
+    var c = arg_c;
+    (blk: {
+        const tmp = idx;
+        if (tmp >= 0) break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), blob.*.bv_ga.ga_data)) + @intCast(usize, tmp) else break :blk @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), blob.*.bv_ga.ga_data)) - ~@bitCast(usize, @intCast(isize, tmp) +% -1);
+    }).* = c;
+}
+pub fn tv_init(tv: [*c]typval_T) callconv(.C) void {
+    if (tv != @ptrCast([*c]typval_T, @alignCast(@import("std").meta.alignment([*c]typval_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+        _ = memset(@ptrCast(?*anyopaque, tv), @as(c_int, 0), @sizeOf(typval_T));
+    }
+}
+pub extern const tv_empty_string: [*c]const u8;
+pub extern var tv_in_free_unref_items: bool;
+pub fn tv_get_float_chk(tv: [*c]const typval_T, ret_f: [*c]float_T) callconv(.C) bool {
+    if (tv.*.v_type == @bitCast(c_uint, VAR_FLOAT)) {
+        ret_f.* = tv.*.vval.v_float;
+        return @as(c_int, 1) != 0;
+    }
+    if (tv.*.v_type == @bitCast(c_uint, VAR_NUMBER)) {
+        ret_f.* = @intToFloat(float_T, tv.*.vval.v_number);
+        return @as(c_int, 1) != 0;
+    }
+    _ = semsg("%s", gettext("E808: Number or Float required"));
+    return @as(c_int, 0) != 0;
+}
+pub inline fn tv_dict_watcher_node_data(arg_q: [*c]QUEUE) [*c]DictWatcher {
+    var q = arg_q;
+    return @ptrCast([*c]DictWatcher, @alignCast(@import("std").meta.alignment([*c]DictWatcher), @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), q)) - @offsetOf(struct_dict_watcher, "node")));
+}
+pub fn tv_is_func(tv: typval_T) callconv(.C) bool {
+    return (tv.v_type == @bitCast(c_uint, VAR_FUNC)) or (tv.v_type == @bitCast(c_uint, VAR_PARTIAL));
+}
+pub extern fn tv_list_item_remove(l: [*c]list_T, item: [*c]listitem_T) [*c]listitem_T;
+pub extern fn tv_list_watch_add(l: [*c]list_T, lw: [*c]listwatch_T) void;
+pub extern fn tv_list_watch_remove(l: [*c]list_T, lwrem: [*c]listwatch_T) void;
+pub extern fn tv_list_watch_fix(l: [*c]list_T, item: [*c]const listitem_T) void;
+pub extern fn tv_list_alloc(len: ptrdiff_t) [*c]list_T;
+pub extern fn tv_list_init_static10(sl: [*c]staticList10_T) void;
+pub extern fn tv_list_init_static(l: [*c]list_T) void;
+pub extern fn tv_list_free_contents(l: [*c]list_T) void;
+pub extern fn tv_list_free_list(l: [*c]list_T) void;
+pub extern fn tv_list_free(l: [*c]list_T) void;
+pub extern fn tv_list_unref(l: [*c]list_T) void;
+pub extern fn tv_list_drop_items(l: [*c]list_T, item: [*c]listitem_T, item2: [*c]listitem_T) void;
+pub extern fn tv_list_remove_items(l: [*c]list_T, item: [*c]listitem_T, item2: [*c]listitem_T) void;
+pub extern fn tv_list_move_items(l: [*c]list_T, item: [*c]listitem_T, item2: [*c]listitem_T, tgt_l: [*c]list_T, cnt: c_int) void;
+pub extern fn tv_list_insert(l: [*c]list_T, ni: [*c]listitem_T, item: [*c]listitem_T) void;
+pub extern fn tv_list_insert_tv(l: [*c]list_T, tv: [*c]typval_T, item: [*c]listitem_T) void;
+pub extern fn tv_list_append(l: [*c]list_T, item: [*c]listitem_T) void;
+pub extern fn tv_list_append_tv(l: [*c]list_T, tv: [*c]typval_T) void;
+pub extern fn tv_list_append_owned_tv(l: [*c]list_T, tv: typval_T) void;
+pub extern fn tv_list_append_list(l: [*c]list_T, itemlist: [*c]list_T) void;
+pub extern fn tv_list_append_dict(l: [*c]list_T, dict: [*c]dict_T) void;
+pub extern fn tv_list_append_string(l: [*c]list_T, str: [*c]const u8, len: isize) void;
+pub extern fn tv_list_append_allocated_string(l: [*c]list_T, str: [*c]u8) void;
+pub extern fn tv_list_append_number(l: [*c]list_T, n: varnumber_T) void;
+pub extern fn tv_list_copy(conv: [*c]const vimconv_T, orig: [*c]list_T, deep: bool, copyID: c_int) [*c]list_T;
+pub extern fn tv_list_flatten(list: [*c]list_T, first: [*c]listitem_T, maxitems: c_long, maxdepth: c_long) void;
+pub extern fn tv_list_extend(l1: [*c]list_T, l2: [*c]list_T, bef: [*c]listitem_T) void;
+pub extern fn tv_list_concat(l1: [*c]list_T, l2: [*c]list_T, tv: [*c]typval_T) c_int;
+pub extern fn tv_list_slice_or_index(list: [*c]list_T, range: bool, n1_arg: varnumber_T, n2_arg: varnumber_T, exclusive: bool, rettv: [*c]typval_T, verbose: bool) c_int;
+pub extern fn tv_list_join(gap: [*c]garray_T, l: [*c]list_T, sep: [*c]const u8) c_int;
+pub extern fn f_join(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_list2str(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn tv_list_remove(argvars: [*c]typval_T, rettv: [*c]typval_T, arg_errmsg: [*c]const u8) void;
+pub extern fn f_sort(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_uniq(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn tv_list_equal(l1: [*c]list_T, l2: [*c]list_T, ic: bool, recursive: bool) bool;
+pub extern fn tv_list_reverse(l: [*c]list_T) void;
+pub extern fn tv_list_item_sort(l: [*c]list_T, ptrs: [*c]ListSortItem, item_compare_func: ListSorter, errp: [*c]const bool) void;
+pub extern fn tv_list_find(l: [*c]list_T, n: c_int) [*c]listitem_T;
+pub extern fn tv_list_find_nr(l: [*c]list_T, n: c_int, ret_error: [*c]bool) varnumber_T;
+pub extern fn tv_list_find_str(l: [*c]list_T, n: c_int) [*c]const u8;
+pub extern fn tv_list_idx_of_item(l: [*c]const list_T, item: [*c]const listitem_T) c_long;
+pub extern fn tv_dict_watcher_add(dict: [*c]dict_T, key_pattern: [*c]const u8, key_pattern_len: usize, callback: Callback) void;
+pub extern fn tv_callback_equal(cb1: [*c]const Callback, cb2: [*c]const Callback) bool;
+pub extern fn callback_free(callback: [*c]Callback) void;
+pub extern fn callback_put(cb: [*c]Callback, tv: [*c]typval_T) void;
+pub extern fn callback_copy(dest: [*c]Callback, src: [*c]Callback) void;
+pub extern fn callback_to_string(cb: [*c]Callback) [*c]u8;
+pub extern fn tv_dict_watcher_remove(dict: [*c]dict_T, key_pattern: [*c]const u8, key_pattern_len: usize, callback: Callback) bool;
+pub extern fn tv_dict_watcher_notify(dict: [*c]dict_T, key: [*c]const u8, newtv: [*c]typval_T, oldtv: [*c]typval_T) void;
+pub extern fn tv_dict_item_alloc_len(key: [*c]const u8, key_len: usize) [*c]dictitem_T;
+pub extern fn tv_dict_item_alloc(key: [*c]const u8) [*c]dictitem_T;
+pub extern fn tv_dict_item_free(item: [*c]dictitem_T) void;
+pub extern fn tv_dict_item_copy(di: [*c]dictitem_T) [*c]dictitem_T;
+pub extern fn tv_dict_item_remove(dict: [*c]dict_T, item: [*c]dictitem_T) void;
+pub extern fn tv_dict_alloc() [*c]dict_T;
+pub extern fn tv_dict_free_contents(d: [*c]dict_T) void;
+pub extern fn tv_dict_free_dict(d: [*c]dict_T) void;
+pub extern fn tv_dict_free(d: [*c]dict_T) void;
+pub extern fn tv_dict_unref(d: [*c]dict_T) void;
+pub extern fn tv_dict_find(d: [*c]const dict_T, key: [*c]const u8, len: ptrdiff_t) [*c]dictitem_T;
+pub extern fn tv_dict_get_tv(d: [*c]dict_T, key: [*c]const u8, rettv: [*c]typval_T) c_int;
+pub extern fn tv_dict_get_number(d: [*c]const dict_T, key: [*c]const u8) varnumber_T;
+pub extern fn tv_dict_get_number_def(d: [*c]const dict_T, key: [*c]const u8, def: c_int) varnumber_T;
+pub extern fn tv_dict_get_bool(d: [*c]const dict_T, key: [*c]const u8, def: c_int) varnumber_T;
+pub extern fn tv_dict_to_env(denv: [*c]dict_T) [*c][*c]u8;
+pub extern fn tv_dict_get_string(d: [*c]const dict_T, key: [*c]const u8, save: bool) [*c]u8;
+pub extern fn tv_dict_get_string_buf(d: [*c]const dict_T, key: [*c]const u8, numbuf: [*c]u8) [*c]const u8;
+pub extern fn tv_dict_get_string_buf_chk(d: [*c]const dict_T, key: [*c]const u8, key_len: ptrdiff_t, numbuf: [*c]u8, def: [*c]const u8) [*c]const u8;
+pub extern fn tv_dict_get_callback(d: [*c]dict_T, key: [*c]const u8, key_len: ptrdiff_t, result: [*c]Callback) bool;
+pub extern fn tv_dict_wrong_func_name(d: [*c]dict_T, tv: [*c]typval_T, name: [*c]const u8) c_int;
+pub extern fn tv_dict_add(d: [*c]dict_T, item: [*c]dictitem_T) c_int;
+pub extern fn tv_dict_add_list(d: [*c]dict_T, key: [*c]const u8, key_len: usize, list: [*c]list_T) c_int;
+pub extern fn tv_dict_add_tv(d: [*c]dict_T, key: [*c]const u8, key_len: usize, tv: [*c]typval_T) c_int;
+pub extern fn tv_dict_add_dict(d: [*c]dict_T, key: [*c]const u8, key_len: usize, dict: [*c]dict_T) c_int;
+pub extern fn tv_dict_add_nr(d: [*c]dict_T, key: [*c]const u8, key_len: usize, nr: varnumber_T) c_int;
+pub extern fn tv_dict_add_float(d: [*c]dict_T, key: [*c]const u8, key_len: usize, nr: float_T) c_int;
+pub extern fn tv_dict_add_bool(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: BoolVarValue) c_int;
+pub extern fn tv_dict_add_str(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: [*c]const u8) c_int;
+pub extern fn tv_dict_add_str_len(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: [*c]const u8, len: c_int) c_int;
+pub extern fn tv_dict_add_allocated_str(d: [*c]dict_T, key: [*c]const u8, key_len: usize, val: [*c]u8) c_int;
+pub extern fn tv_dict_clear(d: [*c]dict_T) void;
+pub extern fn tv_dict_extend(d1: [*c]dict_T, d2: [*c]dict_T, action: [*c]const u8) void;
+pub extern fn tv_dict_equal(d1: [*c]dict_T, d2: [*c]dict_T, ic: bool, recursive: bool) bool;
+pub extern fn tv_dict_copy(conv: [*c]const vimconv_T, orig: [*c]dict_T, deep: bool, copyID: c_int) [*c]dict_T;
+pub extern fn tv_dict_set_keys_readonly(dict: [*c]dict_T) void;
+pub extern fn tv_blob_alloc() [*c]blob_T;
+pub extern fn tv_blob_free(b: [*c]blob_T) void;
+pub extern fn tv_blob_unref(b: [*c]blob_T) void;
+pub extern fn tv_blob_equal(b1: [*c]const blob_T, b2: [*c]const blob_T) bool;
+pub extern fn tv_blob_slice_or_index(blob: [*c]const blob_T, is_range: c_int, n1: varnumber_T, n2: varnumber_T, exclusive: bool, rettv: [*c]typval_T) c_int;
+pub extern fn tv_blob_check_index(bloblen: c_int, n1: varnumber_T, quiet: bool) c_int;
+pub extern fn tv_blob_check_range(bloblen: c_int, n1: varnumber_T, n2: varnumber_T, quiet: bool) c_int;
+pub extern fn tv_blob_set_range(dest: [*c]blob_T, n1: varnumber_T, n2: varnumber_T, src: [*c]typval_T) c_int;
+pub extern fn tv_blob_set_append(blob: [*c]blob_T, idx: c_int, byte: u8) void;
+pub extern fn tv_blob_remove(argvars: [*c]typval_T, rettv: [*c]typval_T, arg_errmsg: [*c]const u8) void;
+pub extern fn f_blob2list(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_list2blob(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn tv_list_alloc_ret(ret_tv: [*c]typval_T, len: ptrdiff_t) [*c]list_T;
+pub extern fn tv_dict_alloc_lock(lock: VarLockStatus) [*c]dict_T;
+pub extern fn tv_dict_alloc_ret(ret_tv: [*c]typval_T) void;
+pub extern fn f_items(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_keys(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_values(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_has_key(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn tv_dict_remove(argvars: [*c]typval_T, rettv: [*c]typval_T, arg_errmsg: [*c]const u8) void;
+pub extern fn tv_blob_alloc_ret(ret_tv: [*c]typval_T) void;
+pub extern fn tv_blob_copy(from: [*c]typval_T, to: [*c]typval_T) void;
+pub extern fn tv_clear(tv: [*c]typval_T) void;
+pub extern fn tv_free(tv: [*c]typval_T) void;
+pub extern fn tv_copy(from: [*c]const typval_T, to: [*c]typval_T) void;
+pub extern fn tv_item_lock(tv: [*c]typval_T, deep: c_int, lock: bool, check_refcount: bool) void;
+pub extern fn tv_islocked(tv: [*c]const typval_T) bool;
+pub extern fn tv_check_lock(tv: [*c]const typval_T, name: [*c]const u8, name_len: usize) bool;
+pub extern fn value_check_lock(lock: VarLockStatus, name: [*c]const u8, name_len: usize) bool;
+pub extern fn tv_equal(tv1: [*c]typval_T, tv2: [*c]typval_T, ic: bool, recursive: bool) bool;
+pub extern fn tv_check_str_or_nr(tv: [*c]const typval_T) bool;
+pub extern fn tv_check_num(tv: [*c]const typval_T) bool;
+pub extern fn tv_check_str(tv: [*c]const typval_T) bool;
+pub extern fn tv_get_number(tv: [*c]const typval_T) varnumber_T;
+pub extern fn tv_get_number_chk(tv: [*c]const typval_T, ret_error: [*c]bool) varnumber_T;
+pub extern fn tv_get_bool(tv: [*c]const typval_T) varnumber_T;
+pub extern fn tv_get_bool_chk(tv: [*c]const typval_T, ret_error: [*c]bool) varnumber_T;
+pub extern fn tv_get_lnum(tv: [*c]const typval_T) linenr_T;
+pub extern fn tv_get_float(tv: [*c]const typval_T) float_T;
+pub extern fn tv_check_for_string_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_nonempty_string_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_opt_string_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_number_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_opt_number_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_float_or_nr_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_bool_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_opt_bool_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_blob_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_list_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_dict_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_nonnull_dict_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_opt_dict_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_string_or_number_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_string_or_list_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_opt_string_or_list_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_string_or_func_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_check_for_list_or_blob_arg(args: [*c]const typval_T, idx: c_int) c_int;
+pub extern fn tv_get_string_buf_chk(tv: [*c]const typval_T, buf: [*c]u8) [*c]const u8;
+pub extern fn tv_get_string_chk(tv: [*c]const typval_T) [*c]const u8;
+pub extern fn tv_get_string(tv: [*c]const typval_T) [*c]const u8;
+pub extern fn tv_get_string_buf(tv: [*c]const typval_T, buf: [*c]u8) [*c]const u8;
+pub extern fn tv2bool(tv: [*c]const typval_T) bool;
 pub extern fn ml_open(buf: [*c]buf_T) c_int;
 pub extern fn ml_setname(buf: [*c]buf_T) void;
 pub extern fn ml_open_files() void;
@@ -11024,7 +11063,7 @@ pub const kExtmarkVirtText: c_int = 4;
 pub const kExtmarkVirtLines: c_int = 8;
 pub const kExtmarkHighlight: c_int = 16;
 pub const ExtmarkType = c_uint;
-pub extern fn extmark_set(buf: [*c]buf_T, ns_id: u32, idp: [*c]u32, row: c_int, col: colnr_T, end_row: c_int, end_col: colnr_T, decor: [*c]Decoration, right_gravity: bool, end_right_gravity: bool, op: ExtmarkOp) void;
+pub extern fn extmark_set(buf: [*c]buf_T, ns_id: u32, idp: [*c]u32, row: c_int, col: colnr_T, end_row: c_int, end_col: colnr_T, decor: [*c]Decoration, right_gravity: bool, end_right_gravity: bool, op: ExtmarkOp, err: [*c]Error) void;
 pub extern fn extmark_del(buf: [*c]buf_T, ns_id: u32, id: u32) bool;
 pub extern fn extmark_clear(buf: [*c]buf_T, ns_id: u32, l_row: c_int, l_col: colnr_T, u_row: c_int, u_col: colnr_T) bool;
 pub extern fn extmark_get(buf: [*c]buf_T, ns_id: u32, l_row: c_int, l_col: colnr_T, u_row: c_int, u_col: colnr_T, amount: i64, reverse: bool, all_ns: bool, type_filter: ExtmarkType) ExtmarkInfoArray;
@@ -11109,7 +11148,7 @@ pub extern fn rbuffer_write(buf: [*c]RBuffer, src: [*c]const u8, src_size: usize
 pub extern fn rbuffer_read(buf: [*c]RBuffer, dst: [*c]u8, dst_size: usize) usize;
 pub extern fn rbuffer_get(buf: [*c]RBuffer, index: usize) [*c]u8;
 pub extern fn rbuffer_cmp(buf: [*c]RBuffer, str: [*c]const u8, count: usize) c_int;
-const union_unnamed_124 = extern union {
+const union_unnamed_126 = extern union {
     pipe: uv_pipe_t,
     tcp: uv_tcp_t,
     idle: uv_idle_t,
@@ -11121,7 +11160,7 @@ pub const stream_close_cb = ?*const fn ([*c]Stream, ?*anyopaque) callconv(.C) vo
 pub const struct_stream = extern struct {
     closed: bool,
     did_eof: bool,
-    uv: union_unnamed_124,
+    uv: union_unnamed_126,
     uvstream: [*c]uv_stream_t,
     uvbuf: uv_buf_t,
     buffer: [*c]RBuffer,
@@ -11214,7 +11253,7 @@ pub fn process_init(arg_loop_1: [*c]Loop, arg_type: ProcessType, arg_data: ?*any
         .in = Stream{
             .closed = @as(c_int, 0) != 0,
             .did_eof = false,
-            .uv = @import("std").mem.zeroes(union_unnamed_124),
+            .uv = @import("std").mem.zeroes(union_unnamed_126),
             .uvstream = null,
             .uvbuf = @import("std").mem.zeroes(uv_buf_t),
             .buffer = null,
@@ -11236,7 +11275,7 @@ pub fn process_init(arg_loop_1: [*c]Loop, arg_type: ProcessType, arg_data: ?*any
         .out = Stream{
             .closed = @as(c_int, 0) != 0,
             .did_eof = false,
-            .uv = @import("std").mem.zeroes(union_unnamed_124),
+            .uv = @import("std").mem.zeroes(union_unnamed_126),
             .uvstream = null,
             .uvbuf = @import("std").mem.zeroes(uv_buf_t),
             .buffer = null,
@@ -11258,7 +11297,7 @@ pub fn process_init(arg_loop_1: [*c]Loop, arg_type: ProcessType, arg_data: ?*any
         .err = Stream{
             .closed = @as(c_int, 0) != 0,
             .did_eof = false,
-            .uv = @import("std").mem.zeroes(union_unnamed_124),
+            .uv = @import("std").mem.zeroes(union_unnamed_126),
             .uvstream = null,
             .uvbuf = @import("std").mem.zeroes(uv_buf_t),
             .buffer = null,
@@ -11319,23 +11358,23 @@ pub fn libuv_process_init(arg_loop_1: [*c]Loop, arg_data: ?*anyopaque) callconv(
 }
 pub extern fn libuv_process_spawn(uvproc: [*c]LibuvProcess) c_int;
 pub extern fn libuv_process_close(uvproc: [*c]LibuvProcess) void;
-const struct_unnamed_126 = extern struct {
+const struct_unnamed_128 = extern struct {
     handle: uv_tcp_t,
     addrinfo: [*c]struct_addrinfo,
 };
-const struct_unnamed_127 = extern struct {
+const struct_unnamed_129 = extern struct {
     handle: uv_pipe_t,
 };
-const union_unnamed_125 = extern union {
-    tcp: struct_unnamed_126,
-    pipe: struct_unnamed_127,
+const union_unnamed_127 = extern union {
+    tcp: struct_unnamed_128,
+    pipe: struct_unnamed_129,
 };
 pub const SocketWatcher = struct_socket_watcher;
 pub const socket_cb = ?*const fn ([*c]SocketWatcher, c_int, ?*anyopaque) callconv(.C) void;
 pub const socket_close_cb = ?*const fn ([*c]SocketWatcher, ?*anyopaque) callconv(.C) void;
 pub const struct_socket_watcher = extern struct {
     addr: [256]u8,
-    uv: union_unnamed_125,
+    uv: union_unnamed_127,
     stream: [*c]uv_stream_t,
     data: ?*anyopaque,
     cb: socket_cb,
@@ -12548,12 +12587,12 @@ pub fn msgpack_pack_float(arg_x: [*c]msgpack_packer, arg_d: f32) callconv(.C) c_
     var x = arg_x;
     var d = arg_d;
     var buf: [5]u8 = undefined;
-    const union_unnamed_128 = extern union {
+    const union_unnamed_130 = extern union {
         f: f32,
         i: u32,
     };
-    _ = @TypeOf(union_unnamed_128);
-    var mem: union_unnamed_128 = undefined;
+    _ = @TypeOf(union_unnamed_130);
+    var mem: union_unnamed_130 = undefined;
     mem.f = d;
     buf[@intCast(c_uint, @as(c_int, 0))] = 202;
     while (true) {
@@ -12567,12 +12606,12 @@ pub fn msgpack_pack_double(arg_x: [*c]msgpack_packer, arg_d: f64) callconv(.C) c
     var x = arg_x;
     var d = arg_d;
     var buf: [9]u8 = undefined;
-    const union_unnamed_129 = extern union {
+    const union_unnamed_131 = extern union {
         f: f64,
         i: u64,
     };
-    _ = @TypeOf(union_unnamed_129);
-    var mem: union_unnamed_129 = undefined;
+    _ = @TypeOf(union_unnamed_131);
+    var mem: union_unnamed_131 = undefined;
     mem.f = d;
     buf[@intCast(c_uint, @as(c_int, 0))] = 203;
     while (true) {
@@ -13283,6 +13322,12 @@ pub extern fn handle_tabpage_del_var(channel_id: u64, args: Array, arena: [*c]Ar
 pub extern fn handle_vim_set_var(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_vim_del_var(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_get_option_info(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
+pub extern fn handle_nvim_set_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
+pub extern fn handle_nvim_get_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
+pub extern fn handle_nvim_buf_get_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
+pub extern fn handle_nvim_buf_set_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
+pub extern fn handle_nvim_win_get_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
+pub extern fn handle_nvim_win_set_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_create_namespace(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_get_namespaces(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_buf_get_extmark_by_id(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
@@ -13295,12 +13340,6 @@ pub extern fn handle_nvim_get_option_value(channel_id: u64, args: Array, arena: 
 pub extern fn handle_nvim_set_option_value(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_get_all_options_info(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_get_option_info2(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
-pub extern fn handle_nvim_set_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
-pub extern fn handle_nvim_get_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
-pub extern fn handle_nvim_buf_get_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
-pub extern fn handle_nvim_buf_set_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
-pub extern fn handle_nvim_win_get_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
-pub extern fn handle_nvim_win_set_option(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_tabpage_list_wins(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_tabpage_get_var(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
 pub extern fn handle_nvim_tabpage_set_var(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
@@ -13496,7 +13535,7 @@ pub const exec_opts_table: [*c]KeySetLink = @extern([*c]KeySetLink, .{
     .name = "exec_opts_table",
 });
 pub const NUMBUFLEN: c_int = 65;
-const enum_unnamed_130 = c_uint;
+const enum_unnamed_132 = c_uint;
 pub fn strappend(dst: [*c]u8, src: [*c]const u8) callconv(.C) [*c]u8 {
     const src_len: usize = strlen(src);
     return @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), memmove(@ptrCast(?*anyopaque, dst), @ptrCast(?*const anyopaque, src), src_len))) + src_len;
@@ -13528,6 +13567,29 @@ pub extern fn vim_vsnprintf_typval(str: [*c]u8, str_m: usize, fmt: [*c]const u8,
 pub extern fn kv_do_printf(str: [*c]StringBuilder, fmt: [*c]const u8, ...) c_int;
 pub extern fn reverse_text(s: [*c]u8) [*c]u8;
 pub extern fn strrep(src: [*c]const u8, what: [*c]const u8, rep: [*c]const u8) [*c]u8;
+pub extern fn f_byteidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_byteidxcomp(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_charidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_str2list(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_str2nr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strgetchar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_stridx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_string(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strlen(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strcharlen(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strchars(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strutf16len(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strdisplaywidth(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strwidth(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strcharpart(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strpart(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strridx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strtrans(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_utf16idx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_tolower(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_toupper(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_tr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_trim(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub const KE_S_UP: c_int = 4;
 pub const KE_S_DOWN: c_int = 5;
 pub const KE_S_F1: c_int = 6;
@@ -13628,12 +13690,12 @@ pub const REPTERM_FROM_PART: c_int = 1;
 pub const REPTERM_DO_LT: c_int = 2;
 pub const REPTERM_NO_SPECIAL: c_int = 4;
 pub const REPTERM_NO_SIMPLIFY: c_int = 8;
-const enum_unnamed_131 = c_uint;
+const enum_unnamed_133 = c_uint;
 pub const FSK_KEYCODE: c_int = 1;
 pub const FSK_KEEP_X_KEY: c_int = 2;
 pub const FSK_IN_STRING: c_int = 4;
 pub const FSK_SIMPLIFY: c_int = 8;
-const enum_unnamed_132 = c_uint;
+const enum_unnamed_134 = c_uint;
 pub extern fn name_to_mod_mask(c: c_int) c_int;
 pub extern fn simplify_key(key: c_int, modifiers: [*c]c_int) c_int;
 pub extern fn handle_x_keys(key: c_int) c_int;
@@ -13710,9 +13772,9 @@ pub const EXPAND_SCRIPTNAMES: c_int = 50;
 pub const EXPAND_RUNTIME: c_int = 51;
 pub const EXPAND_CHECKHEALTH: c_int = 52;
 pub const EXPAND_LUA: c_int = 53;
-const enum_unnamed_133 = c_int;
+const enum_unnamed_135 = c_int;
 pub const FOLD_TEXT_LEN: c_int = 51;
-const enum_unnamed_134 = c_uint;
+const enum_unnamed_136 = c_uint;
 pub const kEqualFiles: c_int = 1;
 pub const kDifferentFiles: c_int = 2;
 pub const kBothFilesMissing: c_int = 4;
@@ -13783,7 +13845,7 @@ pub const struct_pty_process = extern struct {
     tty_fd: c_int,
 };
 pub const PtyProcess = struct_pty_process;
-const union_unnamed_135 = extern union {
+const union_unnamed_137 = extern union {
     proc: Process,
     uv: LibuvProcess,
     pty: PtyProcess,
@@ -13797,7 +13859,7 @@ pub const struct_Channel = extern struct {
     refcount: usize,
     events: ?*MultiQueue,
     streamtype: ChannelStreamType,
-    stream: union_unnamed_135,
+    stream: union_unnamed_137,
     is_rpc: bool,
     rpc: RpcState,
     term: ?*Terminal,
@@ -13815,7 +13877,7 @@ pub const struct_mpack_value_s = extern struct {
     hi: mpack_uint32_t,
 };
 pub const mpack_value_t = struct_mpack_value_s;
-const union_unnamed_136 = extern union {
+const union_unnamed_138 = extern union {
     value: mpack_value_t,
     chunk_ptr: [*c]const u8,
     ext_type: c_int,
@@ -13823,7 +13885,7 @@ const union_unnamed_136 = extern union {
 pub const struct_mpack_token_s = extern struct {
     type: mpack_token_type_t,
     length: mpack_uint32_t,
-    data: union_unnamed_136,
+    data: union_unnamed_138,
 };
 pub const mpack_token_t = struct_mpack_token_s;
 pub const struct_mpack_tokbuf_s = extern struct {
@@ -13870,17 +13932,17 @@ pub const RequestEvent = extern struct {
     request_id: u32,
     used_mem: Arena,
 };
-const struct_unnamed_137 = extern struct {
+const struct_unnamed_139 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c][*c]ChannelCallFrame,
 };
 pub const RpcState = extern struct {
-    subscribed_events: [1]Map_cstr_t_ptr_t,
+    subscribed_events: [1]kh_cstr_t_t,
     closed: bool,
     unpacker: [*c]Unpacker,
     next_request_id: u32,
-    call_stack: struct_unnamed_137,
+    call_stack: struct_unnamed_139,
     info: Dictionary,
 };
 pub const struct_termio = extern struct {
@@ -14046,6 +14108,7 @@ pub extern fn vim_iswordc_buf(c: c_int, buf: [*c]buf_T) bool;
 pub extern fn vim_iswordp(p: [*c]const u8) bool;
 pub extern fn vim_iswordp_buf(p: [*c]const u8, buf: [*c]buf_T) bool;
 pub extern fn vim_isfilec(c: c_int) bool;
+pub extern fn vim_is_fname_char(c: c_int) bool;
 pub extern fn vim_isfilec_or_wc(c: c_int) bool;
 pub extern fn vim_isprintc(c: c_int) bool;
 pub extern fn vim_isprintc_strict(c: c_int) bool;
@@ -14130,7 +14193,7 @@ pub const CmdRedraw = c_uint;
 pub const VSE_NONE: c_int = 0;
 pub const VSE_SHELL: c_int = 1;
 pub const VSE_BUFFER: c_int = 2;
-const enum_unnamed_138 = c_uint;
+const enum_unnamed_140 = c_uint;
 pub extern fn cmdpreview_get_bufnr() handle_T;
 pub extern fn cmdpreview_get_ns() c_long;
 pub extern fn getcmdline(firstc: c_int, count: c_long, indent: c_int, do_concat: bool) [*c]u8;
@@ -14175,7 +14238,7 @@ pub extern fn f_setcmdpos(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: Eval
 pub extern fn get_cmdline_firstc() c_int;
 pub extern fn get_list_range(str: [*c][*c]u8, num1: [*c]c_int, num2: [*c]c_int) c_int;
 pub extern fn cmdline_init() void;
-pub extern fn check_cedit() [*c]const u8;
+pub extern fn did_set_cedit(args: [*c]optset_T) [*c]const u8;
 pub extern fn is_in_cmdwin() bool;
 pub extern fn script_get(eap: [*c]exarg_T, lenp: [*c]usize) [*c]u8;
 pub const WILD_FREE: c_int = 1;
@@ -14191,7 +14254,7 @@ pub const WILD_APPLY: c_int = 10;
 pub const WILD_PAGEUP: c_int = 11;
 pub const WILD_PAGEDOWN: c_int = 12;
 pub const WILD_PUM_WANT: c_int = 13;
-const enum_unnamed_139 = c_uint;
+const enum_unnamed_141 = c_uint;
 pub const WILD_LIST_NOTFOUND: c_int = 1;
 pub const WILD_HOME_REPLACE: c_int = 2;
 pub const WILD_USE_NL: c_int = 4;
@@ -14206,7 +14269,7 @@ pub const WILD_IGNORE_COMPLETESLASH: c_int = 1024;
 pub const WILD_NOERROR: c_int = 2048;
 pub const WILD_BUFLASTUSED: c_int = 4096;
 pub const BUF_DIFF_FILTER: c_int = 8192;
-const enum_unnamed_140 = c_uint;
+const enum_unnamed_142 = c_uint;
 pub extern fn cmdline_fuzzy_complete(fuzzystr: [*c]const u8) bool;
 pub extern fn nextwild(xp: [*c]expand_T, @"type": c_int, options: c_int, escape: bool) c_int;
 pub extern fn cmdline_pum_display(changed_array: bool) void;
@@ -14301,7 +14364,7 @@ pub extern fn check_cursor_col_win(win: [*c]win_T) void;
 pub extern fn check_cursor() void;
 pub extern fn check_visual_pos() void;
 pub extern fn adjust_cursor_col() void;
-pub extern fn leftcol_changed() bool;
+pub extern fn set_leftcol(leftcol: colnr_T) bool;
 pub extern fn gchar_cursor() c_int;
 pub extern fn pchar_cursor(c: u8) void;
 pub extern fn get_cursor_line_ptr() [*c]u8;
@@ -14345,7 +14408,7 @@ pub const struct_cursor_entry = extern struct {
 pub const cursorentry_T = struct_cursor_entry;
 pub extern var shape_table: [17]cursorentry_T;
 pub extern fn mode_style_array(arena: [*c]Arena) Array;
-pub extern fn parse_shape_opt(what: c_int) [*c]u8;
+pub extern fn parse_shape_opt(what: c_int) [*c]const u8;
 pub extern fn cursor_is_block_during_visual(exclusive: bool) bool;
 pub extern fn cursor_mode_str2int(mode: [*c]const u8) c_int;
 pub extern fn cursor_mode_uses_syn_id(syn_id: c_int) bool;
@@ -14493,12 +14556,12 @@ pub const WinExtmark = extern struct {
     win_row: c_int,
     win_col: c_int,
 };
-const struct_unnamed_141 = extern struct {
+const struct_unnamed_143 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]WinExtmark,
 };
-pub extern var win_extmark_arr: struct_unnamed_141;
+pub extern var win_extmark_arr: struct_unnamed_143;
 pub extern var conceal_cursor_used: bool;
 pub extern fn fill_foldcolumn(p: [*c]u8, wp: [*c]win_T, foldinfo: foldinfo_T, lnum: linenr_T) usize;
 pub extern fn win_signcol_width(wp: [*c]win_T) c_int;
@@ -14510,7 +14573,7 @@ pub const UPD_REDRAW_TOP: c_int = 30;
 pub const UPD_SOME_VALID: c_int = 35;
 pub const UPD_NOT_VALID: c_int = 40;
 pub const UPD_CLEAR: c_int = 50;
-const enum_unnamed_142 = c_uint;
+const enum_unnamed_144 = c_uint;
 pub extern var updating_screen: bool;
 pub extern var screen_search_hl: match_T;
 pub extern fn conceal_check_cursor_line() void;
@@ -14559,7 +14622,7 @@ pub extern fn buf_prompt_text(buf: [*c]const buf_T) [*c]u8;
 pub extern fn prompt_text() [*c]u8;
 pub extern fn prompt_curpos_editable() bool;
 pub extern fn edit_unputchar() void;
-pub extern fn display_dollar(col: colnr_T) void;
+pub extern fn display_dollar(col_arg: colnr_T) void;
 pub extern fn undisplay_dollar() void;
 pub extern fn change_indent(@"type": c_int, amount: c_int, round: c_int, replaced: c_int, call_changed_bytes: c_int) void;
 pub extern fn truncate_spaces(line: [*c]u8) void;
@@ -14589,20 +14652,32 @@ pub extern fn get_nolist_virtcol() colnr_T;
 pub extern fn get_can_cindent() bool;
 pub extern fn set_can_cindent(val: bool) void;
 pub extern fn ins_apply_autocmds(event: event_T) c_int;
-pub const SignalWatcher = struct_signal_watcher;
-pub const signal_cb = ?*const fn ([*c]SignalWatcher, c_int, ?*anyopaque) callconv(.C) void;
-pub const signal_close_cb = ?*const fn ([*c]SignalWatcher, ?*anyopaque) callconv(.C) void;
-pub const struct_signal_watcher = extern struct {
-    uv: uv_signal_t,
-    data: ?*anyopaque,
-    cb: signal_cb,
-    close_cb: signal_close_cb,
-    events: ?*MultiQueue,
-};
-pub extern fn signal_watcher_init(loop: [*c]Loop, watcher: [*c]SignalWatcher, data: ?*anyopaque) void;
-pub extern fn signal_watcher_start(watcher: [*c]SignalWatcher, cb: signal_cb, signum: c_int) void;
-pub extern fn signal_watcher_stop(watcher: [*c]SignalWatcher) void;
-pub extern fn signal_watcher_close(watcher: [*c]SignalWatcher, cb: signal_close_cb) void;
+pub extern fn find_buffer(avar: [*c]typval_T) [*c]buf_T;
+pub extern fn f_append(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_appendbufline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufadd(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufexists(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_buflisted(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufload(argvars: [*c]typval_T, unused: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufloaded(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufname(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufnr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufwinid(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_bufwinnr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_deletebufline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getbufinfo(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getbufline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getbufoneline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_setbufline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_setline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn switch_buffer(save_curbuf: [*c]bufref_T, buf: [*c]buf_T) void;
+pub extern fn restore_buffer(save_curbuf: [*c]bufref_T) void;
+pub extern fn find_win_for_buf(buf: [*c]buf_T, wp: [*c][*c]win_T, tp: [*c][*c]tabpage_T) bool;
+pub extern fn decode_create_map_special_dict(ret_tv: [*c]typval_T, len: ptrdiff_t) [*c]list_T;
+pub extern fn decode_string(s: [*c]const u8, len: usize, hasnul: TriState, binary: bool, s_allocated: bool) typval_T;
+pub extern fn json_decode_string(buf: [*c]const u8, buf_len: usize, rettv: [*c]typval_T) c_int;
+pub extern fn msgpack_to_vim(mobj: msgpack_object, rettv: [*c]typval_T) c_int;
 pub const TimeWatcher = struct_time_watcher;
 pub const time_cb = ?*const fn ([*c]TimeWatcher, ?*anyopaque) callconv(.C) void;
 pub const struct_time_watcher = extern struct {
@@ -14617,6 +14692,977 @@ pub extern fn time_watcher_init(loop: [*c]Loop, watcher: [*c]TimeWatcher, data: 
 pub extern fn time_watcher_start(watcher: [*c]TimeWatcher, cb: time_cb, timeout: u64, repeat: u64) void;
 pub extern fn time_watcher_stop(watcher: [*c]TimeWatcher) void;
 pub extern fn time_watcher_close(watcher: [*c]TimeWatcher, cb: time_cb) void;
+pub const FileDescriptor = extern struct {
+    fd: c_int,
+    _error: c_int,
+    rv: [*c]RBuffer,
+    wr: bool,
+    eof: bool,
+    non_blocking: bool,
+};
+pub const kFileReadOnly: c_int = 1;
+pub const kFileCreate: c_int = 2;
+pub const kFileWriteOnly: c_int = 4;
+pub const kFileNoSymlink: c_int = 8;
+pub const kFileCreateOnly: c_int = 16;
+pub const kFileTruncate: c_int = 32;
+pub const kFileAppend: c_int = 64;
+pub const kFileNonBlocking: c_int = 128;
+pub const kFileMkDir: c_int = 256;
+pub const FileOpenFlags = c_uint;
+pub fn file_eof(fp: [*c]const FileDescriptor) callconv(.C) bool {
+    return (@as(c_int, @boolToInt(fp.*.eof)) != 0) and (rbuffer_size(fp.*.rv) == @bitCast(usize, @as(c_long, @as(c_int, 0))));
+}
+pub fn file_fd(fp: [*c]const FileDescriptor) callconv(.C) c_int {
+    return fp.*.fd;
+}
+pub const kRWBufferSize: c_int = 1024;
+const enum_unnamed_145 = c_uint;
+pub extern fn file_open(ret_fp: [*c]FileDescriptor, fname: [*c]const u8, flags: c_int, mode: c_int) c_int;
+pub extern fn file_open_fd(ret_fp: [*c]FileDescriptor, fd: c_int, flags: c_int) c_int;
+pub extern fn file_open_new(@"error": [*c]c_int, fname: [*c]const u8, flags: c_int, mode: c_int) [*c]FileDescriptor;
+pub extern fn file_open_fd_new(@"error": [*c]c_int, fd: c_int, flags: c_int) [*c]FileDescriptor;
+pub extern fn file_open_stdin() [*c]FileDescriptor;
+pub extern fn file_close(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
+pub extern fn file_free(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
+pub extern fn file_flush(fp: [*c]FileDescriptor) c_int;
+pub extern fn file_fsync(fp: [*c]FileDescriptor) c_int;
+pub extern fn file_read(fp: [*c]FileDescriptor, ret_buf: [*c]u8, size: usize) ptrdiff_t;
+pub extern fn file_write(fp: [*c]FileDescriptor, buf: [*c]const u8, size: usize) ptrdiff_t;
+pub extern fn file_skip(fp: [*c]FileDescriptor, size: usize) ptrdiff_t;
+pub extern fn msgpack_file_write(data: ?*anyopaque, buf: [*c]const u8, len: usize) c_int;
+pub extern fn msgpack_file_write_error(@"error": c_int) c_int;
+pub const kXDGNone: c_int = -1;
+pub const kXDGConfigHome: c_int = 0;
+pub const kXDGDataHome: c_int = 1;
+pub const kXDGCacheHome: c_int = 2;
+pub const kXDGStateHome: c_int = 3;
+pub const kXDGRuntimeDir: c_int = 4;
+pub const kXDGConfigDirs: c_int = 5;
+pub const kXDGDataDirs: c_int = 6;
+pub const XDGVarType = c_int;
+pub const struct_lval_S = extern struct {
+    ll_name: [*c]const u8,
+    ll_name_len: usize,
+    ll_exp_name: [*c]u8,
+    ll_tv: [*c]typval_T,
+    ll_li: [*c]listitem_T,
+    ll_list: [*c]list_T,
+    ll_range: bool,
+    ll_empty2: bool,
+    ll_n1: c_long,
+    ll_n2: c_long,
+    ll_dict: [*c]dict_T,
+    ll_di: [*c]dictitem_T,
+    ll_newkey: [*c]u8,
+    ll_blob: [*c]blob_T,
+};
+pub const lval_T = struct_lval_S;
+pub const VAR_FLAVOUR_DEFAULT: c_int = 1;
+pub const VAR_FLAVOUR_SESSION: c_int = 2;
+pub const VAR_FLAVOUR_SHADA: c_int = 4;
+pub const var_flavour_T = c_uint;
+pub const VV_COUNT: c_int = 0;
+pub const VV_COUNT1: c_int = 1;
+pub const VV_PREVCOUNT: c_int = 2;
+pub const VV_ERRMSG: c_int = 3;
+pub const VV_WARNINGMSG: c_int = 4;
+pub const VV_STATUSMSG: c_int = 5;
+pub const VV_SHELL_ERROR: c_int = 6;
+pub const VV_THIS_SESSION: c_int = 7;
+pub const VV_VERSION: c_int = 8;
+pub const VV_LNUM: c_int = 9;
+pub const VV_TERMRESPONSE: c_int = 10;
+pub const VV_FNAME: c_int = 11;
+pub const VV_LANG: c_int = 12;
+pub const VV_LC_TIME: c_int = 13;
+pub const VV_CTYPE: c_int = 14;
+pub const VV_CC_FROM: c_int = 15;
+pub const VV_CC_TO: c_int = 16;
+pub const VV_FNAME_IN: c_int = 17;
+pub const VV_FNAME_OUT: c_int = 18;
+pub const VV_FNAME_NEW: c_int = 19;
+pub const VV_FNAME_DIFF: c_int = 20;
+pub const VV_CMDARG: c_int = 21;
+pub const VV_FOLDSTART: c_int = 22;
+pub const VV_FOLDEND: c_int = 23;
+pub const VV_FOLDDASHES: c_int = 24;
+pub const VV_FOLDLEVEL: c_int = 25;
+pub const VV_PROGNAME: c_int = 26;
+pub const VV_SEND_SERVER: c_int = 27;
+pub const VV_DYING: c_int = 28;
+pub const VV_EXCEPTION: c_int = 29;
+pub const VV_THROWPOINT: c_int = 30;
+pub const VV_REG: c_int = 31;
+pub const VV_CMDBANG: c_int = 32;
+pub const VV_INSERTMODE: c_int = 33;
+pub const VV_VAL: c_int = 34;
+pub const VV_KEY: c_int = 35;
+pub const VV_PROFILING: c_int = 36;
+pub const VV_FCS_REASON: c_int = 37;
+pub const VV_FCS_CHOICE: c_int = 38;
+pub const VV_BEVAL_BUFNR: c_int = 39;
+pub const VV_BEVAL_WINNR: c_int = 40;
+pub const VV_BEVAL_WINID: c_int = 41;
+pub const VV_BEVAL_LNUM: c_int = 42;
+pub const VV_BEVAL_COL: c_int = 43;
+pub const VV_BEVAL_TEXT: c_int = 44;
+pub const VV_SCROLLSTART: c_int = 45;
+pub const VV_SWAPNAME: c_int = 46;
+pub const VV_SWAPCHOICE: c_int = 47;
+pub const VV_SWAPCOMMAND: c_int = 48;
+pub const VV_CHAR: c_int = 49;
+pub const VV_MOUSE_WIN: c_int = 50;
+pub const VV_MOUSE_WINID: c_int = 51;
+pub const VV_MOUSE_LNUM: c_int = 52;
+pub const VV_MOUSE_COL: c_int = 53;
+pub const VV_OP: c_int = 54;
+pub const VV_SEARCHFORWARD: c_int = 55;
+pub const VV_HLSEARCH: c_int = 56;
+pub const VV_OLDFILES: c_int = 57;
+pub const VV_WINDOWID: c_int = 58;
+pub const VV_PROGPATH: c_int = 59;
+pub const VV_COMPLETED_ITEM: c_int = 60;
+pub const VV_OPTION_NEW: c_int = 61;
+pub const VV_OPTION_OLD: c_int = 62;
+pub const VV_OPTION_OLDLOCAL: c_int = 63;
+pub const VV_OPTION_OLDGLOBAL: c_int = 64;
+pub const VV_OPTION_COMMAND: c_int = 65;
+pub const VV_OPTION_TYPE: c_int = 66;
+pub const VV_ERRORS: c_int = 67;
+pub const VV_FALSE: c_int = 68;
+pub const VV_TRUE: c_int = 69;
+pub const VV_NULL: c_int = 70;
+pub const VV_NUMBERMAX: c_int = 71;
+pub const VV_NUMBERMIN: c_int = 72;
+pub const VV_NUMBERSIZE: c_int = 73;
+pub const VV_VIM_DID_ENTER: c_int = 74;
+pub const VV_TESTING: c_int = 75;
+pub const VV_TYPE_NUMBER: c_int = 76;
+pub const VV_TYPE_STRING: c_int = 77;
+pub const VV_TYPE_FUNC: c_int = 78;
+pub const VV_TYPE_LIST: c_int = 79;
+pub const VV_TYPE_DICT: c_int = 80;
+pub const VV_TYPE_FLOAT: c_int = 81;
+pub const VV_TYPE_BOOL: c_int = 82;
+pub const VV_TYPE_BLOB: c_int = 83;
+pub const VV_EVENT: c_int = 84;
+pub const VV_ECHOSPACE: c_int = 85;
+pub const VV_ARGV: c_int = 86;
+pub const VV_COLLATE: c_int = 87;
+pub const VV_EXITING: c_int = 88;
+pub const VV_MAXCOL: c_int = 89;
+pub const VV_STDERR: c_int = 90;
+pub const VV_MSGPACK_TYPES: c_int = 91;
+pub const VV__NULL_STRING: c_int = 92;
+pub const VV__NULL_LIST: c_int = 93;
+pub const VV__NULL_DICT: c_int = 94;
+pub const VV__NULL_BLOB: c_int = 95;
+pub const VV_LUA: c_int = 96;
+pub const VV_RELNUM: c_int = 97;
+pub const VV_VIRTNUM: c_int = 98;
+pub const VimVarIndex = c_uint;
+pub const kMPNil: c_int = 0;
+pub const kMPBoolean: c_int = 1;
+pub const kMPInteger: c_int = 2;
+pub const kMPFloat: c_int = 3;
+pub const kMPString: c_int = 4;
+pub const kMPBinary: c_int = 5;
+pub const kMPArray: c_int = 6;
+pub const kMPMap: c_int = 7;
+pub const kMPExt: c_int = 8;
+pub const MessagePackType = c_uint;
+pub extern var eval_msgpack_type_lists: [9][*c]const list_T;
+pub const save_v_event_T = extern struct {
+    sve_did_save: bool,
+    sve_hashtab: hashtab_T,
+};
+pub const TFN_INT: c_int = 1;
+pub const TFN_QUIET: c_int = 2;
+pub const TFN_NO_AUTOLOAD: c_int = 4;
+pub const TFN_NO_DEREF: c_int = 8;
+pub const TFN_READ_ONLY: c_int = 16;
+pub const TransFunctionNameFlags = c_uint;
+pub const GLV_QUIET: c_int = 2;
+pub const GLV_NO_AUTOLOAD: c_int = 4;
+pub const GLV_READ_ONLY: c_int = 16;
+pub const GetLvalFlags = c_uint;
+pub const timer_T = extern struct {
+    tw: TimeWatcher,
+    timer_id: c_int,
+    repeat_count: c_int,
+    refcount: c_int,
+    emsg_count: c_int,
+    timeout: c_long,
+    stopped: bool,
+    paused: bool,
+    callback: Callback,
+};
+pub const EXPR_UNKNOWN: c_int = 0;
+pub const EXPR_EQUAL: c_int = 1;
+pub const EXPR_NEQUAL: c_int = 2;
+pub const EXPR_GREATER: c_int = 3;
+pub const EXPR_GEQUAL: c_int = 4;
+pub const EXPR_SMALLER: c_int = 5;
+pub const EXPR_SEQUAL: c_int = 6;
+pub const EXPR_MATCH: c_int = 7;
+pub const EXPR_NOMATCH: c_int = 8;
+pub const EXPR_IS: c_int = 9;
+pub const EXPR_ISNOT: c_int = 10;
+pub const exprtype_T = c_uint;
+pub const kDictListKeys: c_int = 0;
+pub const kDictListValues: c_int = 1;
+pub const kDictListItems: c_int = 2;
+pub const DictListType = c_uint;
+pub const ex_unletlock_callback = ?*const fn ([*c]lval_T, [*c]u8, [*c]exarg_T, c_int) callconv(.C) c_int;
+pub extern var eval_lavars_used: [*c]bool;
+pub const evalarg_T = extern struct {
+    eval_flags: c_int,
+    eval_getline: LineGetter,
+    eval_cookie: ?*anyopaque,
+    eval_tofree: [*c]u8,
+};
+pub const EVAL_EVALUATE: c_int = 1;
+const enum_unnamed_146 = c_uint;
+pub extern var EVALARG_EVALUATE: evalarg_T;
+pub extern fn get_v_event(sve: [*c]save_v_event_T) [*c]dict_T;
+pub extern fn restore_v_event(v_event: [*c]dict_T, sve: [*c]save_v_event_T) void;
+pub extern fn num_divide(n1: varnumber_T, n2: varnumber_T) varnumber_T;
+pub extern fn num_modulus(n1: varnumber_T, n2: varnumber_T) varnumber_T;
+pub extern fn eval_init() void;
+pub extern fn set_internal_string_var(name: [*c]const u8, value: [*c]u8) void;
+pub extern fn var_redir_start(name: [*c]u8, append: c_int) c_int;
+pub extern fn var_redir_str(value: [*c]const u8, value_len: c_int) void;
+pub extern fn var_redir_stop() void;
+pub extern fn eval_charconvert(enc_from: [*c]const u8, enc_to: [*c]const u8, fname_from: [*c]const u8, fname_to: [*c]const u8) c_int;
+pub extern fn eval_diff(origfile: [*c]const u8, newfile: [*c]const u8, outfile: [*c]const u8) void;
+pub extern fn eval_patch(origfile: [*c]const u8, difffile: [*c]const u8, outfile: [*c]const u8) void;
+pub extern fn fill_evalarg_from_eap(evalarg: [*c]evalarg_T, eap: [*c]exarg_T, skip: bool) void;
+pub extern fn eval_to_bool(arg: [*c]u8, @"error": [*c]bool, eap: [*c]exarg_T, skip: c_int) c_int;
+pub extern fn eval_expr_valid_arg(tv: [*c]const typval_T) bool;
+pub extern fn eval_expr_typval(expr: [*c]const typval_T, argv: [*c]typval_T, argc: c_int, rettv: [*c]typval_T) c_int;
+pub extern fn eval_expr_to_bool(expr: [*c]const typval_T, @"error": [*c]bool) bool;
+pub extern fn eval_to_string_skip(arg: [*c]u8, eap: [*c]exarg_T, skip: bool) [*c]u8;
+pub extern fn skip_expr(pp: [*c][*c]u8, evalarg: [*c]evalarg_T) c_int;
+pub extern fn eval_to_string(arg: [*c]u8, convert: bool) [*c]u8;
+pub extern fn eval_to_string_safe(arg: [*c]u8, use_sandbox: c_int) [*c]u8;
+pub extern fn eval_to_number(expr: [*c]u8) varnumber_T;
+pub extern fn eval_expr(arg: [*c]u8, eap: [*c]exarg_T) [*c]typval_T;
+pub extern fn list_vim_vars(first: [*c]c_int) void;
+pub extern fn list_script_vars(first: [*c]c_int) void;
+pub extern fn is_vimvarht(ht: [*c]const hashtab_T) bool;
+pub extern fn is_compatht(ht: [*c]const hashtab_T) bool;
+pub extern fn prepare_vimvar(idx: c_int, save_tv: [*c]typval_T) void;
+pub extern fn restore_vimvar(idx: c_int, save_tv: [*c]typval_T) void;
+pub extern fn eval_spell_expr(badword: [*c]u8, expr: [*c]u8) [*c]list_T;
+pub extern fn get_spellword(list: [*c]list_T, ret_word: [*c][*c]const u8) c_int;
+pub extern fn call_vim_function(func: [*c]const u8, argc: c_int, argv: [*c]typval_T, rettv: [*c]typval_T) c_int;
+pub extern fn call_func_retstr(func: [*c]const u8, argc: c_int, argv: [*c]typval_T) [*c]u8;
+pub extern fn call_func_retlist(func: [*c]const u8, argc: c_int, argv: [*c]typval_T) ?*anyopaque;
+pub extern fn eval_foldexpr(arg: [*c]u8, cp: [*c]c_int) c_int;
+pub extern fn get_lval(name: [*c]u8, rettv: [*c]typval_T, lp: [*c]lval_T, unlet: bool, skip: bool, flags: c_int, fne_flags: c_int) [*c]u8;
+pub extern fn clear_lval(lp: [*c]lval_T) void;
+pub extern fn set_var_lval(lp: [*c]lval_T, endp: [*c]u8, rettv: [*c]typval_T, copy: c_int, is_const: bool, op: [*c]const u8) void;
+pub extern fn eval_for_line(arg: [*c]const u8, errp: [*c]bool, eap: [*c]exarg_T, evalarg: [*c]evalarg_T) ?*anyopaque;
+pub extern fn next_for_item(fi_void: ?*anyopaque, arg: [*c]u8) bool;
+pub extern fn free_for_info(fi_void: ?*anyopaque) void;
+pub extern fn set_context_for_expression(xp: [*c]expand_T, arg: [*c]u8, cmdidx: cmdidx_T) void;
+pub extern fn del_menutrans_vars() void;
+pub extern fn cat_prefix_varname(prefix: c_int, name: [*c]const u8) [*c]u8;
+pub extern fn get_user_var_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
+pub extern fn pattern_match(pat: [*c]const u8, text: [*c]const u8, ic: bool) c_int;
+pub extern fn clear_evalarg(evalarg: [*c]evalarg_T, eap: [*c]exarg_T) void;
+pub extern fn eval0(arg: [*c]u8, rettv: [*c]typval_T, eap: [*c]exarg_T, evalarg: [*c]evalarg_T) c_int;
+pub extern fn eval1(arg: [*c][*c]u8, rettv: [*c]typval_T, evalarg: [*c]evalarg_T) c_int;
+pub extern fn f_slice(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn eval_option(arg: [*c][*c]const u8, rettv: [*c]typval_T, evaluate: bool) c_int;
+pub extern fn eval_interp_string(arg: [*c][*c]u8, rettv: [*c]typval_T, evaluate: bool) c_int;
+pub extern fn partial_name(pt: [*c]partial_T) [*c]u8;
+pub extern fn partial_unref(pt: [*c]partial_T) void;
+pub extern fn func_equal(tv1: [*c]typval_T, tv2: [*c]typval_T, ic: bool) bool;
+pub extern fn get_copyID() c_int;
+pub extern fn garbage_collect(testing: bool) bool;
+pub extern fn set_ref_in_ht(ht: [*c]hashtab_T, copyID: c_int, list_stack: [*c][*c]list_stack_T) bool;
+pub extern fn set_ref_in_list(l: [*c]list_T, copyID: c_int, ht_stack: [*c][*c]ht_stack_T) bool;
+pub extern fn set_ref_in_item(tv: [*c]typval_T, copyID: c_int, ht_stack: [*c][*c]ht_stack_T, list_stack: [*c][*c]list_stack_T) bool;
+pub extern fn string2float(text: [*c]const u8, ret_value: [*c]float_T) usize;
+pub extern fn assert_error(gap: [*c]garray_T) void;
+pub extern fn filter_map(argvars: [*c]typval_T, rettv: [*c]typval_T, map: c_int) void;
+pub extern fn common_function(argvars: [*c]typval_T, rettv: [*c]typval_T, is_funcref: bool) void;
+pub extern fn tv_get_lnum_buf(tv: [*c]const typval_T, buf: [*c]const buf_T) linenr_T;
+pub extern fn get_user_input(argvars: [*c]const typval_T, rettv: [*c]typval_T, inputdialog: bool, secret: bool) void;
+pub extern fn tv_to_argv(cmd_tv: [*c]typval_T, cmd: [*c][*c]const u8, executable: [*c]bool) [*c][*c]u8;
+pub extern fn return_register(regname: c_int, rettv: [*c]typval_T) void;
+pub extern fn screenchar_adjust(grid: [*c][*c]ScreenGrid, row: [*c]c_int, col: [*c]c_int) void;
+pub extern fn get_xdg_var_list(xdg: XDGVarType, rettv: [*c]typval_T) void;
+pub extern fn get_system_output_as_rettv(argvars: [*c]typval_T, rettv: [*c]typval_T, retlist: bool) void;
+pub extern fn callback_from_typval(callback: [*c]Callback, arg: [*c]const typval_T) bool;
+pub extern fn callback_call(callback: [*c]Callback, argcount_in: c_int, argvars_in: [*c]typval_T, rettv: [*c]typval_T) bool;
+pub extern fn set_ref_in_callback(callback: [*c]Callback, copyID: c_int, ht_stack: [*c][*c]ht_stack_T, list_stack: [*c][*c]list_stack_T) bool;
+pub extern fn find_timer_by_nr(xx: varnumber_T) [*c]timer_T;
+pub extern fn add_timer_info(rettv: [*c]typval_T, timer: [*c]timer_T) void;
+pub extern fn add_timer_info_all(rettv: [*c]typval_T) void;
+pub extern fn timer_due_cb(tw: [*c]TimeWatcher, data: ?*anyopaque) void;
+pub extern fn timer_start(timeout: c_long, repeat_count: c_int, callback: [*c]const Callback) u64;
+pub extern fn timer_stop(timer: [*c]timer_T) void;
+pub extern fn timer_stop_all() void;
+pub extern fn timer_teardown() void;
+pub extern fn write_list(fp: [*c]FileDescriptor, list: [*c]const list_T, binary: bool) bool;
+pub extern fn write_blob(fp: [*c]FileDescriptor, blob: [*c]const blob_T) bool;
+pub extern fn read_blob(fd: [*c]FILE, rettv: [*c]typval_T, offset: off_T, size_arg: off_T) c_int;
+pub extern fn save_tv_as_string(tv: [*c]typval_T, len: [*c]ptrdiff_t, endnl: bool, crlf: bool) [*c]u8;
+pub extern fn buf_byteidx_to_charidx(buf: [*c]buf_T, lnum: linenr_T, byteidx: c_int) c_int;
+pub extern fn buf_charidx_to_byteidx(buf: [*c]buf_T, lnum: linenr_T, charidx: c_int) c_int;
+pub extern fn var2fpos(tv: [*c]const typval_T, dollar_lnum: bool, ret_fnum: [*c]c_int, charcol: bool) [*c]pos_T;
+pub extern fn list2fpos(arg: [*c]typval_T, posp: [*c]pos_T, fnump: [*c]c_int, curswantp: [*c]colnr_T, charcol: bool) c_int;
+pub extern fn get_env_len(arg: [*c][*c]const u8) c_int;
+pub extern fn get_id_len(arg: [*c][*c]const u8) c_int;
+pub extern fn get_name_len(arg: [*c][*c]const u8, alias: [*c][*c]u8, evaluate: bool, verbose: bool) c_int;
+pub extern fn find_name_end(arg: [*c]const u8, expr_start: [*c][*c]const u8, expr_end: [*c][*c]const u8, flags: c_int) [*c]const u8;
+pub extern fn eval_isnamec(c: c_int) bool;
+pub extern fn eval_isnamec1(c: c_int) bool;
+pub extern fn eval_isdictc(c: c_int) bool;
+pub extern fn get_vim_var_tv(idx: c_int) [*c]typval_T;
+pub extern fn get_vim_var_nr(idx: c_int) varnumber_T;
+pub extern fn get_vim_var_str(idx: c_int) [*c]u8;
+pub extern fn get_vim_var_list(idx: c_int) [*c]list_T;
+pub extern fn get_vim_var_dict(idx: c_int) [*c]dict_T;
+pub extern fn set_vim_var_char(c: c_int) void;
+pub extern fn set_vcount(count: c_long, count1: c_long, set_prevcount: c_int) void;
+pub extern fn set_vim_var_nr(idx: VimVarIndex, val: varnumber_T) void;
+pub extern fn set_vim_var_bool(idx: VimVarIndex, val: BoolVarValue) void;
+pub extern fn set_vim_var_special(idx: VimVarIndex, val: SpecialVarValue) void;
+pub extern fn set_vim_var_string(idx: VimVarIndex, val: [*c]const u8, len: ptrdiff_t) void;
+pub extern fn set_vim_var_list(idx: VimVarIndex, val: [*c]list_T) void;
+pub extern fn set_vim_var_dict(idx: VimVarIndex, val: [*c]dict_T) void;
+pub extern fn set_argv_var(argv: [*c][*c]u8, argc: c_int) void;
+pub extern fn set_reg_var(c: c_int) void;
+pub extern fn v_exception(oldval: [*c]u8) [*c]u8;
+pub extern fn v_throwpoint(oldval: [*c]u8) [*c]u8;
+pub extern fn set_cmdarg(eap: [*c]exarg_T, oldarg: [*c]u8) [*c]u8;
+pub extern fn is_luafunc(partial: [*c]partial_T) bool;
+pub extern fn skip_luafunc_name(p: [*c]const u8) [*c]const u8;
+pub extern fn check_luafunc_name(str: [*c]const u8, paren: bool) c_int;
+pub extern fn char_from_string(str: [*c]const u8, index: varnumber_T) [*c]u8;
+pub extern fn string_slice(str: [*c]const u8, first: varnumber_T, last: varnumber_T, exclusive: bool) [*c]u8;
+pub extern fn handle_subscript(arg: [*c][*c]const u8, rettv: [*c]typval_T, evalarg: [*c]evalarg_T, verbose: bool) c_int;
+pub extern fn set_selfdict(rettv: [*c]typval_T, selfdict: [*c]dict_T) void;
+pub extern fn find_var(name: [*c]const u8, name_len: usize, htp: [*c][*c]hashtab_T, no_autoload: c_int) [*c]dictitem_T;
+pub extern fn find_var_in_ht(ht: [*c]hashtab_T, htname: c_int, varname: [*c]const u8, varname_len: usize, no_autoload: c_int) [*c]dictitem_T;
+pub extern fn find_var_ht_dict(name: [*c]const u8, name_len: usize, varname: [*c][*c]const u8, d: [*c][*c]dict_T) [*c]hashtab_T;
+pub extern fn find_var_ht(name: [*c]const u8, name_len: usize, varname: [*c][*c]const u8) [*c]hashtab_T;
+pub extern fn new_script_vars(id: scid_T) void;
+pub extern fn init_var_dict(dict: [*c]dict_T, dict_var: [*c]ScopeDictDictItem, scope: ScopeType) void;
+pub extern fn unref_var_dict(dict: [*c]dict_T) void;
+pub extern fn var_item_copy(conv: [*c]const vimconv_T, from: [*c]typval_T, to: [*c]typval_T, deep: bool, copyID: c_int) c_int;
+pub extern fn ex_echo(eap: [*c]exarg_T) void;
+pub extern fn ex_echohl(eap: [*c]exarg_T) void;
+pub extern fn ex_execute(eap: [*c]exarg_T) void;
+pub extern fn find_option_end(arg: [*c][*c]const u8, scope: [*c]c_int) [*c]const u8;
+pub extern fn var_shada_iter(iter: ?*const anyopaque, name: [*c][*c]const u8, rettv: [*c]typval_T, flavour: var_flavour_T) ?*const anyopaque;
+pub extern fn var_set_global(name: [*c]const u8, vartv: typval_T) void;
+pub extern fn store_session_globals(fd: [*c]FILE) c_int;
+pub extern fn last_set_msg(script_ctx: sctx_T) void;
+pub extern fn option_last_set_msg(last_set: LastSet) void;
+pub extern fn reset_v_option_vars() void;
+pub extern fn modify_fname(src: [*c]u8, tilde_file: bool, usedlen: [*c]usize, fnamep: [*c][*c]u8, bufp: [*c][*c]u8, fnamelen: [*c]usize) c_int;
+pub extern fn do_string_sub(str: [*c]u8, pat: [*c]u8, sub: [*c]u8, expr: [*c]typval_T, flags: [*c]const u8) [*c]u8;
+pub extern fn common_job_callbacks(vopts: [*c]dict_T, on_stdout: [*c]CallbackReader, on_stderr: [*c]CallbackReader, on_exit: [*c]Callback) bool;
+pub extern fn find_job(id: u64, show_error: bool) [*c]Channel;
+pub extern fn script_host_eval(name: [*c]u8, argvars: [*c]typval_T, rettv: [*c]typval_T) void;
+pub extern fn eval_call_provider(provider: [*c]u8, method: [*c]u8, arguments: [*c]list_T, discard: bool) typval_T;
+pub extern fn eval_has_provider(feat: [*c]const u8) bool;
+pub extern fn eval_fmt_source_name_line(buf: [*c]u8, bufsize: usize) void;
+pub extern fn ex_checkhealth(eap: [*c]exarg_T) void;
+pub extern fn invoke_prompt_callback() void;
+pub extern fn invoke_prompt_interrupt() bool;
+pub extern fn typval_compare(typ1: [*c]typval_T, typ2: [*c]typval_T, @"type": exprtype_T, ic: bool) c_int;
+pub extern fn typval_tostring(arg: [*c]typval_T, quotes: bool) [*c]u8;
+pub extern fn encode_vim_to_msgpack(packer: [*c]msgpack_packer, tv: [*c]typval_T, objname: [*c]const u8) c_int;
+pub extern fn encode_vim_to_echo(packer: [*c]garray_T, tv: [*c]typval_T, objname: [*c]const u8) c_int;
+pub const ListReaderState = extern struct {
+    list: [*c]const list_T,
+    li: [*c]const listitem_T,
+    offset: usize,
+    li_length: usize,
+};
+pub fn encode_init_lrstate(list: [*c]const list_T) callconv(.C) ListReaderState {
+    return ListReaderState{
+        .list = list,
+        .li = tv_list_first(list),
+        .offset = @bitCast(usize, @as(c_long, @as(c_int, 0))),
+        .li_length = if ((&tv_list_first(list).*.li_tv).*.vval.v_string == @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), @intToPtr(?*anyopaque, @as(c_int, 0))))) @bitCast(c_ulong, @as(c_long, @as(c_int, 0))) else strlen((&tv_list_first(list).*.li_tv).*.vval.v_string),
+    };
+}
+pub const encode_bool_var_names: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
+    .name = "encode_bool_var_names",
+});
+pub const encode_special_var_names: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
+    .name = "encode_special_var_names",
+});
+pub extern fn encode_blob_write(data: ?*anyopaque, buf: [*c]const u8, len: usize) c_int;
+pub extern fn encode_list_write(data: ?*anyopaque, buf: [*c]const u8, len: usize) c_int;
+pub extern fn encode_vim_list_to_buf(list: [*c]const list_T, ret_len: [*c]usize, ret_buf: [*c][*c]u8) bool;
+pub extern fn encode_read_from_list(state: [*c]ListReaderState, buf: [*c]u8, nbuf: usize, read_bytes: [*c]usize) c_int;
+pub extern fn encode_check_json_key(tv: [*c]const typval_T) bool;
+pub extern fn encode_tv2string(tv: [*c]typval_T, len: [*c]usize) [*c]u8;
+pub extern fn encode_tv2echo(tv: [*c]typval_T, len: [*c]usize) [*c]u8;
+pub extern fn encode_tv2json(tv: [*c]typval_T, len: [*c]usize) [*c]u8;
+pub extern var e_list_index_out_of_range_nr: [*c]u8;
+pub extern fn eexe_mod_op(tv1: [*c]typval_T, tv2: [*c]const typval_T, op: [*c]const u8) c_int;
+pub const VimLFunc = ?*const fn ([*c]typval_T, [*c]typval_T, EvalFuncData) callconv(.C) void;
+pub const EvalFuncDef = extern struct {
+    name: [*c]u8,
+    min_argc: u8,
+    max_argc: u8,
+    base_arg: u8,
+    fast: bool,
+    func: VimLFunc,
+    data: EvalFuncData,
+};
+pub extern fn get_function_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
+pub extern fn get_expr_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
+pub extern fn find_internal_func(name: [*c]const u8) [*c]const EvalFuncDef;
+pub extern fn check_internal_func(fdef: [*c]const EvalFuncDef, argcount: c_int) c_int;
+pub extern fn call_internal_func(fname: [*c]const u8, argcount: c_int, argvars: [*c]typval_T, rettv: [*c]typval_T) c_int;
+pub extern fn call_internal_method(fname: [*c]const u8, argcount: c_int, argvars: [*c]typval_T, rettv: [*c]typval_T, basetv: [*c]typval_T) c_int;
+pub extern fn tv_get_buf(tv: [*c]typval_T, curtab_only: c_int) [*c]buf_T;
+pub extern fn tv_get_buf_from_arg(tv: [*c]typval_T) [*c]buf_T;
+pub extern fn get_buf_arg(arg: [*c]typval_T) [*c]buf_T;
+pub extern fn get_optional_window(argvars: [*c]typval_T, idx: c_int) [*c]win_T;
+pub extern fn execute_common(argvars: [*c]typval_T, rettv: [*c]typval_T, arg_off: c_int) void;
+pub extern fn do_searchpair(spat: [*c]const u8, mpat: [*c]const u8, epat: [*c]const u8, dir: c_int, skip: [*c]const typval_T, flags: c_int, match_pos: [*c]pos_T, lnum_stop: linenr_T, time_limit: i64) c_long;
+pub extern var gc_first_dict: [*c]dict_T;
+pub extern var gc_first_list: [*c]list_T;
+pub const kMPConvDict: c_int = 0;
+pub const kMPConvList: c_int = 1;
+pub const kMPConvPairs: c_int = 2;
+pub const kMPConvPartial: c_int = 3;
+pub const kMPConvPartialList: c_int = 4;
+pub const MPConvStackValType = c_uint;
+pub const kMPConvPartialArgs: c_int = 0;
+pub const kMPConvPartialSelf: c_int = 1;
+pub const kMPConvPartialEnd: c_int = 2;
+pub const MPConvPartialStage = c_uint;
+const struct_unnamed_148 = extern struct {
+    dict: [*c]dict_T,
+    dictp: [*c][*c]dict_T,
+    hi: [*c]hashitem_T,
+    todo: usize,
+};
+const struct_unnamed_149 = extern struct {
+    list: [*c]list_T,
+    li: [*c]listitem_T,
+};
+const struct_unnamed_150 = extern struct {
+    stage: MPConvPartialStage,
+    pt: [*c]partial_T,
+};
+const struct_unnamed_151 = extern struct {
+    arg: [*c]typval_T,
+    argv: [*c]typval_T,
+    todo: usize,
+};
+const union_unnamed_147 = extern union {
+    d: struct_unnamed_148,
+    l: struct_unnamed_149,
+    p: struct_unnamed_150,
+    a: struct_unnamed_151,
+};
+pub const MPConvStackVal = extern struct {
+    type: MPConvStackValType,
+    tv: [*c]typval_T,
+    saved_copyID: c_int,
+    data: union_unnamed_147,
+};
+pub const MPConvStack = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]MPConvStackVal,
+    init_array: [8]MPConvStackVal,
+};
+pub inline fn tv_strlen(tv: [*c]const typval_T) usize {
+    _ = blk: {
+        _ = @sizeOf(c_int);
+        break :blk blk_1: {
+            break :blk_1 if (tv.*.v_type == @bitCast(c_uint, VAR_STRING)) {} else {
+                __assert_fail("tv->v_type == VAR_STRING", "./_nvim/src/nvim/eval/typval_encode.h", @bitCast(c_uint, @as(c_int, 87)), "size_t tv_strlen(const typval_T *const)");
+            };
+        };
+    };
+    return if (tv.*.vval.v_string == @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), @intToPtr(?*anyopaque, @as(c_int, 0))))) @bitCast(c_ulong, @as(c_long, @as(c_int, 0))) else strlen(tv.*.vval.v_string);
+}
+pub const funccal_entry_T = struct_funccal_entry;
+pub const struct_funccal_entry = extern struct {
+    top_funccal: ?*anyopaque,
+    next: [*c]funccal_entry_T,
+};
+pub const funcdict_T = extern struct {
+    fd_dict: [*c]dict_T,
+    fd_newkey: [*c]u8,
+    fd_di: [*c]dictitem_T,
+};
+pub const FCERR_UNKNOWN: c_int = 0;
+pub const FCERR_TOOMANY: c_int = 1;
+pub const FCERR_TOOFEW: c_int = 2;
+pub const FCERR_SCRIPT: c_int = 3;
+pub const FCERR_DICT: c_int = 4;
+pub const FCERR_NONE: c_int = 5;
+pub const FCERR_OTHER: c_int = 6;
+pub const FCERR_DELETED: c_int = 7;
+pub const FCERR_NOTMETHOD: c_int = 8;
+pub const FnameTransError = c_uint;
+pub const ArgvFunc = ?*const fn (c_int, [*c]typval_T, c_int, [*c]ufunc_T) callconv(.C) c_int;
+pub const funcexe_T = extern struct {
+    fe_argv_func: ArgvFunc,
+    fe_firstline: linenr_T,
+    fe_lastline: linenr_T,
+    fe_doesrange: [*c]bool,
+    fe_evaluate: bool,
+    fe_partial: [*c]partial_T,
+    fe_selfdict: [*c]dict_T,
+    fe_basetv: [*c]typval_T,
+    fe_found_var: bool,
+};
+pub extern fn func_init() void;
+pub extern fn func_tbl_get() [*c]hashtab_T;
+pub extern fn get_lambda_name() [*c]u8;
+pub extern fn get_lambda_tv(arg: [*c][*c]u8, rettv: [*c]typval_T, evalarg: [*c]evalarg_T) c_int;
+pub extern fn deref_func_name(name: [*c]const u8, lenp: [*c]c_int, partialp: [*c][*c]partial_T, no_autoload: bool, found_var: [*c]bool) [*c]u8;
+pub extern fn emsg_funcname(errmsg: [*c]const u8, name: [*c]const u8) void;
+pub extern fn get_func_tv(name: [*c]const u8, len: c_int, rettv: [*c]typval_T, arg: [*c][*c]u8, evalarg: [*c]evalarg_T, funcexe: [*c]funcexe_T) c_int;
+pub extern fn find_func(name: [*c]const u8) [*c]ufunc_T;
+pub extern fn create_funccal(fp: [*c]ufunc_T, rettv: [*c]typval_T) [*c]funccall_T;
+pub extern fn remove_funccal() void;
+pub extern fn call_user_func(fp: [*c]ufunc_T, argcount: c_int, argvars: [*c]typval_T, rettv: [*c]typval_T, firstline: linenr_T, lastline: linenr_T, selfdict: [*c]dict_T) void;
+pub extern fn save_funccal(entry: [*c]funccal_entry_T) void;
+pub extern fn restore_funccal() void;
+pub extern fn get_current_funccal() [*c]funccall_T;
+pub extern fn set_current_funccal(fc: [*c]funccall_T) void;
+pub extern fn func_call(name: [*c]u8, args: [*c]typval_T, partial: [*c]partial_T, selfdict: [*c]dict_T, rettv: [*c]typval_T) c_int;
+pub extern fn callback_call_retnr(callback: [*c]Callback, argcount: c_int, argvars: [*c]typval_T) varnumber_T;
+pub extern fn call_func(funcname: [*c]const u8, len: c_int, rettv: [*c]typval_T, argcount_in: c_int, argvars_in: [*c]typval_T, funcexe: [*c]funcexe_T) c_int;
+pub extern fn printable_func_name(fp: [*c]ufunc_T) [*c]u8;
+pub extern fn trans_function_name(pp: [*c][*c]u8, skip: bool, flags: c_int, fdp: [*c]funcdict_T, partial: [*c][*c]partial_T) [*c]u8;
+pub extern fn get_scriptlocal_funcname(funcname: [*c]u8) [*c]u8;
+pub extern fn save_function_name(name: [*c][*c]u8, skip: bool, flags: c_int, fudi: [*c]funcdict_T) [*c]u8;
+pub extern fn ex_function(eap: [*c]exarg_T) void;
+pub extern fn eval_fname_script(p: [*c]const u8) c_int;
+pub extern fn translated_function_exists(name: [*c]const u8) bool;
+pub extern fn function_exists(name: [*c]const u8, no_deref: bool) bool;
+pub extern fn get_user_func_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
+pub extern fn ex_delfunction(eap: [*c]exarg_T) void;
+pub extern fn func_unref(name: [*c]u8) void;
+pub extern fn func_ptr_unref(fp: [*c]ufunc_T) void;
+pub extern fn func_ref(name: [*c]u8) void;
+pub extern fn func_ptr_ref(fp: [*c]ufunc_T) void;
+pub extern fn ex_return(eap: [*c]exarg_T) void;
+pub extern fn can_add_defer() bool;
+pub extern fn add_defer(name: [*c]u8, argcount_arg: c_int, argvars: [*c]typval_T) void;
+pub extern fn invoke_all_defer() void;
+pub extern fn ex_call(eap: [*c]exarg_T) void;
+pub extern fn do_return(eap: [*c]exarg_T, reanimate: c_int, is_cmd: c_int, rettv: ?*anyopaque) c_int;
+pub extern fn get_return_cmd(rettv: ?*anyopaque) [*c]u8;
+pub extern fn get_func_line(c: c_int, cookie: ?*anyopaque, indent: c_int, do_concat: bool) [*c]u8;
+pub extern fn func_has_ended(cookie: ?*anyopaque) c_int;
+pub extern fn func_has_abort(cookie: ?*anyopaque) c_int;
+pub extern fn make_partial(selfdict: [*c]dict_T, rettv: [*c]typval_T) void;
+pub extern fn func_name(cookie: ?*anyopaque) [*c]u8;
+pub extern fn func_breakpoint(cookie: ?*anyopaque) [*c]linenr_T;
+pub extern fn func_dbg_tick(cookie: ?*anyopaque) [*c]c_int;
+pub extern fn func_level(cookie: ?*anyopaque) c_int;
+pub extern fn current_func_returned() c_int;
+pub extern fn free_unref_funccal(copyID: c_int, testing: c_int) bool;
+pub extern fn get_funccal() [*c]funccall_T;
+pub extern fn get_funccal_local_ht() [*c]hashtab_T;
+pub extern fn get_funccal_local_var() [*c]dictitem_T;
+pub extern fn get_funccal_args_ht() [*c]hashtab_T;
+pub extern fn get_funccal_args_var() [*c]dictitem_T;
+pub extern fn list_func_vars(first: [*c]c_int) void;
+pub extern fn get_current_funccal_dict(ht: [*c]hashtab_T) [*c]dict_T;
+pub extern fn find_hi_in_scoped_ht(name: [*c]const u8, pht: [*c][*c]hashtab_T) [*c]hashitem_T;
+pub extern fn find_var_in_scoped_ht(name: [*c]const u8, namelen: usize, no_autoload: c_int) [*c]dictitem_T;
+pub extern fn set_ref_in_previous_funccal(copyID: c_int) bool;
+pub extern fn set_ref_in_call_stack(copyID: c_int) bool;
+pub extern fn set_ref_in_functions(copyID: c_int) bool;
+pub extern fn set_ref_in_func_args(copyID: c_int) bool;
+pub extern fn set_ref_in_func(name: [*c]u8, fp_in: [*c]ufunc_T, copyID: c_int) bool;
+pub extern fn register_luafunc(ref: LuaRef) [*c]u8;
+pub extern fn eval_one_expr_in_str(p: [*c]u8, gap: [*c]garray_T, evaluate: bool) [*c]u8;
+pub extern fn eval_all_expr_in_str(str: [*c]u8) [*c]u8;
+pub extern fn heredoc_get(eap: [*c]exarg_T, cmd: [*c]u8, script_get: bool) [*c]list_T;
+pub extern fn ex_let(eap: [*c]exarg_T) void;
+pub extern fn ex_let_vars(arg_start: [*c]u8, tv: [*c]typval_T, copy: c_int, semicolon: c_int, var_count: c_int, is_const: c_int, op: [*c]u8) c_int;
+pub extern fn skip_var_list(arg: [*c]const u8, var_count: [*c]c_int, semicolon: [*c]c_int) [*c]const u8;
+pub extern fn list_hashtable_vars(ht: [*c]hashtab_T, prefix: [*c]const u8, empty: c_int, first: [*c]c_int) void;
+pub extern fn ex_unlet(eap: [*c]exarg_T) void;
+pub extern fn ex_lockvar(eap: [*c]exarg_T) void;
+pub extern fn do_unlet(name: [*c]const u8, name_len: usize, forceit: bool) c_int;
+pub extern fn eval_variable(name: [*c]const u8, len: c_int, rettv: [*c]typval_T, dip: [*c][*c]dictitem_T, verbose: bool, no_autoload: bool) c_int;
+pub extern fn get_var_value(name: [*c]const u8) [*c]u8;
+pub extern fn vars_clear(ht: [*c]hashtab_T) void;
+pub extern fn vars_clear_ext(ht: [*c]hashtab_T, free_val: c_int) void;
+pub extern fn delete_var(ht: [*c]hashtab_T, hi: [*c]hashitem_T) void;
+pub extern fn set_var(name: [*c]const u8, name_len: usize, tv: [*c]typval_T, copy: bool) void;
+pub extern fn set_var_const(name: [*c]const u8, name_len: usize, tv: [*c]typval_T, copy: bool, is_const: bool) void;
+pub extern fn var_check_ro(flags: c_int, name: [*c]const u8, name_len: usize) bool;
+pub extern fn var_check_lock(flags: c_int, name: [*c]const u8, name_len: usize) bool;
+pub extern fn var_check_fixed(flags: c_int, name: [*c]const u8, name_len: usize) bool;
+pub extern fn var_wrong_func_name(name: [*c]const u8, new_var: bool) bool;
+pub extern fn valid_varname(varname: [*c]const u8) bool;
+pub extern fn var_exists(@"var": [*c]const u8) bool;
+pub extern fn f_gettabvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_gettabwinvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getwinvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getbufvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_settabvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_settabwinvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_setwinvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_setbufvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub fn mark_global_index(name: u8) callconv(.C) c_int {
+    return if ((@bitCast(c_uint, @as(c_uint, name)) >= @bitCast(c_uint, @as(c_int, 'A'))) and (@bitCast(c_uint, @as(c_uint, name)) <= @bitCast(c_uint, @as(c_int, 'Z')))) @bitCast(c_int, @as(c_uint, name)) - @as(c_int, 'A') else if (@as(c_int, @boolToInt(ascii_isdigit(@bitCast(c_int, @as(c_uint, name))))) != 0) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + (@bitCast(c_int, @as(c_uint, name)) - @as(c_int, '0')) else -@as(c_int, 1);
+}
+pub fn mark_local_index(name: u8) callconv(.C) c_int {
+    return if ((@bitCast(c_uint, @as(c_uint, name)) >= @bitCast(c_uint, @as(c_int, 'a'))) and (@bitCast(c_uint, @as(c_uint, name)) <= @bitCast(c_uint, @as(c_int, 'z')))) @bitCast(c_int, @as(c_uint, name)) - @as(c_int, 'a') else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '"')) (@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1) else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '^')) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + @as(c_int, 1) else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '.')) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + @as(c_int, 2) else -@as(c_int, 1);
+}
+pub inline fn lt(arg_a: pos_T, arg_b: pos_T) bool {
+    var a = arg_a;
+    var b = arg_b;
+    if (a.lnum != b.lnum) {
+        return a.lnum < b.lnum;
+    } else if (a.col != b.col) {
+        return a.col < b.col;
+    } else {
+        return a.coladd < b.coladd;
+    }
+    return false;
+}
+pub inline fn equalpos(arg_a: pos_T, arg_b: pos_T) bool {
+    var a = arg_a;
+    var b = arg_b;
+    return ((a.lnum == b.lnum) and (a.col == b.col)) and (a.coladd == b.coladd);
+}
+pub inline fn ltoreq(arg_a: pos_T, arg_b: pos_T) bool {
+    var a = arg_a;
+    var b = arg_b;
+    return (@as(c_int, @boolToInt(lt(a, b))) != 0) or (@as(c_int, @boolToInt(equalpos(a, b))) != 0);
+}
+pub inline fn clearpos(arg_a: [*c]pos_T) void {
+    var a = arg_a;
+    a.*.lnum = 0;
+    a.*.col = 0;
+    a.*.coladd = 0;
+}
+pub extern fn setmark(c: c_int) c_int;
+pub extern fn free_fmark(fm: fmark_T) void;
+pub extern fn free_xfmark(fm: xfmark_T) void;
+pub extern fn clear_fmark(fm: [*c]fmark_T) void;
+pub extern fn setmark_pos(c: c_int, pos: [*c]pos_T, fnum: c_int, view_pt: [*c]fmarkv_T) c_int;
+pub extern fn setpcmark() void;
+pub extern fn checkpcmark() void;
+pub extern fn get_jumplist(win: [*c]win_T, count: c_int) [*c]fmark_T;
+pub extern fn get_changelist(buf: [*c]buf_T, win: [*c]win_T, count: c_int) [*c]fmark_T;
+pub extern fn mark_get(buf: [*c]buf_T, win: [*c]win_T, fmp: [*c]fmark_T, flag: MarkGet, name: c_int) [*c]fmark_T;
+pub extern fn mark_get_global(resolve: bool, name: c_int) [*c]xfmark_T;
+pub extern fn mark_get_local(buf: [*c]buf_T, win: [*c]win_T, name: c_int) [*c]fmark_T;
+pub extern fn mark_get_motion(buf: [*c]buf_T, win: [*c]win_T, name: c_int) [*c]fmark_T;
+pub extern fn mark_get_visual(buf: [*c]buf_T, name: c_int) [*c]fmark_T;
+pub extern fn pos_to_mark(buf: [*c]buf_T, fmp: [*c]fmark_T, pos: pos_T) [*c]fmark_T;
+pub extern fn mark_move_to(fm: [*c]fmark_T, flags: MarkMove) MarkMoveRes;
+pub extern fn mark_view_restore(fm: [*c]fmark_T) void;
+pub extern fn mark_view_make(topline: linenr_T, pos: pos_T) fmarkv_T;
+pub extern fn getnextmark(startpos: [*c]pos_T, dir: c_int, begin_line: c_int) [*c]fmark_T;
+pub extern fn fmarks_check_names(buf: [*c]buf_T) void;
+pub extern fn mark_check(fm: [*c]fmark_T) bool;
+pub extern fn mark_check_line_bounds(buf: [*c]buf_T, fm: [*c]fmark_T) bool;
+pub extern fn clrallmarks(buf: [*c]buf_T) void;
+pub extern fn fm_getname(fmark: [*c]fmark_T, lead_len: c_int) [*c]u8;
+pub extern fn ex_marks(eap: [*c]exarg_T) void;
+pub extern fn ex_delmarks(eap: [*c]exarg_T) void;
+pub extern fn ex_jumps(eap: [*c]exarg_T) void;
+pub extern fn ex_clearjumps(eap: [*c]exarg_T) void;
+pub extern fn ex_changes(eap: [*c]exarg_T) void;
+pub extern fn mark_adjust(line1: linenr_T, line2: linenr_T, amount: linenr_T, amount_after: linenr_T, op: ExtmarkOp) void;
+pub extern fn mark_adjust_nofold(line1: linenr_T, line2: linenr_T, amount: linenr_T, amount_after: linenr_T, op: ExtmarkOp) void;
+pub extern fn mark_col_adjust(lnum: linenr_T, mincol: colnr_T, lnum_amount: linenr_T, col_amount: c_long, spaces_removed: c_int) void;
+pub extern fn cleanup_jumplist(wp: [*c]win_T, loadfiles: bool) void;
+pub extern fn copy_jumplist(from: [*c]win_T, to: [*c]win_T) void;
+pub extern fn mark_jumplist_iter(iter: ?*const anyopaque, win: [*c]const win_T, fm: [*c]xfmark_T) ?*const anyopaque;
+pub extern fn mark_global_iter(iter: ?*const anyopaque, name: [*c]u8, fm: [*c]xfmark_T) ?*const anyopaque;
+pub extern fn mark_buffer_iter(iter: ?*const anyopaque, buf: [*c]const buf_T, name: [*c]u8, fm: [*c]fmark_T) ?*const anyopaque;
+pub extern fn mark_set_global(name: u8, fm: xfmark_T, update: bool) bool;
+pub extern fn mark_set_local(name: u8, buf: [*c]buf_T, fm: fmark_T, update: bool) bool;
+pub extern fn free_jumplist(wp: [*c]win_T) void;
+pub extern fn set_last_cursor(win: [*c]win_T) void;
+pub extern fn mark_mb_adjustpos(buf: [*c]buf_T, lp: [*c]pos_T) void;
+pub extern fn get_buf_local_marks(buf: [*c]const buf_T, l: [*c]list_T) void;
+pub extern fn get_raw_global_mark(name: u8) xfmark_T;
+pub extern fn get_global_marks(l: [*c]list_T) void;
+pub extern fn os_getenv(name: [*c]const u8) [*c]const u8;
+pub extern fn os_env_exists(name: [*c]const u8) bool;
+pub extern fn os_setenv(name: [*c]const u8, value: [*c]const u8, overwrite: c_int) c_int;
+pub extern fn os_unsetenv(name: [*c]const u8) c_int;
+pub extern fn os_get_fullenv_size() usize;
+pub extern fn os_free_fullenv(env: [*c][*c]u8) void;
+pub extern fn os_copy_fullenv(env: [*c][*c]u8, env_size: usize) void;
+pub extern fn os_getenvname_at_index(index: usize) [*c]u8;
+pub extern fn os_get_pid() i64;
+pub extern fn os_get_hostname(hostname: [*c]u8, size: usize) void;
+pub extern fn init_homedir() void;
+pub extern fn expand_env_save(src: [*c]u8) [*c]u8;
+pub extern fn expand_env_save_opt(src: [*c]u8, one: bool) [*c]u8;
+pub extern fn expand_env(src: [*c]u8, dst: [*c]u8, dstlen: c_int) void;
+pub extern fn expand_env_esc(noalias srcp: [*c]u8, noalias dst: [*c]u8, dstlen: c_int, esc: bool, one: bool, prefix: [*c]u8) void;
+pub extern fn vim_env_iter(delim: u8, val: [*c]const u8, iter: ?*const anyopaque, dir: [*c][*c]const u8, len: [*c]usize) ?*const anyopaque;
+pub extern fn vim_env_iter_rev(delim: u8, val: [*c]const u8, iter: ?*const anyopaque, dir: [*c][*c]const u8, len: [*c]usize) ?*const anyopaque;
+pub extern fn vim_get_prefix_from_exepath(exe_name: [*c]u8) void;
+pub extern fn vim_getenv(name: [*c]const u8) [*c]u8;
+pub extern fn home_replace(buf: [*c]const buf_T, src: [*c]const u8, dst: [*c]u8, dstlen: usize, one: bool) usize;
+pub extern fn home_replace_save(buf: [*c]buf_T, src: [*c]const u8) [*c]u8;
+pub extern fn get_env_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
+pub extern fn os_setenv_append_path(fname: [*c]const u8) bool;
+pub extern fn os_shell_is_cmdexe(sh: [*c]const u8) bool;
+pub extern fn vim_unsetenv_ext(@"var": [*c]const u8) void;
+pub extern fn vim_setenv_ext(name: [*c]const u8, val: [*c]const u8) void;
+pub extern fn os_chdir(path: [*c]const u8) c_int;
+pub extern fn os_dirname(buf: [*c]u8, len: usize) c_int;
+pub extern fn os_isrealdir(name: [*c]const u8) bool;
+pub extern fn os_isdir(name: [*c]const u8) bool;
+pub extern fn os_nodetype(name: [*c]const u8) c_int;
+pub extern fn os_exepath(buffer: [*c]u8, size: [*c]usize) c_int;
+pub extern fn os_can_exe(name: [*c]const u8, abspath: [*c][*c]u8, use_path: bool) bool;
+pub extern fn os_open(path: [*c]const u8, flags: c_int, mode: c_int) c_int;
+pub extern fn os_fopen(path: [*c]const u8, flags: [*c]const u8) [*c]FILE;
+pub extern fn os_set_cloexec(fd: c_int) c_int;
+pub extern fn os_close(fd: c_int) c_int;
+pub extern fn os_dup(fd: c_int) c_int;
+pub extern fn os_read(fd: c_int, ret_eof: [*c]bool, ret_buf: [*c]u8, size: usize, non_blocking: bool) ptrdiff_t;
+pub extern fn os_readv(fd: c_int, ret_eof: [*c]bool, iov: [*c]struct_iovec, iov_size: usize, non_blocking: bool) ptrdiff_t;
+pub extern fn os_write(fd: c_int, buf: [*c]const u8, size: usize, non_blocking: bool) ptrdiff_t;
+pub extern fn os_copy(path: [*c]const u8, new_path: [*c]const u8, flags: c_int) c_int;
+pub extern fn os_fsync(fd: c_int) c_int;
+pub extern fn os_getperm(name: [*c]const u8) i32;
+pub extern fn os_setperm(name: [*c]const u8, perm: c_int) c_int;
+pub extern fn os_get_acl(fname: [*c]const u8) vim_acl_T;
+pub extern fn os_set_acl(fname: [*c]const u8, aclent: vim_acl_T) void;
+pub extern fn os_free_acl(aclent: vim_acl_T) void;
+pub extern fn os_file_owned(fname: [*c]const u8) bool;
+pub extern fn os_chown(path: [*c]const u8, owner: uv_uid_t, group: uv_gid_t) c_int;
+pub extern fn os_fchown(fd: c_int, owner: uv_uid_t, group: uv_gid_t) c_int;
+pub extern fn os_path_exists(path: [*c]const u8) bool;
+pub extern fn os_file_settime(path: [*c]const u8, atime: f64, mtime: f64) c_int;
+pub extern fn os_file_is_readable(name: [*c]const u8) bool;
+pub extern fn os_file_is_writable(name: [*c]const u8) c_int;
+pub extern fn os_rename(path: [*c]const u8, new_path: [*c]const u8) c_int;
+pub extern fn os_mkdir(path: [*c]const u8, mode: i32) c_int;
+pub extern fn os_mkdir_recurse(dir: [*c]const u8, mode: i32, failed_dir: [*c][*c]u8, created: [*c][*c]u8) c_int;
+pub extern fn os_file_mkdir(fname: [*c]u8, mode: i32) c_int;
+pub extern fn os_mkdtemp(templ: [*c]const u8, path: [*c]u8) c_int;
+pub extern fn os_rmdir(path: [*c]const u8) c_int;
+pub extern fn os_scandir(dir: [*c]Directory, path: [*c]const u8) bool;
+pub extern fn os_scandir_next(dir: [*c]Directory) [*c]const u8;
+pub extern fn os_closedir(dir: [*c]Directory) void;
+pub extern fn os_remove(path: [*c]const u8) c_int;
+pub extern fn os_fileinfo(path: [*c]const u8, file_info: [*c]FileInfo) bool;
+pub extern fn os_fileinfo_link(path: [*c]const u8, file_info: [*c]FileInfo) bool;
+pub extern fn os_fileinfo_fd(file_descriptor: c_int, file_info: [*c]FileInfo) bool;
+pub extern fn os_fileinfo_id_equal(file_info_1: [*c]const FileInfo, file_info_2: [*c]const FileInfo) bool;
+pub extern fn os_fileinfo_id(file_info: [*c]const FileInfo, file_id: [*c]FileID) void;
+pub extern fn os_fileinfo_inode(file_info: [*c]const FileInfo) u64;
+pub extern fn os_fileinfo_size(file_info: [*c]const FileInfo) u64;
+pub extern fn os_fileinfo_hardlinks(file_info: [*c]const FileInfo) u64;
+pub extern fn os_fileinfo_blocksize(file_info: [*c]const FileInfo) u64;
+pub extern fn os_fileid(path: [*c]const u8, file_id: [*c]FileID) bool;
+pub extern fn os_fileid_equal(file_id_1: [*c]const FileID, file_id_2: [*c]const FileID) bool;
+pub extern fn os_fileid_equal_fileinfo(file_id: [*c]const FileID, file_info: [*c]const FileInfo) bool;
+pub extern fn os_realpath(name: [*c]const u8, buf: [*c]u8) [*c]u8;
+pub extern fn os_get_total_mem_kib() u64;
+pub extern fn get_appname() [*c]const u8;
+pub extern fn stdpaths_get_xdg_var(idx: XDGVarType) [*c]u8;
+pub extern fn get_xdg_home(idx: XDGVarType) [*c]u8;
+pub extern fn stdpaths_user_cache_subpath(fname: [*c]const u8) [*c]u8;
+pub extern fn stdpaths_user_conf_subpath(fname: [*c]const u8) [*c]u8;
+pub extern fn stdpaths_user_data_subpath(fname: [*c]const u8) [*c]u8;
+pub extern fn stdpaths_user_state_subpath(fname: [*c]const u8, trailing_pathseps: usize, escape_commas: bool) [*c]u8;
+pub extern fn os_get_usernames(users: [*c]garray_T) c_int;
+pub extern fn os_get_username(s: [*c]u8, len: usize) c_int;
+pub extern fn os_get_uname(uid: uv_uid_t, s: [*c]u8, len: usize) c_int;
+pub extern fn os_get_userdir(name: [*c]const u8) [*c]u8;
+pub extern fn get_users(xp: [*c]expand_T, idx: c_int) [*c]u8;
+pub extern fn match_user(name: [*c]u8) c_int;
+pub extern var p_ch_was_zero: bool;
+pub extern fn prevwin_curwin() [*c]win_T;
+pub extern fn swbuf_goto_win_with_buf(buf: [*c]buf_T) [*c]win_T;
+pub extern fn do_window(nchar: c_int, Prenum: c_long, xchar: c_int) void;
+pub extern fn win_set_buf(window: Window, buffer: Buffer, noautocmd: bool, err: [*c]Error) void;
+pub extern fn win_new_float(wp: [*c]win_T, last: bool, fconfig: FloatConfig, err: [*c]Error) [*c]win_T;
+pub extern fn win_set_minimal_style(wp: [*c]win_T) void;
+pub extern fn win_config_float(wp: [*c]win_T, fconfig: FloatConfig) void;
+pub extern fn win_check_anchored_floats(win: [*c]win_T) void;
+pub extern fn win_fdccol_count(wp: [*c]win_T) c_int;
+pub extern fn ui_ext_win_position(wp: [*c]win_T, validate: bool) void;
+pub extern fn ui_ext_win_viewport(wp: [*c]win_T) void;
+pub extern fn win_split(size: c_int, flags: c_int) c_int;
+pub extern fn win_split_ins(size: c_int, flags: c_int, new_wp: [*c]win_T, dir: c_int) c_int;
+pub extern fn win_valid_floating(win: [*c]const win_T) bool;
+pub extern fn win_valid(win: [*c]const win_T) bool;
+pub extern fn win_find_by_handle(handle: handle_T) [*c]win_T;
+pub extern fn win_valid_any_tab(win: [*c]win_T) bool;
+pub extern fn win_count() c_int;
+pub extern fn make_windows(count: c_int, vertical: bool) c_int;
+pub extern fn win_move_after(win1: [*c]win_T, win2: [*c]win_T) void;
+pub extern fn win_equal(next_curwin: [*c]win_T, current: bool, dir: c_int) void;
+pub extern fn leaving_window(win: [*c]win_T) void;
+pub extern fn entering_window(win: [*c]win_T) void;
+pub extern fn win_init_empty(wp: [*c]win_T) void;
+pub extern fn curwin_init() void;
+pub extern fn close_windows(buf: [*c]buf_T, keep_curwin: bool) void;
+pub extern fn last_window(win: [*c]win_T) bool;
+pub extern fn one_window(win: [*c]win_T) bool;
+pub extern fn one_nonfloat() bool;
+pub extern fn last_nonfloat(wp: [*c]win_T) bool;
+pub extern fn win_close(win: [*c]win_T, free_buf: bool, force: bool) c_int;
+pub extern fn win_close_othertab(win: [*c]win_T, free_buf: c_int, tp: [*c]tabpage_T) void;
+pub extern fn winframe_remove(win: [*c]win_T, dirp: [*c]c_int, tp: [*c]tabpage_T) [*c]win_T;
+pub extern fn frame2win(frp: [*c]frame_T) [*c]win_T;
+pub extern fn frame_new_height(topfrp: [*c]frame_T, height: c_int, topfirst: bool, wfh: bool) void;
+pub extern fn close_others(message: c_int, forceit: c_int) void;
+pub extern fn unuse_tabpage(tp: [*c]tabpage_T) void;
+pub extern fn use_tabpage(tp: [*c]tabpage_T) void;
+pub extern fn win_alloc_first() void;
+pub extern fn win_alloc_aucmd_win(idx: c_int) void;
+pub extern fn win_init_size() void;
+pub extern fn free_tabpage(tp: [*c]tabpage_T) void;
+pub extern fn win_new_tabpage(after: c_int, filename: [*c]u8) c_int;
+pub extern fn may_open_tabpage() c_int;
+pub extern fn make_tabpages(maxcount: c_int) c_int;
+pub extern fn valid_tabpage(tpc: [*c]tabpage_T) bool;
+pub extern fn valid_tabpage_win(tpc: [*c]tabpage_T) c_int;
+pub extern fn close_tabpage(tab: [*c]tabpage_T) void;
+pub extern fn find_tabpage(n: c_int) [*c]tabpage_T;
+pub extern fn tabpage_index(ftp: [*c]tabpage_T) c_int;
+pub extern fn goto_tabpage(n: c_int) void;
+pub extern fn goto_tabpage_tp(tp: [*c]tabpage_T, trigger_enter_autocmds: bool, trigger_leave_autocmds: bool) void;
+pub extern fn goto_tabpage_lastused() bool;
+pub extern fn goto_tabpage_win(tp: [*c]tabpage_T, wp: [*c]win_T) void;
+pub extern fn tabpage_move(nr: c_int) void;
+pub extern fn win_goto(wp: [*c]win_T) void;
+pub extern fn win_find_tabpage(win: [*c]win_T) [*c]tabpage_T;
+pub extern fn win_vert_neighbor(tp: [*c]tabpage_T, wp: [*c]win_T, up: bool, count: c_long) [*c]win_T;
+pub extern fn win_horz_neighbor(tp: [*c]tabpage_T, wp: [*c]win_T, left: bool, count: c_long) [*c]win_T;
+pub extern fn win_enter(wp: [*c]win_T, undo_sync: bool) void;
+pub extern fn fix_current_dir() void;
+pub extern fn buf_jump_open_win(buf: [*c]buf_T) [*c]win_T;
+pub extern fn buf_jump_open_tab(buf: [*c]buf_T) [*c]win_T;
+pub extern fn free_wininfo(wip: [*c]wininfo_T, bp: [*c]buf_T) void;
+pub extern fn win_free_grid(wp: [*c]win_T, reinit: bool) void;
+pub extern fn win_append(after: [*c]win_T, wp: [*c]win_T) void;
+pub extern fn win_remove(wp: [*c]win_T, tp: [*c]tabpage_T) void;
+pub extern fn win_new_screensize() void;
+pub extern fn win_new_screen_rows() void;
+pub extern fn win_new_screen_cols() void;
+pub extern fn snapshot_windows_scroll_size() void;
+pub extern fn may_make_initial_scroll_size_snapshot() void;
+pub extern fn may_trigger_win_scrolled_resized() void;
+pub extern fn win_size_save(gap: [*c]garray_T) void;
+pub extern fn win_size_restore(gap: [*c]garray_T) void;
+pub extern fn win_comp_pos() c_int;
+pub extern fn win_reconfig_floats() void;
+pub extern fn win_setheight(height: c_int) void;
+pub extern fn win_setheight_win(height: c_int, win: [*c]win_T) void;
+pub extern fn win_setwidth(width: c_int) void;
+pub extern fn win_setwidth_win(width: c_int, wp: [*c]win_T) void;
+pub extern fn did_set_winminheight(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_winminwidth(args: [*c]optset_T) [*c]const u8;
+pub extern fn win_drag_status_line(dragwin: [*c]win_T, offset: c_int) void;
+pub extern fn win_drag_vsep_line(dragwin: [*c]win_T, offset: c_int) void;
+pub extern fn set_fraction(wp: [*c]win_T) void;
+pub extern fn win_fix_scroll(resize: c_int) void;
+pub extern fn win_new_height(wp: [*c]win_T, height: c_int) void;
+pub extern fn scroll_to_fraction(wp: [*c]win_T, prev_height: c_int) void;
+pub extern fn win_set_inner_size(wp: [*c]win_T, valid_cursor: bool) void;
+pub extern fn win_new_width(wp: [*c]win_T, width: c_int) void;
+pub extern fn win_comp_scroll(wp: [*c]win_T) void;
+pub extern fn command_height() void;
+pub extern fn grab_file_name(count: c_long, file_lnum: [*c]linenr_T) [*c]u8;
+pub extern fn file_name_at_cursor(options: c_int, count: c_long, file_lnum: [*c]linenr_T) [*c]u8;
+pub extern fn file_name_in_line(line: [*c]u8, col: c_int, options: c_int, count: c_long, rel_fname: [*c]u8, file_lnum: [*c]linenr_T) [*c]u8;
+pub extern fn last_status(morewin: bool) void;
+pub extern fn set_winbar_win(wp: [*c]win_T, make_room: bool, valid_cursor: bool) c_int;
+pub extern fn set_winbar(make_room: bool) void;
+pub extern fn tabline_height() c_int;
+pub extern fn global_winbar_height() c_int;
+pub extern fn global_stl_height() c_int;
+pub extern fn min_rows() c_int;
+pub extern fn only_one_window() bool;
+pub extern fn check_lnums(do_curwin: bool) void;
+pub extern fn check_lnums_nested(do_curwin: bool) void;
+pub extern fn reset_lnums() void;
+pub extern fn make_snapshot(idx: c_int) void;
+pub extern fn restore_snapshot(idx: c_int, close_curwin: c_int) void;
+pub extern fn check_colorcolumn(wp: [*c]win_T) [*c]const u8;
+pub extern fn win_get_tabwin(id: handle_T, tabnr: [*c]c_int, winnr: [*c]c_int) void;
+pub extern fn win_ui_flush(validate: bool) void;
+pub extern fn lastwin_nofloating() [*c]win_T;
+pub const switchwin_T = extern struct {
+    sw_curwin: [*c]win_T,
+    sw_curtab: [*c]tabpage_T,
+    sw_same_win: bool,
+    sw_visual_active: bool,
+};
+pub extern fn win_id2wp(id: c_int) [*c]win_T;
+pub extern fn win_id2wp_tp(id: c_int, tpp: [*c][*c]tabpage_T) [*c]win_T;
+pub extern fn win_findbuf(argvars: [*c]typval_T, list: [*c]list_T) void;
+pub extern fn find_win_by_nr(vp: [*c]typval_T, tp: [*c]tabpage_T) [*c]win_T;
+pub extern fn find_win_by_nr_or_id(vp: [*c]typval_T) [*c]win_T;
+pub extern fn find_tabwin(wvp: [*c]typval_T, tvp: [*c]typval_T) [*c]win_T;
+pub extern fn f_gettabinfo(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getwininfo(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getwinpos(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getwinposx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getwinposy(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_tabpagenr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_tabpagewinnr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_execute(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_findbuf(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_getid(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_gotoid(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_id2tabwin(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_id2win(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_move_separator(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_move_statusline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_screenpos(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_splitmove(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_win_gettype(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getcmdwintype(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winbufnr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_wincol(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winheight(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winlayout(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winline(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winnr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winrestcmd(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winrestview(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winsaveview(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_winwidth(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn switch_win(switchwin: [*c]switchwin_T, win: [*c]win_T, tp: [*c]tabpage_T, no_display: bool) c_int;
+pub extern fn switch_win_noblock(switchwin: [*c]switchwin_T, win: [*c]win_T, tp: [*c]tabpage_T, no_display: bool) c_int;
+pub extern fn restore_win(switchwin: [*c]switchwin_T, no_display: bool) void;
+pub extern fn restore_win_noblock(switchwin: [*c]switchwin_T, no_display: bool) void;
+pub const SignalWatcher = struct_signal_watcher;
+pub const signal_cb = ?*const fn ([*c]SignalWatcher, c_int, ?*anyopaque) callconv(.C) void;
+pub const signal_close_cb = ?*const fn ([*c]SignalWatcher, ?*anyopaque) callconv(.C) void;
+pub const struct_signal_watcher = extern struct {
+    uv: uv_signal_t,
+    data: ?*anyopaque,
+    cb: signal_cb,
+    close_cb: signal_close_cb,
+    events: ?*MultiQueue,
+};
+pub extern fn signal_watcher_init(loop: [*c]Loop, watcher: [*c]SignalWatcher, data: ?*anyopaque) void;
+pub extern fn signal_watcher_start(watcher: [*c]SignalWatcher, cb: signal_cb, signum: c_int) void;
+pub extern fn signal_watcher_stop(watcher: [*c]SignalWatcher) void;
+pub extern fn signal_watcher_close(watcher: [*c]SignalWatcher, cb: signal_close_cb) void;
 pub extern fn ex_ruby(eap: [*c]exarg_T) void;
 pub extern fn ex_rubyfile(eap: [*c]exarg_T) void;
 pub extern fn ex_rubydo(eap: [*c]exarg_T) void;
@@ -14688,6 +15734,7 @@ pub extern fn check_nextcmd(p: [*c]u8) [*c]u8;
 pub extern fn get_command_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
 pub extern fn not_exiting() void;
 pub extern fn before_quit_autocmds(wp: [*c]win_T, quit_all: bool, forceit: bool) bool;
+pub extern fn before_quit_all(eap: [*c]exarg_T) c_int;
 pub extern fn ex_win_close(forceit: c_int, win: [*c]win_T, tp: [*c]tabpage_T) void;
 pub extern fn tabpage_close(forceit: c_int) void;
 pub extern fn tabpage_close_other(tp: [*c]tabpage_T, forceit: c_int) void;
@@ -14766,110 +15813,6 @@ pub extern fn find_file_in_path_option(ptr: [*c]u8, len: usize, options: c_int, 
 pub extern fn do_autocmd_dirchanged(new_dir: [*c]u8, scope: CdScope, cause: CdCause, pre: bool) void;
 pub extern fn vim_chdirfile(fname: [*c]u8, cause: CdCause) c_int;
 pub extern fn vim_chdir(new_dir: [*c]u8) c_int;
-pub const kXDGNone: c_int = -1;
-pub const kXDGConfigHome: c_int = 0;
-pub const kXDGDataHome: c_int = 1;
-pub const kXDGCacheHome: c_int = 2;
-pub const kXDGStateHome: c_int = 3;
-pub const kXDGRuntimeDir: c_int = 4;
-pub const kXDGConfigDirs: c_int = 5;
-pub const kXDGDataDirs: c_int = 6;
-pub const XDGVarType = c_int;
-pub extern fn os_getenv(name: [*c]const u8) [*c]const u8;
-pub extern fn os_env_exists(name: [*c]const u8) bool;
-pub extern fn os_setenv(name: [*c]const u8, value: [*c]const u8, overwrite: c_int) c_int;
-pub extern fn os_unsetenv(name: [*c]const u8) c_int;
-pub extern fn os_get_fullenv_size() usize;
-pub extern fn os_free_fullenv(env: [*c][*c]u8) void;
-pub extern fn os_copy_fullenv(env: [*c][*c]u8, env_size: usize) void;
-pub extern fn os_getenvname_at_index(index: usize) [*c]u8;
-pub extern fn os_get_pid() i64;
-pub extern fn os_get_hostname(hostname: [*c]u8, size: usize) void;
-pub extern fn init_homedir() void;
-pub extern fn expand_env_save(src: [*c]u8) [*c]u8;
-pub extern fn expand_env_save_opt(src: [*c]u8, one: bool) [*c]u8;
-pub extern fn expand_env(src: [*c]u8, dst: [*c]u8, dstlen: c_int) void;
-pub extern fn expand_env_esc(noalias srcp: [*c]u8, noalias dst: [*c]u8, dstlen: c_int, esc: bool, one: bool, prefix: [*c]u8) void;
-pub extern fn vim_env_iter(delim: u8, val: [*c]const u8, iter: ?*const anyopaque, dir: [*c][*c]const u8, len: [*c]usize) ?*const anyopaque;
-pub extern fn vim_env_iter_rev(delim: u8, val: [*c]const u8, iter: ?*const anyopaque, dir: [*c][*c]const u8, len: [*c]usize) ?*const anyopaque;
-pub extern fn vim_get_prefix_from_exepath(exe_name: [*c]u8) void;
-pub extern fn vim_getenv(name: [*c]const u8) [*c]u8;
-pub extern fn home_replace(buf: [*c]const buf_T, src: [*c]const u8, dst: [*c]u8, dstlen: usize, one: bool) usize;
-pub extern fn home_replace_save(buf: [*c]buf_T, src: [*c]const u8) [*c]u8;
-pub extern fn get_env_name(xp: [*c]expand_T, idx: c_int) [*c]u8;
-pub extern fn os_setenv_append_path(fname: [*c]const u8) bool;
-pub extern fn os_shell_is_cmdexe(sh: [*c]const u8) bool;
-pub extern fn vim_unsetenv_ext(@"var": [*c]const u8) void;
-pub extern fn vim_setenv_ext(name: [*c]const u8, val: [*c]const u8) void;
-pub extern fn fs_init() void;
-pub extern fn fs_loop_lock() void;
-pub extern fn fs_loop_unlock() void;
-pub extern fn os_chdir(path: [*c]const u8) c_int;
-pub extern fn os_dirname(buf: [*c]u8, len: usize) c_int;
-pub extern fn os_isrealdir(name: [*c]const u8) bool;
-pub extern fn os_isdir(name: [*c]const u8) bool;
-pub extern fn os_nodetype(name: [*c]const u8) c_int;
-pub extern fn os_exepath(buffer: [*c]u8, size: [*c]usize) c_int;
-pub extern fn os_can_exe(name: [*c]const u8, abspath: [*c][*c]u8, use_path: bool) bool;
-pub extern fn os_open(path: [*c]const u8, flags: c_int, mode: c_int) c_int;
-pub extern fn os_fopen(path: [*c]const u8, flags: [*c]const u8) [*c]FILE;
-pub extern fn os_set_cloexec(fd: c_int) c_int;
-pub extern fn os_close(fd: c_int) c_int;
-pub extern fn os_dup(fd: c_int) c_int;
-pub extern fn os_read(fd: c_int, ret_eof: [*c]bool, ret_buf: [*c]u8, size: usize, non_blocking: bool) ptrdiff_t;
-pub extern fn os_readv(fd: c_int, ret_eof: [*c]bool, iov: [*c]struct_iovec, iov_size: usize, non_blocking: bool) ptrdiff_t;
-pub extern fn os_write(fd: c_int, buf: [*c]const u8, size: usize, non_blocking: bool) ptrdiff_t;
-pub extern fn os_copy(path: [*c]const u8, new_path: [*c]const u8, flags: c_int) c_int;
-pub extern fn os_fsync(fd: c_int) c_int;
-pub extern fn os_getperm(name: [*c]const u8) i32;
-pub extern fn os_setperm(name: [*c]const u8, perm: c_int) c_int;
-pub extern fn os_get_acl(fname: [*c]const u8) vim_acl_T;
-pub extern fn os_set_acl(fname: [*c]const u8, aclent: vim_acl_T) void;
-pub extern fn os_free_acl(aclent: vim_acl_T) void;
-pub extern fn os_file_owned(fname: [*c]const u8) bool;
-pub extern fn os_chown(path: [*c]const u8, owner: uv_uid_t, group: uv_gid_t) c_int;
-pub extern fn os_fchown(fd: c_int, owner: uv_uid_t, group: uv_gid_t) c_int;
-pub extern fn os_path_exists(path: [*c]const u8) bool;
-pub extern fn os_file_settime(path: [*c]const u8, atime: f64, mtime: f64) c_int;
-pub extern fn os_file_is_readable(name: [*c]const u8) bool;
-pub extern fn os_file_is_writable(name: [*c]const u8) c_int;
-pub extern fn os_rename(path: [*c]const u8, new_path: [*c]const u8) c_int;
-pub extern fn os_mkdir(path: [*c]const u8, mode: i32) c_int;
-pub extern fn os_mkdir_recurse(dir: [*c]const u8, mode: i32, failed_dir: [*c][*c]u8, created: [*c][*c]u8) c_int;
-pub extern fn os_file_mkdir(fname: [*c]u8, mode: i32) c_int;
-pub extern fn os_mkdtemp(templ: [*c]const u8, path: [*c]u8) c_int;
-pub extern fn os_rmdir(path: [*c]const u8) c_int;
-pub extern fn os_scandir(dir: [*c]Directory, path: [*c]const u8) bool;
-pub extern fn os_scandir_next(dir: [*c]Directory) [*c]const u8;
-pub extern fn os_closedir(dir: [*c]Directory) void;
-pub extern fn os_remove(path: [*c]const u8) c_int;
-pub extern fn os_fileinfo(path: [*c]const u8, file_info: [*c]FileInfo) bool;
-pub extern fn os_fileinfo_link(path: [*c]const u8, file_info: [*c]FileInfo) bool;
-pub extern fn os_fileinfo_fd(file_descriptor: c_int, file_info: [*c]FileInfo) bool;
-pub extern fn os_fileinfo_id_equal(file_info_1: [*c]const FileInfo, file_info_2: [*c]const FileInfo) bool;
-pub extern fn os_fileinfo_id(file_info: [*c]const FileInfo, file_id: [*c]FileID) void;
-pub extern fn os_fileinfo_inode(file_info: [*c]const FileInfo) u64;
-pub extern fn os_fileinfo_size(file_info: [*c]const FileInfo) u64;
-pub extern fn os_fileinfo_hardlinks(file_info: [*c]const FileInfo) u64;
-pub extern fn os_fileinfo_blocksize(file_info: [*c]const FileInfo) u64;
-pub extern fn os_fileid(path: [*c]const u8, file_id: [*c]FileID) bool;
-pub extern fn os_fileid_equal(file_id_1: [*c]const FileID, file_id_2: [*c]const FileID) bool;
-pub extern fn os_fileid_equal_fileinfo(file_id: [*c]const FileID, file_info: [*c]const FileInfo) bool;
-pub extern fn os_realpath(name: [*c]const u8, buf: [*c]u8) [*c]u8;
-pub extern fn os_get_total_mem_kib() u64;
-pub extern fn get_appname() [*c]const u8;
-pub extern fn stdpaths_get_xdg_var(idx: XDGVarType) [*c]u8;
-pub extern fn get_xdg_home(idx: XDGVarType) [*c]u8;
-pub extern fn stdpaths_user_cache_subpath(fname: [*c]const u8) [*c]u8;
-pub extern fn stdpaths_user_conf_subpath(fname: [*c]const u8) [*c]u8;
-pub extern fn stdpaths_user_data_subpath(fname: [*c]const u8) [*c]u8;
-pub extern fn stdpaths_user_state_subpath(fname: [*c]const u8, trailing_pathseps: usize, escape_commas: bool) [*c]u8;
-pub extern fn os_get_usernames(users: [*c]garray_T) c_int;
-pub extern fn os_get_username(s: [*c]u8, len: usize) c_int;
-pub extern fn os_get_uname(uid: uv_uid_t, s: [*c]u8, len: usize) c_int;
-pub extern fn os_get_userdir(name: [*c]const u8) [*c]u8;
-pub extern fn get_users(xp: [*c]expand_T, idx: c_int) [*c]u8;
-pub extern fn match_user(name: [*c]u8) c_int;
 pub const CheckItem = ?*const fn (?*anyopaque, [*c]const u8) callconv(.C) varnumber_T;
 pub const FIO_LATIN1: c_int = 1;
 pub const FIO_UTF8: c_int = 2;
@@ -14880,7 +15823,7 @@ pub const FIO_ENDIAN_L: c_int = 128;
 pub const FIO_NOCONVERT: c_int = 8192;
 pub const FIO_UCSBOM: c_int = 16384;
 pub const FIO_ALL: c_int = -1;
-const enum_unnamed_143 = c_int;
+const enum_unnamed_152 = c_int;
 pub extern fn filemess(buf: [*c]buf_T, name: [*c]u8, s: [*c]u8, attr: c_int) void;
 pub extern fn readfile(fname: [*c]u8, sfname: [*c]u8, from: linenr_T, lines_to_skip: linenr_T, lines_to_read: linenr_T, eap: [*c]exarg_T, flags: c_int, silent: bool) c_int;
 pub extern fn prep_exarg(eap: [*c]exarg_T, buf: [*c]const buf_T) void;
@@ -14922,46 +15865,6 @@ pub extern fn match_file_list(list: [*c]u8, sfname: [*c]u8, ffname: [*c]u8) bool
 pub extern fn file_pat_to_reg_pat(pat: [*c]const u8, pat_end: [*c]const u8, allow_dirs: [*c]u8, no_bslash: c_int) [*c]u8;
 pub extern fn read_eintr(fd: c_int, buf: ?*anyopaque, bufsize: usize) c_long;
 pub extern fn write_eintr(fd: c_int, buf: ?*anyopaque, bufsize: usize) c_long;
-pub const FileDescriptor = extern struct {
-    fd: c_int,
-    _error: c_int,
-    rv: [*c]RBuffer,
-    wr: bool,
-    eof: bool,
-    non_blocking: bool,
-};
-pub const kFileReadOnly: c_int = 1;
-pub const kFileCreate: c_int = 2;
-pub const kFileWriteOnly: c_int = 4;
-pub const kFileNoSymlink: c_int = 8;
-pub const kFileCreateOnly: c_int = 16;
-pub const kFileTruncate: c_int = 32;
-pub const kFileAppend: c_int = 64;
-pub const kFileNonBlocking: c_int = 128;
-pub const kFileMkDir: c_int = 256;
-pub const FileOpenFlags = c_uint;
-pub fn file_eof(fp: [*c]const FileDescriptor) callconv(.C) bool {
-    return (@as(c_int, @boolToInt(fp.*.eof)) != 0) and (rbuffer_size(fp.*.rv) == @bitCast(usize, @as(c_long, @as(c_int, 0))));
-}
-pub fn file_fd(fp: [*c]const FileDescriptor) callconv(.C) c_int {
-    return fp.*.fd;
-}
-pub const kRWBufferSize: c_int = 1024;
-const enum_unnamed_144 = c_uint;
-pub extern fn file_open(ret_fp: [*c]FileDescriptor, fname: [*c]const u8, flags: c_int, mode: c_int) c_int;
-pub extern fn file_open_fd(ret_fp: [*c]FileDescriptor, fd: c_int, flags: c_int) c_int;
-pub extern fn file_open_new(@"error": [*c]c_int, fname: [*c]const u8, flags: c_int, mode: c_int) [*c]FileDescriptor;
-pub extern fn file_open_fd_new(@"error": [*c]c_int, fd: c_int, flags: c_int) [*c]FileDescriptor;
-pub extern fn file_open_stdin() [*c]FileDescriptor;
-pub extern fn file_close(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
-pub extern fn file_free(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
-pub extern fn file_flush(fp: [*c]FileDescriptor) c_int;
-pub extern fn file_fsync(fp: [*c]FileDescriptor) c_int;
-pub extern fn file_read(fp: [*c]FileDescriptor, ret_buf: [*c]u8, size: usize) ptrdiff_t;
-pub extern fn file_write(fp: [*c]FileDescriptor, buf: [*c]const u8, size: usize) ptrdiff_t;
-pub extern fn file_skip(fp: [*c]FileDescriptor, size: usize) ptrdiff_t;
-pub extern fn msgpack_file_write(data: ?*anyopaque, buf: [*c]const u8, len: usize) c_int;
-pub extern fn msgpack_file_write_error(@"error": c_int) c_int;
 pub const REMAP_YES: c_int = 0;
 pub const REMAP_NONE: c_int = -1;
 pub const REMAP_SCRIPT: c_int = -2;
@@ -14972,7 +15875,7 @@ pub const FLUSH_TYPEAHEAD: c_int = 1;
 pub const FLUSH_INPUT: c_int = 2;
 pub const flush_buffers_T = c_uint;
 pub const NSCRIPT: c_int = 15;
-const enum_unnamed_145 = c_uint;
+const enum_unnamed_153 = c_uint;
 pub extern var scriptin: [15][*c]FileDescriptor;
 pub extern fn free_buff(buf: [*c]buffheader_T) void;
 pub extern fn get_recorded() [*c]u8;
@@ -14988,6 +15891,7 @@ pub extern fn saveRedobuff(save_redo: [*c]save_redo_T) void;
 pub extern fn restoreRedobuff(save_redo: [*c]save_redo_T) void;
 pub extern fn AppendToRedobuff(s: [*c]const u8) void;
 pub extern fn AppendToRedobuffLit(str: [*c]const u8, len: c_int) void;
+pub extern fn AppendToRedobuffSpec(s: [*c]const u8) void;
 pub extern fn AppendCharToRedobuff(c: c_int) void;
 pub extern fn AppendNumberToRedobuff(n: c_long) void;
 pub extern fn stuffReadbuff(s: [*c]const u8) void;
@@ -15032,7 +15936,7 @@ pub extern fn check_end_reg_executing(advance: bool) void;
 pub extern fn inchar(buf: [*c]u8, maxlen: c_int, wait_time: c_long) c_int;
 pub extern fn fix_input_buffer(buf: [*c]u8, len: c_int) c_int;
 pub extern fn getcmdkeycmd(promptc: c_int, cookie: ?*anyopaque, indent: c_int, do_concat: bool) [*c]u8;
-pub extern fn map_execute_lua() bool;
+pub extern fn map_execute_lua(may_repeat: bool) bool;
 pub extern var default_grid: ScreenGrid;
 pub extern var resizing_screen: bool;
 pub extern var linebuf_char: [*c]schar_T;
@@ -15129,9 +16033,9 @@ pub fn win_hl_attr(arg_wp: [*c]win_T, arg_hlf: c_int) callconv(.C) c_int {
         if (tmp >= 0) break :blk (if ((wp.*.w_ns_hl_attr != null) and (ns_hl_fast < @as(c_int, 0))) wp.*.w_ns_hl_attr else hl_attr_active) + @intCast(usize, tmp) else break :blk (if ((wp.*.w_ns_hl_attr != null) and (ns_hl_fast < @as(c_int, 0))) wp.*.w_ns_hl_attr else hl_attr_active) - ~@bitCast(usize, @intCast(isize, tmp) +% -1);
     }).*;
 }
-pub extern var buffer_handles: Map_handle_T_ptr_t;
-pub extern var window_handles: Map_handle_T_ptr_t;
-pub extern var tabpage_handles: Map_handle_T_ptr_t;
+pub extern var buffer_handles: Map_int_ptr_t;
+pub extern var window_handles: Map_int_ptr_t;
+pub extern var tabpage_handles: Map_int_ptr_t;
 pub const TryState = extern struct {
     current_exception: [*c]except_T,
     private_msg_list: [*c]msglist_T,
@@ -15315,11 +16219,11 @@ pub extern fn ins_compl_bs() c_int;
 pub extern fn ins_compl_addleader(c: c_int) void;
 pub extern fn ins_compl_addfrommatch() void;
 pub extern fn ins_compl_prep(c: c_int) bool;
-pub extern fn set_completefunc_option(errmsg: [*c][*c]const u8) void;
+pub extern fn did_set_completefunc(args: [*c]optset_T) [*c]const u8;
 pub extern fn set_buflocal_cfu_callback(buf: [*c]buf_T) void;
-pub extern fn set_omnifunc_option(buf: [*c]buf_T, errmsg: [*c][*c]const u8) void;
+pub extern fn did_set_omnifunc(args: [*c]optset_T) [*c]const u8;
 pub extern fn set_buflocal_ofu_callback(buf: [*c]buf_T) void;
-pub extern fn set_thesaurusfunc_option(errmsg: [*c][*c]const u8) void;
+pub extern fn did_set_thesaurusfunc(args: [*c]optset_T) [*c]const u8;
 pub extern fn set_ref_in_insexpand_funcs(copyID: c_int) bool;
 pub extern fn f_complete(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn f_complete_add(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
@@ -15402,12 +16306,14 @@ pub const nlua_ref_state_t = extern struct {
     empty_dict_ref: LuaRef,
     ref_count: c_int,
 };
+pub extern fn get_global_lstate() ?*lua_State;
+pub extern fn nlua_error(lstate: ?*lua_State, msg: [*c]const u8) void;
+pub extern fn nlua_pcall(lstate: ?*lua_State, nargs: c_int, nresults: c_int) c_int;
 pub extern fn nlua_get_nil_ref(lstate: ?*lua_State) LuaRef;
 pub extern fn nlua_get_empty_dict_ref(lstate: ?*lua_State) LuaRef;
 pub extern fn nlua_get_global_ref_count() c_int;
 pub extern fn nlua_init(argv: [*c][*c]u8, argc: c_int, lua_arg0: c_int) void;
 pub extern fn nlua_run_script(argv: [*c][*c]u8, argc: c_int, lua_arg0: c_int) noreturn;
-pub extern fn nlua_init_state(thread: bool) ?*lua_State;
 pub extern fn nlua_free_all_mem() void;
 pub extern fn nlua_in_fast_event(lstate: ?*lua_State) c_int;
 pub extern fn nlua_call(lstate: ?*lua_State) c_int;
@@ -15440,8 +16346,6 @@ pub extern fn nlua_execute_on_key(c: c_int) void;
 pub extern fn nlua_set_sctx(current: [*c]sctx_T) void;
 pub extern fn nlua_do_ucmd(cmd: [*c]ucmd_T, eap: [*c]exarg_T, preview: bool) c_int;
 pub extern fn nlua_funcref_str(ref: LuaRef) [*c]u8;
-pub extern fn nlua_read_secure(path: [*c]const u8) [*c]u8;
-pub extern fn nlua_trust(action: [*c]const u8, path: [*c]const u8) bool;
 pub extern var nlua_global_refs: [*c]nlua_ref_state_t;
 pub extern var nlua_disable_preload: bool;
 pub extern fn luaopen_base(L: ?*lua_State) c_int;
@@ -15713,7 +16617,7 @@ pub extern fn f_mapcheck(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalF
 pub extern fn add_map(lhs: [*c]u8, rhs: [*c]u8, mode: c_int, buffer: bool) void;
 pub extern fn langmap_adjust_mb(c: c_int) c_int;
 pub extern fn langmap_init() void;
-pub extern fn langmap_set() void;
+pub extern fn did_set_langmap(args: [*c]optset_T) [*c]const u8;
 pub extern fn ex_abbreviate(eap: [*c]exarg_T) void;
 pub extern fn ex_map(eap: [*c]exarg_T) void;
 pub extern fn ex_unmap(eap: [*c]exarg_T) void;
@@ -15721,85 +16625,6 @@ pub extern fn ex_mapclear(eap: [*c]exarg_T) void;
 pub extern fn ex_abclear(eap: [*c]exarg_T) void;
 pub extern fn modify_keymap(channel_id: u64, buffer: Buffer, is_unmap: bool, mode: String, lhs: String, rhs: String, opts: [*c]KeyDict_keymap, err: [*c]Error) void;
 pub extern fn keymap_array(mode: String, buf: [*c]buf_T) Array;
-pub fn mark_global_index(name: u8) callconv(.C) c_int {
-    return if ((@bitCast(c_uint, @as(c_uint, name)) >= @bitCast(c_uint, @as(c_int, 'A'))) and (@bitCast(c_uint, @as(c_uint, name)) <= @bitCast(c_uint, @as(c_int, 'Z')))) @bitCast(c_int, @as(c_uint, name)) - @as(c_int, 'A') else if (@as(c_int, @boolToInt(ascii_isdigit(@bitCast(c_int, @as(c_uint, name))))) != 0) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + (@bitCast(c_int, @as(c_uint, name)) - @as(c_int, '0')) else -@as(c_int, 1);
-}
-pub fn mark_local_index(name: u8) callconv(.C) c_int {
-    return if ((@bitCast(c_uint, @as(c_uint, name)) >= @bitCast(c_uint, @as(c_int, 'a'))) and (@bitCast(c_uint, @as(c_uint, name)) <= @bitCast(c_uint, @as(c_int, 'z')))) @bitCast(c_int, @as(c_uint, name)) - @as(c_int, 'a') else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '"')) (@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1) else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '^')) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + @as(c_int, 1) else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '.')) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + @as(c_int, 2) else -@as(c_int, 1);
-}
-pub inline fn lt(arg_a: pos_T, arg_b: pos_T) bool {
-    var a = arg_a;
-    var b = arg_b;
-    if (a.lnum != b.lnum) {
-        return a.lnum < b.lnum;
-    } else if (a.col != b.col) {
-        return a.col < b.col;
-    } else {
-        return a.coladd < b.coladd;
-    }
-    return false;
-}
-pub inline fn equalpos(arg_a: pos_T, arg_b: pos_T) bool {
-    var a = arg_a;
-    var b = arg_b;
-    return ((a.lnum == b.lnum) and (a.col == b.col)) and (a.coladd == b.coladd);
-}
-pub inline fn ltoreq(arg_a: pos_T, arg_b: pos_T) bool {
-    var a = arg_a;
-    var b = arg_b;
-    return (@as(c_int, @boolToInt(lt(a, b))) != 0) or (@as(c_int, @boolToInt(equalpos(a, b))) != 0);
-}
-pub inline fn clearpos(arg_a: [*c]pos_T) void {
-    var a = arg_a;
-    a.*.lnum = 0;
-    a.*.col = 0;
-    a.*.coladd = 0;
-}
-pub extern fn setmark(c: c_int) c_int;
-pub extern fn free_fmark(fm: fmark_T) void;
-pub extern fn free_xfmark(fm: xfmark_T) void;
-pub extern fn clear_fmark(fm: [*c]fmark_T) void;
-pub extern fn setmark_pos(c: c_int, pos: [*c]pos_T, fnum: c_int, view_pt: [*c]fmarkv_T) c_int;
-pub extern fn setpcmark() void;
-pub extern fn checkpcmark() void;
-pub extern fn get_jumplist(win: [*c]win_T, count: c_int) [*c]fmark_T;
-pub extern fn get_changelist(buf: [*c]buf_T, win: [*c]win_T, count: c_int) [*c]fmark_T;
-pub extern fn mark_get(buf: [*c]buf_T, win: [*c]win_T, fmp: [*c]fmark_T, flag: MarkGet, name: c_int) [*c]fmark_T;
-pub extern fn mark_get_global(resolve: bool, name: c_int) [*c]xfmark_T;
-pub extern fn mark_get_local(buf: [*c]buf_T, win: [*c]win_T, name: c_int) [*c]fmark_T;
-pub extern fn mark_get_motion(buf: [*c]buf_T, win: [*c]win_T, name: c_int) [*c]fmark_T;
-pub extern fn mark_get_visual(buf: [*c]buf_T, name: c_int) [*c]fmark_T;
-pub extern fn pos_to_mark(buf: [*c]buf_T, fmp: [*c]fmark_T, pos: pos_T) [*c]fmark_T;
-pub extern fn mark_move_to(fm: [*c]fmark_T, flags: MarkMove) MarkMoveRes;
-pub extern fn mark_view_restore(fm: [*c]fmark_T) void;
-pub extern fn mark_view_make(topline: linenr_T, pos: pos_T) fmarkv_T;
-pub extern fn getnextmark(startpos: [*c]pos_T, dir: c_int, begin_line: c_int) [*c]fmark_T;
-pub extern fn fmarks_check_names(buf: [*c]buf_T) void;
-pub extern fn mark_check(fm: [*c]fmark_T) bool;
-pub extern fn mark_check_line_bounds(buf: [*c]buf_T, fm: [*c]fmark_T) bool;
-pub extern fn clrallmarks(buf: [*c]buf_T) void;
-pub extern fn fm_getname(fmark: [*c]fmark_T, lead_len: c_int) [*c]u8;
-pub extern fn ex_marks(eap: [*c]exarg_T) void;
-pub extern fn ex_delmarks(eap: [*c]exarg_T) void;
-pub extern fn ex_jumps(eap: [*c]exarg_T) void;
-pub extern fn ex_clearjumps(eap: [*c]exarg_T) void;
-pub extern fn ex_changes(eap: [*c]exarg_T) void;
-pub extern fn mark_adjust(line1: linenr_T, line2: linenr_T, amount: linenr_T, amount_after: linenr_T, op: ExtmarkOp) void;
-pub extern fn mark_adjust_nofold(line1: linenr_T, line2: linenr_T, amount: linenr_T, amount_after: linenr_T, op: ExtmarkOp) void;
-pub extern fn mark_col_adjust(lnum: linenr_T, mincol: colnr_T, lnum_amount: linenr_T, col_amount: c_long, spaces_removed: c_int) void;
-pub extern fn cleanup_jumplist(wp: [*c]win_T, loadfiles: bool) void;
-pub extern fn copy_jumplist(from: [*c]win_T, to: [*c]win_T) void;
-pub extern fn mark_jumplist_iter(iter: ?*const anyopaque, win: [*c]const win_T, fm: [*c]xfmark_T) ?*const anyopaque;
-pub extern fn mark_global_iter(iter: ?*const anyopaque, name: [*c]u8, fm: [*c]xfmark_T) ?*const anyopaque;
-pub extern fn mark_buffer_iter(iter: ?*const anyopaque, buf: [*c]const buf_T, name: [*c]u8, fm: [*c]fmark_T) ?*const anyopaque;
-pub extern fn mark_set_global(name: u8, fm: xfmark_T, update: bool) bool;
-pub extern fn mark_set_local(name: u8, buf: [*c]buf_T, fm: fmark_T, update: bool) bool;
-pub extern fn free_jumplist(wp: [*c]win_T) void;
-pub extern fn set_last_cursor(win: [*c]win_T) void;
-pub extern fn mark_mb_adjustpos(buf: [*c]buf_T, lp: [*c]pos_T) void;
-pub extern fn get_buf_local_marks(buf: [*c]const buf_T, l: [*c]list_T) void;
-pub extern fn get_raw_global_mark(name: u8) xfmark_T;
-pub extern fn get_global_marks(l: [*c]list_T) void;
 pub extern fn clear_matches(wp: [*c]win_T) void;
 pub extern fn init_search_hl(wp: [*c]win_T, search_hl: [*c]match_T) void;
 pub extern fn prepare_search_hl(wp: [*c]win_T, search_hl: [*c]match_T, lnum: linenr_T) void;
@@ -15853,119 +16678,6 @@ pub extern fn ex_emenu(eap: [*c]exarg_T) void;
 pub extern fn menu_find(path_name: [*c]const u8) [*c]vimmenu_T;
 pub extern fn ex_menutranslate(eap: [*c]exarg_T) void;
 pub extern fn f_menu_info(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern var p_ch_was_zero: bool;
-pub extern fn prevwin_curwin() [*c]win_T;
-pub extern fn do_window(nchar: c_int, Prenum: c_long, xchar: c_int) void;
-pub extern fn win_set_buf(window: Window, buffer: Buffer, noautocmd: bool, err: [*c]Error) void;
-pub extern fn win_new_float(wp: [*c]win_T, last: bool, fconfig: FloatConfig, err: [*c]Error) [*c]win_T;
-pub extern fn win_set_minimal_style(wp: [*c]win_T) void;
-pub extern fn win_config_float(wp: [*c]win_T, fconfig: FloatConfig) void;
-pub extern fn win_check_anchored_floats(win: [*c]win_T) void;
-pub extern fn win_fdccol_count(wp: [*c]win_T) c_int;
-pub extern fn ui_ext_win_position(wp: [*c]win_T, validate: bool) void;
-pub extern fn ui_ext_win_viewport(wp: [*c]win_T) void;
-pub extern fn win_split(size: c_int, flags: c_int) c_int;
-pub extern fn win_split_ins(size: c_int, flags: c_int, new_wp: [*c]win_T, dir: c_int) c_int;
-pub extern fn win_valid_floating(win: [*c]const win_T) bool;
-pub extern fn win_valid(win: [*c]const win_T) bool;
-pub extern fn win_find_by_handle(handle: handle_T) [*c]win_T;
-pub extern fn win_valid_any_tab(win: [*c]win_T) bool;
-pub extern fn win_count() c_int;
-pub extern fn make_windows(count: c_int, vertical: bool) c_int;
-pub extern fn win_move_after(win1: [*c]win_T, win2: [*c]win_T) void;
-pub extern fn win_equal(next_curwin: [*c]win_T, current: bool, dir: c_int) void;
-pub extern fn leaving_window(win: [*c]win_T) void;
-pub extern fn entering_window(win: [*c]win_T) void;
-pub extern fn win_init_empty(wp: [*c]win_T) void;
-pub extern fn curwin_init() void;
-pub extern fn close_windows(buf: [*c]buf_T, keep_curwin: bool) void;
-pub extern fn last_window(win: [*c]win_T) bool;
-pub extern fn one_window(win: [*c]win_T) bool;
-pub extern fn one_nonfloat() bool;
-pub extern fn last_nonfloat(wp: [*c]win_T) bool;
-pub extern fn win_close(win: [*c]win_T, free_buf: bool, force: bool) c_int;
-pub extern fn win_close_othertab(win: [*c]win_T, free_buf: c_int, tp: [*c]tabpage_T) void;
-pub extern fn winframe_remove(win: [*c]win_T, dirp: [*c]c_int, tp: [*c]tabpage_T) [*c]win_T;
-pub extern fn frame2win(frp: [*c]frame_T) [*c]win_T;
-pub extern fn frame_new_height(topfrp: [*c]frame_T, height: c_int, topfirst: bool, wfh: bool) void;
-pub extern fn close_others(message: c_int, forceit: c_int) void;
-pub extern fn unuse_tabpage(tp: [*c]tabpage_T) void;
-pub extern fn use_tabpage(tp: [*c]tabpage_T) void;
-pub extern fn win_alloc_first() void;
-pub extern fn win_alloc_aucmd_win(idx: c_int) void;
-pub extern fn win_init_size() void;
-pub extern fn free_tabpage(tp: [*c]tabpage_T) void;
-pub extern fn win_new_tabpage(after: c_int, filename: [*c]u8) c_int;
-pub extern fn may_open_tabpage() c_int;
-pub extern fn make_tabpages(maxcount: c_int) c_int;
-pub extern fn valid_tabpage(tpc: [*c]tabpage_T) bool;
-pub extern fn valid_tabpage_win(tpc: [*c]tabpage_T) c_int;
-pub extern fn close_tabpage(tab: [*c]tabpage_T) void;
-pub extern fn find_tabpage(n: c_int) [*c]tabpage_T;
-pub extern fn tabpage_index(ftp: [*c]tabpage_T) c_int;
-pub extern fn goto_tabpage(n: c_int) void;
-pub extern fn goto_tabpage_tp(tp: [*c]tabpage_T, trigger_enter_autocmds: bool, trigger_leave_autocmds: bool) void;
-pub extern fn goto_tabpage_lastused() bool;
-pub extern fn goto_tabpage_win(tp: [*c]tabpage_T, wp: [*c]win_T) void;
-pub extern fn tabpage_move(nr: c_int) void;
-pub extern fn win_goto(wp: [*c]win_T) void;
-pub extern fn win_find_tabpage(win: [*c]win_T) [*c]tabpage_T;
-pub extern fn win_vert_neighbor(tp: [*c]tabpage_T, wp: [*c]win_T, up: bool, count: c_long) [*c]win_T;
-pub extern fn win_horz_neighbor(tp: [*c]tabpage_T, wp: [*c]win_T, left: bool, count: c_long) [*c]win_T;
-pub extern fn win_enter(wp: [*c]win_T, undo_sync: bool) void;
-pub extern fn fix_current_dir() void;
-pub extern fn buf_jump_open_win(buf: [*c]buf_T) [*c]win_T;
-pub extern fn buf_jump_open_tab(buf: [*c]buf_T) [*c]win_T;
-pub extern fn free_wininfo(wip: [*c]wininfo_T, bp: [*c]buf_T) void;
-pub extern fn win_free_grid(wp: [*c]win_T, reinit: bool) void;
-pub extern fn win_append(after: [*c]win_T, wp: [*c]win_T) void;
-pub extern fn win_remove(wp: [*c]win_T, tp: [*c]tabpage_T) void;
-pub extern fn win_new_screensize() void;
-pub extern fn win_new_screen_rows() void;
-pub extern fn win_new_screen_cols() void;
-pub extern fn snapshot_windows_scroll_size() void;
-pub extern fn may_make_initial_scroll_size_snapshot() void;
-pub extern fn may_trigger_win_scrolled_resized() void;
-pub extern fn win_size_save(gap: [*c]garray_T) void;
-pub extern fn win_size_restore(gap: [*c]garray_T) void;
-pub extern fn win_comp_pos() c_int;
-pub extern fn win_reconfig_floats() void;
-pub extern fn win_setheight(height: c_int) void;
-pub extern fn win_setheight_win(height: c_int, win: [*c]win_T) void;
-pub extern fn win_setwidth(width: c_int) void;
-pub extern fn win_setwidth_win(width: c_int, wp: [*c]win_T) void;
-pub extern fn did_set_winminheight() void;
-pub extern fn did_set_winminwidth() void;
-pub extern fn win_drag_status_line(dragwin: [*c]win_T, offset: c_int) void;
-pub extern fn win_drag_vsep_line(dragwin: [*c]win_T, offset: c_int) void;
-pub extern fn set_fraction(wp: [*c]win_T) void;
-pub extern fn win_fix_scroll(resize: c_int) void;
-pub extern fn win_new_height(wp: [*c]win_T, height: c_int) void;
-pub extern fn scroll_to_fraction(wp: [*c]win_T, prev_height: c_int) void;
-pub extern fn win_set_inner_size(wp: [*c]win_T, valid_cursor: bool) void;
-pub extern fn win_new_width(wp: [*c]win_T, width: c_int) void;
-pub extern fn win_comp_scroll(wp: [*c]win_T) void;
-pub extern fn command_height() void;
-pub extern fn grab_file_name(count: c_long, file_lnum: [*c]linenr_T) [*c]u8;
-pub extern fn file_name_at_cursor(options: c_int, count: c_long, file_lnum: [*c]linenr_T) [*c]u8;
-pub extern fn file_name_in_line(line: [*c]u8, col: c_int, options: c_int, count: c_long, rel_fname: [*c]u8, file_lnum: [*c]linenr_T) [*c]u8;
-pub extern fn last_status(morewin: bool) void;
-pub extern fn set_winbar_win(wp: [*c]win_T, make_room: bool, valid_cursor: bool) c_int;
-pub extern fn set_winbar(make_room: bool) void;
-pub extern fn tabline_height() c_int;
-pub extern fn global_winbar_height() c_int;
-pub extern fn global_stl_height() c_int;
-pub extern fn min_rows() c_int;
-pub extern fn only_one_window() bool;
-pub extern fn check_lnums(do_curwin: bool) void;
-pub extern fn check_lnums_nested(do_curwin: bool) void;
-pub extern fn reset_lnums() void;
-pub extern fn make_snapshot(idx: c_int) void;
-pub extern fn restore_snapshot(idx: c_int, close_curwin: c_int) void;
-pub extern fn check_colorcolumn(wp: [*c]win_T) [*c]const u8;
-pub extern fn win_get_tabwin(id: handle_T, tabnr: [*c]c_int, winnr: [*c]c_int) void;
-pub extern fn win_ui_flush(validate: bool) void;
-pub extern fn lastwin_nofloating() [*c]win_T;
 pub const IN_UNKNOWN: c_int = 0;
 pub const IN_BUFFER: c_int = 1;
 pub const IN_STATUS_LINE: c_int = 2;
@@ -15976,26 +16688,26 @@ pub const MOUSE_FOLD_CLOSE: c_int = 512;
 pub const MOUSE_FOLD_OPEN: c_int = 1024;
 pub const MOUSE_WINBAR: c_int = 2048;
 pub const MOUSE_STATUSCOL: c_int = 4096;
-const enum_unnamed_146 = c_uint;
+const enum_unnamed_154 = c_uint;
 pub const MOUSE_FOCUS: c_int = 1;
 pub const MOUSE_MAY_VIS: c_int = 2;
 pub const MOUSE_DID_MOVE: c_int = 4;
 pub const MOUSE_SETPOS: c_int = 8;
 pub const MOUSE_MAY_STOP_VIS: c_int = 16;
 pub const MOUSE_RELEASED: c_int = 32;
-const enum_unnamed_147 = c_uint;
+const enum_unnamed_155 = c_uint;
 pub const MOUSE_LEFT: c_int = 0;
 pub const MOUSE_MIDDLE: c_int = 1;
 pub const MOUSE_RIGHT: c_int = 2;
 pub const MOUSE_RELEASE: c_int = 3;
 pub const MOUSE_X1: c_int = 768;
 pub const MOUSE_X2: c_int = 1024;
-const enum_unnamed_148 = c_uint;
+const enum_unnamed_156 = c_uint;
 pub const MSCR_DOWN: c_int = 0;
 pub const MSCR_UP: c_int = 1;
 pub const MSCR_LEFT: c_int = -1;
 pub const MSCR_RIGHT: c_int = -2;
-const enum_unnamed_149 = c_int;
+const enum_unnamed_157 = c_int;
 pub extern fn do_mouse(oap: [*c]oparg_T, c: c_int, dir: c_int, count: c_long, fixindent: bool) bool;
 pub extern fn is_mouse_key(c: c_int) bool;
 pub extern fn reset_dragwin() void;
@@ -16006,6 +16718,8 @@ pub extern fn vcol2col(wp: [*c]win_T, lnum: linenr_T, vcol: colnr_T) colnr_T;
 pub extern fn setmouse() void;
 pub extern fn mouse_scroll_horiz(dir: c_int) bool;
 pub extern fn mouse_check_fold() c_int;
+pub extern fn adjust_plines_for_skipcol(wp: [*c]win_T, n: c_int) c_int;
+pub extern fn sms_marker_overlap(wp: [*c]win_T, extra2: c_int) c_int;
 pub extern fn update_topline(wp: [*c]win_T) void;
 pub extern fn update_curswant_force() void;
 pub extern fn update_curswant() void;
@@ -16038,6 +16752,7 @@ pub extern fn f_screenpos(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: Eval
 pub extern fn f_virtcol2col(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn scrolldown(line_count: c_long, byfold: c_int) bool;
 pub extern fn scrollup(line_count: c_long, byfold: c_int) bool;
+pub extern fn adjust_skipcol() void;
 pub extern fn check_topfill(wp: [*c]win_T, down: bool) void;
 pub extern fn scrolldown_clamp() void;
 pub extern fn scrollup_clamp() void;
@@ -16062,6 +16777,7 @@ pub extern fn rpc_free(channel: [*c]Channel) void;
 pub extern fn rpc_set_client_info(id: u64, info: Dictionary) void;
 pub extern fn rpc_client_info(chan: [*c]Channel) Dictionary;
 pub extern fn rpc_client_name(chan: [*c]Channel) [*c]const u8;
+pub extern fn rpc_free_all_mem() void;
 pub extern fn msgpack_rpc_helpers_init() void;
 pub extern fn msgpack_rpc_to_object(obj: [*c]const msgpack_object, arg: [*c]Object) bool;
 pub extern fn msgpack_rpc_to_array(obj: [*c]const msgpack_object, arg: [*c]Array) bool;
@@ -16089,7 +16805,7 @@ pub const mpack_sint32_t = c_int;
 pub const MPACK_OK: c_int = 0;
 pub const MPACK_EOF: c_int = 1;
 pub const MPACK_ERROR: c_int = 2;
-const enum_unnamed_150 = c_uint;
+const enum_unnamed_158 = c_uint;
 pub const MPACK_TOKEN_NIL: c_int = 1;
 pub const MPACK_TOKEN_BOOLEAN: c_int = 2;
 pub const MPACK_TOKEN_UINT: c_int = 3;
@@ -16129,7 +16845,7 @@ pub extern fn mpack_unpack_float_compat(t: mpack_token_t) f64;
 pub extern fn mpack_unpack_number(t: mpack_token_t) f64;
 pub const MPACK_EXCEPTION: c_int = -1;
 pub const MPACK_NOMEM: c_int = 3;
-const enum_unnamed_151 = c_int;
+const enum_unnamed_159 = c_int;
 pub const mpack_data_t = extern union {
     p: ?*anyopaque,
     u: mpack_uintmax_t,
@@ -16168,6 +16884,49 @@ pub extern fn mpack_unparse_tok(walker: [*c]mpack_parser_t, tok: [*c]mpack_token
 pub extern fn mpack_parse(parser: [*c]mpack_parser_t, b: [*c][*c]const u8, bl: [*c]usize, enter_cb: mpack_walk_cb, exit_cb: mpack_walk_cb) c_int;
 pub extern fn mpack_unparse(parser: [*c]mpack_parser_t, b: [*c][*c]u8, bl: [*c]usize, enter_cb: mpack_walk_cb, exit_cb: mpack_walk_cb) c_int;
 pub extern fn mpack_parser_copy(d: [*c]mpack_parser_t, s: [*c]mpack_parser_t) void;
+pub const UIClientHandler = extern struct {
+    name: [*c]const u8,
+    @"fn": ?*const fn (Array) callconv(.C) void,
+};
+pub extern var grid_line_buf_size: usize;
+pub extern var grid_line_buf_char: [*c]schar_T;
+pub extern var grid_line_buf_attr: [*c]sattr_T;
+pub extern var ui_client_channel_id: u64;
+pub extern var ui_client_attached: bool;
+pub extern var ui_client_bg_response: TriState;
+pub extern var ui_client_forward_stdin: bool;
+pub extern fn ui_client_start_server(argc: c_int, argv: [*c][*c]u8) u64;
+pub extern fn ui_client_attach(width: c_int, height: c_int, term: [*c]u8) void;
+pub extern fn ui_client_detach() void;
+pub extern fn ui_client_run(remote_ui: bool) noreturn;
+pub extern fn ui_client_stop() void;
+pub extern fn ui_client_set_size(width: c_int, height: c_int) void;
+pub extern fn ui_client_get_redraw_handler(name: [*c]const u8, name_len: usize, @"error": [*c]Error) UIClientHandler;
+pub extern fn handle_ui_client_redraw(channel_id: u64, args: Array, arena: [*c]Arena, @"error": [*c]Error) Object;
+pub extern fn ui_client_event_grid_resize(args: Array) void;
+pub extern fn ui_client_event_grid_line(args: Array) noreturn;
+pub extern fn ui_client_event_raw_line(g: [*c]GridLineEvent) void;
+pub extern fn ui_client_event_mode_info_set(args: Array) void;
+pub extern fn ui_client_event_update_menu(args: Array) void;
+pub extern fn ui_client_event_busy_start(args: Array) void;
+pub extern fn ui_client_event_busy_stop(args: Array) void;
+pub extern fn ui_client_event_mouse_on(args: Array) void;
+pub extern fn ui_client_event_mouse_off(args: Array) void;
+pub extern fn ui_client_event_mode_change(args: Array) void;
+pub extern fn ui_client_event_bell(args: Array) void;
+pub extern fn ui_client_event_visual_bell(args: Array) void;
+pub extern fn ui_client_event_flush(args: Array) void;
+pub extern fn ui_client_event_suspend(args: Array) void;
+pub extern fn ui_client_event_set_title(args: Array) void;
+pub extern fn ui_client_event_set_icon(args: Array) void;
+pub extern fn ui_client_event_screenshot(args: Array) void;
+pub extern fn ui_client_event_option_set(args: Array) void;
+pub extern fn ui_client_event_default_colors_set(args: Array) void;
+pub extern fn ui_client_event_hl_attr_define(args: Array) void;
+pub extern fn ui_client_event_grid_clear(args: Array) void;
+pub extern fn ui_client_event_grid_cursor_goto(args: Array) void;
+pub extern fn ui_client_event_grid_scroll(args: Array) void;
+pub extern fn ui_client_handler_hash(str: [*c]const u8, len: usize) c_int;
 pub extern fn unpack(data: [*c]const u8, size: usize, err: [*c]Error) Object;
 pub extern fn unpacker_init(p: [*c]Unpacker) void;
 pub extern fn unpacker_teardown(p: [*c]Unpacker) void;
@@ -16258,7 +17017,7 @@ pub extern fn write_reg_contents_lst(name: c_int, strings: [*c][*c]u8, must_appe
 pub extern fn write_reg_contents_ex(name: c_int, str: [*c]const u8, len: isize, must_append: bool, yank_type: MotionType, block_len: colnr_T) void;
 pub extern fn clear_oparg(oap: [*c]oparg_T) void;
 pub extern fn cursor_pos_info(dict: [*c]dict_T) void;
-pub extern fn set_operatorfunc_option(errmsg: [*c][*c]const u8) void;
+pub extern fn did_set_operatorfunc(args: [*c]optset_T) [*c]const u8;
 pub extern fn set_ref_in_opfunc(copyID: c_int) bool;
 pub extern fn do_pending_operator(cap: [*c]cmdarg_T, old_col: c_int, gui_yank: bool) void;
 pub extern fn get_default_register_name() c_int;
@@ -16275,101 +17034,7 @@ pub extern fn op_reg_set(name: u8, reg: yankreg_T, is_unnamed: bool) bool;
 pub extern fn op_reg_get(name: u8) [*c]const yankreg_T;
 pub extern fn op_reg_set_previous(name: u8) bool;
 pub extern fn get_region_bytecount(buf: [*c]buf_T, start_lnum: linenr_T, end_lnum: linenr_T, start_col: colnr_T, end_col: colnr_T) bcount_t;
-pub const gov_unknown: c_int = 0;
-pub const gov_bool: c_int = 1;
-pub const gov_number: c_int = 2;
-pub const gov_string: c_int = 3;
-pub const gov_hidden_bool: c_int = 4;
-pub const gov_hidden_number: c_int = 5;
-pub const gov_hidden_string: c_int = 6;
-pub const getoption_T = c_uint;
-pub extern fn set_init_tablocal() void;
-pub extern fn set_init_1(clean_arg: bool) void;
-pub extern fn set_number_default(name: [*c]u8, val: c_long) void;
-pub extern fn set_init_2(headless: bool) void;
-pub extern fn set_init_3() void;
-pub extern fn set_helplang_default(lang: [*c]const u8) void;
-pub extern fn set_title_defaults() void;
-pub extern fn ex_set(eap: [*c]exarg_T) void;
-pub extern fn do_set(arg: [*c]u8, opt_flags: c_int) c_int;
-pub extern fn did_set_option(opt_idx: c_int, opt_flags: c_int, new_value: c_int, value_checked: c_int) void;
-pub extern fn string_to_key(arg: [*c]u8) c_int;
-pub extern fn did_set_title() void;
-pub extern fn set_options_bin(oldval: c_int, newval: c_int, opt_flags: c_int) void;
-pub extern fn get_shada_parameter(@"type": c_int) c_int;
-pub extern fn find_shada_parameter(@"type": c_int) [*c]u8;
-pub extern fn check_options() void;
-pub extern fn was_set_insecurely(wp: [*c]win_T, opt: [*c]u8, opt_flags: c_int) c_int;
-pub extern fn redraw_titles() void;
-pub extern fn valid_name(val: [*c]const u8, allowed: [*c]const u8) bool;
-pub extern fn check_blending(wp: [*c]win_T) void;
-pub extern fn parse_winhl_opt(wp: [*c]win_T) bool;
-pub extern fn get_option_sctx(name: [*c]const u8) [*c]sctx_T;
-pub extern fn set_option_sctx_idx(opt_idx: c_int, opt_flags: c_int, script_ctx: sctx_T) void;
-pub extern fn check_redraw_for(buf: [*c]buf_T, win: [*c]win_T, flags: u32) void;
-pub extern fn check_redraw(flags: u32) void;
-pub extern fn findoption_len(arg: [*c]const u8, len: usize) c_int;
-pub extern fn is_tty_option(name: [*c]const u8) bool;
-pub extern fn get_tty_option(name: [*c]const u8, value: [*c][*c]u8) bool;
-pub extern fn set_tty_option(name: [*c]const u8, value: [*c]u8) bool;
-pub extern fn set_tty_background(value: [*c]const u8) void;
-pub extern fn findoption(arg: [*c]const u8) c_int;
-pub extern fn get_option_value(name: [*c]const u8, numval: [*c]c_long, stringval: [*c][*c]u8, flagsp: [*c]u32, scope: c_int) getoption_T;
-pub extern fn get_option_value_strict(name: [*c]u8, numval: [*c]i64, stringval: [*c][*c]u8, opt_type: c_int, from: ?*anyopaque) c_int;
-pub extern fn get_option(opt_idx: c_int) [*c]vimoption_T;
-pub extern fn set_option_value(name: [*c]const u8, number: c_long, string: [*c]const u8, opt_flags: c_int) [*c]const u8;
-pub extern fn set_option_value_give_err(name: [*c]const u8, number: c_long, string: [*c]const u8, opt_flags: c_int) void;
-pub extern fn is_option_allocated(name: [*c]const u8) bool;
-pub extern fn is_string_option(name: [*c]const u8) bool;
-pub extern fn find_key_option_len(arg_arg: [*c]const u8, len: usize, has_lt: bool) c_int;
-pub extern fn ui_refresh_options() void;
-pub extern fn makeset(fd: [*c]FILE, opt_flags: c_int, local_only: c_int) c_int;
-pub extern fn makefoldset(fd: [*c]FILE) c_int;
-pub extern fn unset_global_local_option(name: [*c]u8, from: ?*anyopaque) void;
-pub extern fn get_varp_scope_from(p: [*c]vimoption_T, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
-pub extern fn get_varp_scope(p: [*c]vimoption_T, scope: c_int) [*c]u8;
-pub extern fn get_option_varp_scope_from(opt_idx: c_int, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
-pub extern fn get_equalprg() [*c]u8;
-pub extern fn win_copy_options(wp_from: [*c]win_T, wp_to: [*c]win_T) void;
-pub extern fn copy_winopt(from: [*c]winopt_T, to: [*c]winopt_T) void;
-pub extern fn check_win_options(win: [*c]win_T) void;
-pub extern fn clear_winopt(wop: [*c]winopt_T) void;
-pub extern fn didset_window_options(wp: [*c]win_T, valid_cursor: bool) void;
-pub extern fn buf_copy_options(buf: [*c]buf_T, flags: c_int) void;
-pub extern fn reset_modifiable() void;
-pub extern fn set_iminsert_global(buf: [*c]buf_T) void;
-pub extern fn set_imsearch_global(buf: [*c]buf_T) void;
-pub extern fn set_context_in_set_cmd(xp: [*c]expand_T, arg: [*c]u8, opt_flags: c_int) void;
-pub extern fn ExpandSettings(xp: [*c]expand_T, regmatch: [*c]regmatch_T, fuzzystr: [*c]u8, numMatches: [*c]c_int, matches: [*c][*c][*c]u8, can_fuzzy: bool) c_int;
-pub extern fn ExpandOldSetting(numMatches: [*c]c_int, matches: [*c][*c][*c]u8) void;
-pub extern fn shortmess(x: c_int) bool;
-pub extern fn vimrc_found(fname: [*c]u8, envname: [*c]u8) void;
-pub extern fn option_was_set(name: [*c]const u8) bool;
-pub extern fn reset_option_was_set(name: [*c]const u8) void;
-pub extern fn fill_breakat_flags() void;
-pub extern fn fill_culopt_flags(val: [*c]u8, wp: [*c]win_T) c_int;
-pub extern fn magic_isset() bool;
-pub extern fn option_set_callback_func(optval: [*c]u8, optcb: [*c]Callback) c_int;
-pub extern fn can_bs(what: c_int) bool;
-pub extern fn get_bkc_value(buf: [*c]buf_T) c_uint;
-pub extern fn get_flp_value(buf: [*c]buf_T) [*c]u8;
-pub extern fn get_ve_flags() c_uint;
-pub extern fn get_showbreak_value(win: [*c]win_T) [*c]u8;
-pub extern fn get_fileformat(buf: [*c]const buf_T) c_int;
-pub extern fn get_fileformat_force(buf: [*c]const buf_T, eap: [*c]const exarg_T) c_int;
-pub extern fn default_fileformat() c_int;
-pub extern fn set_fileformat(eol_style: c_int, opt_flags: c_int) void;
-pub extern fn skip_to_option_part(p: [*c]const u8) [*c]u8;
-pub extern fn copy_option_part(option: [*c][*c]u8, buf: [*c]u8, maxlen: usize, sep_chars: [*c]u8) usize;
-pub extern fn csh_like_shell() c_int;
-pub extern fn fish_like_shell() bool;
-pub extern fn win_signcol_count(wp: [*c]win_T) c_int;
-pub extern fn win_signcol_configured(wp: [*c]win_T, is_fixed: [*c]c_int) c_int;
-pub extern fn get_winbuf_options(bufopt: c_int) [*c]dict_T;
-pub extern fn get_scrolloff_value(wp: [*c]win_T) c_long;
-pub extern fn get_sidescrolloff_value(wp: [*c]win_T) c_long;
-pub extern fn get_vimoption(name: String, scope: c_int, buf: [*c]buf_T, win: [*c]win_T, err: [*c]Error) Dictionary;
-pub extern fn get_all_vimoptions() Dictionary;
+pub extern var repeat_luaref: LuaRef;
 pub extern fn didset_string_options() void;
 pub extern fn trigger_optionset_string(opt_idx: c_int, opt_flags: c_int, oldval: [*c]u8, oldval_l: [*c]u8, oldval_g: [*c]u8, newval: [*c]u8) void;
 pub extern fn check_buf_options(buf: [*c]buf_T) void;
@@ -16379,19 +17044,114 @@ pub extern fn check_string_option(pp: [*c][*c]u8) void;
 pub extern fn set_string_option_direct(name: [*c]const u8, opt_idx: c_int, val: [*c]const u8, opt_flags: c_int, set_sid: c_int) void;
 pub extern fn set_string_option_direct_in_win(wp: [*c]win_T, name: [*c]const u8, opt_idx: c_int, val: [*c]const u8, opt_flags: c_int, set_sid: c_int) void;
 pub extern fn set_string_option(opt_idx: c_int, value: [*c]const u8, opt_flags: c_int, errbuf: [*c]u8, errbuflen: usize) [*c]const u8;
+pub extern fn did_set_mousescroll(args: [*c]optset_T) [*c]const u8;
 pub extern fn check_stl_option(s: [*c]u8) [*c]const u8;
-pub extern fn did_set_string_option(opt_idx: c_int, varp: [*c][*c]u8, oldval: [*c]u8, errbuf: [*c]u8, errbuflen: usize, opt_flags: c_int, value_checked: [*c]c_int) [*c]const u8;
+pub extern fn did_set_backupcopy(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_backupext_or_patchmode(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_belloff(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_termpastefilter(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_breakindentopt(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_isopt(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_helpfile(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_cursorlineopt(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_helplang(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_highlight(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_selectmode(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_inccommand(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_sessionoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_ambiwidth(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_background(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_whichwrap(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_shortmess(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_cpoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_clipboard(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_foldopen(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_formatoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_concealcursor(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_mouse(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_wildmode(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_winaltkeys(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_eventignore(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_eadirection(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_encoding(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_keymap(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_fileformat(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_fileformats(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_matchpairs(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_cinoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_colorcolumn(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_comments(args: [*c]optset_T) [*c]const u8;
+pub extern fn set_fillchars_option(wp: [*c]win_T, val: [*c]u8, apply: c_int) [*c]const u8;
+pub extern fn set_listchars_option(wp: [*c]win_T, val: [*c]u8, apply: c_int) [*c]const u8;
+pub extern fn did_set_chars_option(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_verbosefile(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_viewoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_showbreak(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_titlestring(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_iconstring(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_selection(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_keymodel(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_display(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_spellfile(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_spelllang(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_spellcapcheck(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_spelloptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_spellsuggest(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_splitkeep(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_mkspellmem(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_mousemodel(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_bufhidden(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_buftype(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_casemap(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_statusline(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_tabline(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_rulerformat(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_winbar(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_statuscolumn(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_scrollopt(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_complete(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_completeopt(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_showcmdloc(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_signcolumn(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_foldcolumn(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_backspace(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_switchbuf(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_tagcase(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_debug(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_diffopt(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_foldmethod(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_foldmarker(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_commentstring(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_foldignore(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_virtualedit(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_jumpoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_redrawdebug(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_wildoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_lispoptions(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_rightleftcmd(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_filetype_or_syntax(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_winhl(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_varsofttabstop(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_vartabstop(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_nrformats(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_optexpr(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_foldexpr(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_foldclose(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_guicursor(args: [*c]optset_T) [*c]const u8;
+pub extern fn did_set_string_option(opt_idx: c_int, varp: [*c][*c]u8, oldval: [*c]u8, value: [*c]u8, errbuf: [*c]u8, errbuflen: usize, opt_flags: c_int, value_checked: [*c]c_int) [*c]const u8;
 pub extern fn check_ff_value(p: [*c]u8) c_int;
 pub extern fn save_clear_shm_value() void;
 pub extern fn restore_shm_value() void;
-pub extern fn set_chars_option(wp: [*c]win_T, varp: [*c][*c]u8, apply: bool) [*c]const u8;
 pub extern fn check_chars_options() [*c]const u8;
 pub const chartabsize_T = extern struct {
     cts_win: [*c]win_T,
     cts_line: [*c]u8,
     cts_ptr: [*c]u8,
+    cts_row: c_int,
     cts_has_virt_text: bool,
-    cts_cur_text_width: c_int,
+    cts_cur_text_width_left: c_int,
+    cts_cur_text_width_right: c_int,
+    cts_iter: [1]MarkTreeIter,
     cts_vcol: c_int,
 };
 pub extern fn plines_win(wp: [*c]win_T, lnum: linenr_T, winheight: bool) c_int;
@@ -16400,12 +17160,14 @@ pub extern fn win_may_fill(wp: [*c]win_T) bool;
 pub extern fn plines_win_nofill(wp: [*c]win_T, lnum: linenr_T, winheight: bool) c_int;
 pub extern fn plines_win_nofold(wp: [*c]win_T, lnum: linenr_T) c_int;
 pub extern fn plines_win_col(wp: [*c]win_T, lnum: linenr_T, column: c_long) c_int;
-pub extern fn plines_win_full(wp: [*c]win_T, lnum: linenr_T, nextp: [*c]linenr_T, foldedp: [*c]bool, cache: bool) c_int;
+pub extern fn plines_win_full(wp: [*c]win_T, lnum: linenr_T, nextp: [*c]linenr_T, foldedp: [*c]bool, cache: bool, winheight: bool) c_int;
 pub extern fn plines_m_win(wp: [*c]win_T, first: linenr_T, last: linenr_T) c_int;
 pub extern fn win_chartabsize(wp: [*c]win_T, p: [*c]u8, col: colnr_T) c_int;
-pub extern fn linetabsize(s: [*c]u8) c_int;
+pub extern fn linetabsize_str(s: [*c]u8) c_int;
 pub extern fn linetabsize_col(startcol: c_int, s: [*c]u8) c_int;
 pub extern fn win_linetabsize(wp: [*c]win_T, lnum: linenr_T, line: [*c]u8, len: colnr_T) c_uint;
+pub extern fn linetabsize(wp: [*c]win_T, lnum: linenr_T) c_uint;
+pub extern fn win_linetabsize_cts(cts: [*c]chartabsize_T, len: colnr_T) void;
 pub extern fn init_chartabsize_arg(cts: [*c]chartabsize_T, wp: [*c]win_T, lnum: linenr_T, col: colnr_T, line: [*c]u8, ptr: [*c]u8) void;
 pub extern fn clear_chartabsize_arg(cts: [*c]chartabsize_T) void;
 pub extern fn lbr_chartabsize(cts: [*c]chartabsize_T) c_int;
@@ -16418,13 +17180,13 @@ pub const pumitem_T = extern struct {
     pum_info: [*c]u8,
 };
 pub extern var pum_grid: ScreenGrid;
-const struct_unnamed_152 = extern struct {
+const struct_unnamed_160 = extern struct {
     active: bool,
     item: c_int,
     insert: bool,
     finish: bool,
 };
-pub extern var pum_want: struct_unnamed_152;
+pub extern var pum_want: struct_unnamed_160;
 pub extern fn pum_display(array: [*c]pumitem_T, size: c_int, selected: c_int, array_changed: bool, cmd_startcol: c_int) void;
 pub extern fn pum_redraw() void;
 pub extern fn pum_undisplay(immediate: bool) void;
@@ -16494,7 +17256,7 @@ pub extern fn ex_cclose(eap: [*c]exarg_T) void;
 pub extern fn ex_copen(eap: [*c]exarg_T) void;
 pub extern fn ex_cbottom(eap: [*c]exarg_T) void;
 pub extern fn qf_current_entry(wp: [*c]win_T) linenr_T;
-pub extern fn qf_process_qftf_option(errmsg: [*c][*c]const u8) void;
+pub extern fn did_set_quickfixtextfunc(args: [*c]optset_T) [*c]const u8;
 pub extern fn grep_internal(cmdidx: cmdidx_T) c_int;
 pub extern fn ex_make(eap: [*c]exarg_T) void;
 pub extern fn qf_get_size(eap: [*c]exarg_T) usize;
@@ -16779,7 +17541,7 @@ pub extern fn slang_clear_sug(lp: [*c]slang_T) void;
 pub extern fn count_common_word(lp: [*c]slang_T, word: [*c]u8, len: c_int, count: u8) void;
 pub extern fn byte_in_str(str: [*c]u8, n: c_int) bool;
 pub extern fn init_syl_tab(slang: [*c]slang_T) c_int;
-pub extern fn did_set_spelllang(wp: [*c]win_T) [*c]u8;
+pub extern fn parse_spelllang(wp: [*c]win_T) [*c]u8;
 pub extern fn captype(word: [*c]u8, end: [*c]const u8) c_int;
 pub extern fn spell_delete_wordlist() void;
 pub extern fn spell_free_all() void;
@@ -16882,7 +17644,7 @@ pub const tagname_T = extern struct {
     tn_hf_idx: c_int,
     tn_search_ctx: ?*anyopaque,
 };
-pub extern fn set_tagfunc_option(errmsg: [*c][*c]const u8) void;
+pub extern fn did_set_tagfunc(args: [*c]optset_T) [*c]const u8;
 pub extern fn set_ref_in_tagfunc(copyID: c_int) bool;
 pub extern fn set_buflocal_tfu_callback(buf: [*c]buf_T) void;
 pub extern fn do_tag(tag: [*c]u8, @"type": c_int, count: c_int, forceit: c_int, verbose: c_int) void;
@@ -17019,8 +17781,8 @@ pub const TermKeyMouseEvent = c_uint;
 pub const TERMKEY_KEYMOD_SHIFT: c_int = 1;
 pub const TERMKEY_KEYMOD_ALT: c_int = 2;
 pub const TERMKEY_KEYMOD_CTRL: c_int = 4;
-const enum_unnamed_153 = c_uint;
-const union_unnamed_154 = extern union {
+const enum_unnamed_161 = c_uint;
+const union_unnamed_162 = extern union {
     codepoint: c_long,
     number: c_int,
     sym: TermKeySym,
@@ -17028,7 +17790,7 @@ const union_unnamed_154 = extern union {
 };
 pub const TermKeyKey = extern struct {
     type: TermKeyType,
-    code: union_unnamed_154,
+    code: union_unnamed_162,
     modifiers: c_int,
     utf8: [7]u8,
 };
@@ -17043,10 +17805,10 @@ pub const TERMKEY_FLAG_SPACESYMBOL: c_int = 32;
 pub const TERMKEY_FLAG_CTRLC: c_int = 64;
 pub const TERMKEY_FLAG_EINTR: c_int = 128;
 pub const TERMKEY_FLAG_NOSTART: c_int = 256;
-const enum_unnamed_155 = c_uint;
+const enum_unnamed_163 = c_uint;
 pub const TERMKEY_CANON_SPACESYMBOL: c_int = 1;
 pub const TERMKEY_CANON_DELBS: c_int = 2;
-const enum_unnamed_156 = c_uint;
+const enum_unnamed_164 = c_uint;
 pub extern fn termkey_check_version(major: c_int, minor: c_int) void;
 pub extern fn termkey_new(fd: c_int, flags: c_int) ?*TermKey;
 pub extern fn termkey_new_abstract(term: [*c]const u8, flags: c_int) ?*TermKey;
@@ -17094,6 +17856,118 @@ pub const TermKeyFormat = c_uint;
 pub extern fn termkey_strfkey(tk: ?*TermKey, buffer: [*c]u8, len: usize, key: [*c]TermKeyKey, format: TermKeyFormat) usize;
 pub extern fn termkey_strpkey(tk: ?*TermKey, str: [*c]const u8, key: [*c]TermKeyKey, format: TermKeyFormat) [*c]const u8;
 pub extern fn termkey_keycmp(tk: ?*TermKey, key1: [*c]const TermKeyKey, key2: [*c]const TermKeyKey) c_int;
+pub const KITTY_KEY_ESCAPE: c_int = 57344;
+pub const KITTY_KEY_ENTER: c_int = 57345;
+pub const KITTY_KEY_TAB: c_int = 57346;
+pub const KITTY_KEY_BACKSPACE: c_int = 57347;
+pub const KITTY_KEY_INSERT: c_int = 57348;
+pub const KITTY_KEY_DELETE: c_int = 57349;
+pub const KITTY_KEY_LEFT: c_int = 57350;
+pub const KITTY_KEY_RIGHT: c_int = 57351;
+pub const KITTY_KEY_UP: c_int = 57352;
+pub const KITTY_KEY_DOWN: c_int = 57353;
+pub const KITTY_KEY_PAGE_UP: c_int = 57354;
+pub const KITTY_KEY_PAGE_DOWN: c_int = 57355;
+pub const KITTY_KEY_HOME: c_int = 57356;
+pub const KITTY_KEY_END: c_int = 57357;
+pub const KITTY_KEY_CAPS_LOCK: c_int = 57358;
+pub const KITTY_KEY_SCROLL_LOCK: c_int = 57359;
+pub const KITTY_KEY_NUM_LOCK: c_int = 57360;
+pub const KITTY_KEY_PRINT_SCREEN: c_int = 57361;
+pub const KITTY_KEY_PAUSE: c_int = 57362;
+pub const KITTY_KEY_MENU: c_int = 57363;
+pub const KITTY_KEY_F1: c_int = 57364;
+pub const KITTY_KEY_F2: c_int = 57365;
+pub const KITTY_KEY_F3: c_int = 57366;
+pub const KITTY_KEY_F4: c_int = 57367;
+pub const KITTY_KEY_F5: c_int = 57368;
+pub const KITTY_KEY_F6: c_int = 57369;
+pub const KITTY_KEY_F7: c_int = 57370;
+pub const KITTY_KEY_F8: c_int = 57371;
+pub const KITTY_KEY_F9: c_int = 57372;
+pub const KITTY_KEY_F10: c_int = 57373;
+pub const KITTY_KEY_F11: c_int = 57374;
+pub const KITTY_KEY_F12: c_int = 57375;
+pub const KITTY_KEY_F13: c_int = 57376;
+pub const KITTY_KEY_F14: c_int = 57377;
+pub const KITTY_KEY_F15: c_int = 57378;
+pub const KITTY_KEY_F16: c_int = 57379;
+pub const KITTY_KEY_F17: c_int = 57380;
+pub const KITTY_KEY_F18: c_int = 57381;
+pub const KITTY_KEY_F19: c_int = 57382;
+pub const KITTY_KEY_F20: c_int = 57383;
+pub const KITTY_KEY_F21: c_int = 57384;
+pub const KITTY_KEY_F22: c_int = 57385;
+pub const KITTY_KEY_F23: c_int = 57386;
+pub const KITTY_KEY_F24: c_int = 57387;
+pub const KITTY_KEY_F25: c_int = 57388;
+pub const KITTY_KEY_F26: c_int = 57389;
+pub const KITTY_KEY_F27: c_int = 57390;
+pub const KITTY_KEY_F28: c_int = 57391;
+pub const KITTY_KEY_F29: c_int = 57392;
+pub const KITTY_KEY_F30: c_int = 57393;
+pub const KITTY_KEY_F31: c_int = 57394;
+pub const KITTY_KEY_F32: c_int = 57395;
+pub const KITTY_KEY_F33: c_int = 57396;
+pub const KITTY_KEY_F34: c_int = 57397;
+pub const KITTY_KEY_F35: c_int = 57398;
+pub const KITTY_KEY_KP_0: c_int = 57399;
+pub const KITTY_KEY_KP_1: c_int = 57400;
+pub const KITTY_KEY_KP_2: c_int = 57401;
+pub const KITTY_KEY_KP_3: c_int = 57402;
+pub const KITTY_KEY_KP_4: c_int = 57403;
+pub const KITTY_KEY_KP_5: c_int = 57404;
+pub const KITTY_KEY_KP_6: c_int = 57405;
+pub const KITTY_KEY_KP_7: c_int = 57406;
+pub const KITTY_KEY_KP_8: c_int = 57407;
+pub const KITTY_KEY_KP_9: c_int = 57408;
+pub const KITTY_KEY_KP_DECIMAL: c_int = 57409;
+pub const KITTY_KEY_KP_DIVIDE: c_int = 57410;
+pub const KITTY_KEY_KP_MULTIPLY: c_int = 57411;
+pub const KITTY_KEY_KP_SUBTRACT: c_int = 57412;
+pub const KITTY_KEY_KP_ADD: c_int = 57413;
+pub const KITTY_KEY_KP_ENTER: c_int = 57414;
+pub const KITTY_KEY_KP_EQUAL: c_int = 57415;
+pub const KITTY_KEY_KP_SEPARATOR: c_int = 57416;
+pub const KITTY_KEY_KP_LEFT: c_int = 57417;
+pub const KITTY_KEY_KP_RIGHT: c_int = 57418;
+pub const KITTY_KEY_KP_UP: c_int = 57419;
+pub const KITTY_KEY_KP_DOWN: c_int = 57420;
+pub const KITTY_KEY_KP_PAGE_UP: c_int = 57421;
+pub const KITTY_KEY_KP_PAGE_DOWN: c_int = 57422;
+pub const KITTY_KEY_KP_HOME: c_int = 57423;
+pub const KITTY_KEY_KP_END: c_int = 57424;
+pub const KITTY_KEY_KP_INSERT: c_int = 57425;
+pub const KITTY_KEY_KP_DELETE: c_int = 57426;
+pub const KITTY_KEY_KP_BEGIN: c_int = 57427;
+pub const KITTY_KEY_MEDIA_PLAY: c_int = 57428;
+pub const KITTY_KEY_MEDIA_PAUSE: c_int = 57429;
+pub const KITTY_KEY_MEDIA_PLAY_PAUSE: c_int = 57430;
+pub const KITTY_KEY_MEDIA_REVERSE: c_int = 57431;
+pub const KITTY_KEY_MEDIA_STOP: c_int = 57432;
+pub const KITTY_KEY_MEDIA_FAST_FORWARD: c_int = 57433;
+pub const KITTY_KEY_MEDIA_REWIND: c_int = 57434;
+pub const KITTY_KEY_MEDIA_TRACK_NEXT: c_int = 57435;
+pub const KITTY_KEY_MEDIA_TRACK_PREVIOUS: c_int = 57436;
+pub const KITTY_KEY_MEDIA_RECORD: c_int = 57437;
+pub const KITTY_KEY_LOWER_VOLUME: c_int = 57438;
+pub const KITTY_KEY_RAISE_VOLUME: c_int = 57439;
+pub const KITTY_KEY_MUTE_VOLUME: c_int = 57440;
+pub const KITTY_KEY_LEFT_SHIFT: c_int = 57441;
+pub const KITTY_KEY_LEFT_CONTROL: c_int = 57442;
+pub const KITTY_KEY_LEFT_ALT: c_int = 57443;
+pub const KITTY_KEY_LEFT_SUPER: c_int = 57444;
+pub const KITTY_KEY_LEFT_HYPER: c_int = 57445;
+pub const KITTY_KEY_LEFT_META: c_int = 57446;
+pub const KITTY_KEY_RIGHT_SHIFT: c_int = 57447;
+pub const KITTY_KEY_RIGHT_CONTROL: c_int = 57448;
+pub const KITTY_KEY_RIGHT_ALT: c_int = 57449;
+pub const KITTY_KEY_RIGHT_SUPER: c_int = 57450;
+pub const KITTY_KEY_RIGHT_HYPER: c_int = 57451;
+pub const KITTY_KEY_RIGHT_META: c_int = 57452;
+pub const KITTY_KEY_ISO_LEVEL3_SHIFT: c_int = 57453;
+pub const KITTY_KEY_ISO_LEVEL5_SHIFT: c_int = 57454;
+pub const KittyKey = c_uint;
 pub const struct_TUIData = opaque {};
 pub const TUIData = struct_TUIData;
 pub extern fn tui_start(tui_p: [*c]?*TUIData, width: [*c]c_int, height: [*c]c_int, term: [*c][*c]u8) void;
@@ -53470,20 +54344,20 @@ pub const ParserPosition = extern struct {
 };
 pub const kPTopStateParsingCommand: c_int = 0;
 pub const kPTopStateParsingExpression: c_int = 1;
-const enum_unnamed_157 = c_uint;
+const enum_unnamed_165 = c_uint;
 pub const kExprUnknown: c_int = 0;
-const enum_unnamed_160 = c_uint;
-const struct_unnamed_159 = extern struct {
-    type: enum_unnamed_160,
+const enum_unnamed_168 = c_uint;
+const struct_unnamed_167 = extern struct {
+    type: enum_unnamed_168,
 };
-const union_unnamed_158 = extern union {
-    expr: struct_unnamed_159,
+const union_unnamed_166 = extern union {
+    expr: struct_unnamed_167,
 };
 pub const ParserStateItem = extern struct {
-    type: enum_unnamed_157,
-    data: union_unnamed_158,
+    type: enum_unnamed_165,
+    data: union_unnamed_166,
 };
-const struct_unnamed_161 = extern struct {
+const struct_unnamed_169 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]ParserLine,
@@ -53492,7 +54366,7 @@ const struct_unnamed_161 = extern struct {
 pub const ParserInputReader = extern struct {
     get_line: ParserLineGetter,
     cookie: ?*anyopaque,
-    lines: struct_unnamed_161,
+    lines: struct_unnamed_169,
     conv: vimconv_T,
 };
 pub const ParserHighlightChunk = extern struct {
@@ -53506,7 +54380,7 @@ pub const ParserHighlight = extern struct {
     items: [*c]ParserHighlightChunk,
     init_array: [16]ParserHighlightChunk,
 };
-const struct_unnamed_162 = extern struct {
+const struct_unnamed_170 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]ParserStateItem,
@@ -53515,7 +54389,7 @@ const struct_unnamed_162 = extern struct {
 pub const ParserState = extern struct {
     reader: ParserInputReader,
     pos: ParserPosition,
-    stack: struct_unnamed_162,
+    stack: struct_unnamed_170,
     colors: [*c]ParserHighlight,
     can_continuate: bool,
 };
@@ -53524,7 +54398,7 @@ pub inline fn viml_parser_init(ret_pstate: [*c]ParserState, get_line: ParserLine
         .reader = ParserInputReader{
             .get_line = get_line,
             .cookie = cookie,
-            .lines = @import("std").mem.zeroes(struct_unnamed_161),
+            .lines = @import("std").mem.zeroes(struct_unnamed_169),
             .conv = vimconv_T{
                 .vc_type = CONV_NONE,
                 .vc_factor = @as(c_int, 1),
@@ -53536,7 +54410,7 @@ pub inline fn viml_parser_init(ret_pstate: [*c]ParserState, get_line: ParserLine
             .line = @bitCast(usize, @as(c_long, @as(c_int, 0))),
             .col = @bitCast(usize, @as(c_long, @as(c_int, 0))),
         },
-        .stack = @import("std").mem.zeroes(struct_unnamed_162),
+        .stack = @import("std").mem.zeroes(struct_unnamed_170),
         .colors = colors,
         .can_continuate = @as(c_int, 0) != 0,
     };
@@ -53726,65 +54600,65 @@ pub inline fn viml_parser_highlight(pstate: [*c]ParserState, start: ParserPositi
 }
 pub extern fn parser_simple_get_line(cookie: ?*anyopaque, ret_pline: [*c]ParserLine) void;
 pub const ExprASTNode = struct_expr_ast_node;
-const struct_unnamed_164 = extern struct {
+const struct_unnamed_172 = extern struct {
     name: c_int,
 };
-const struct_unnamed_166 = extern struct {
+const struct_unnamed_174 = extern struct {
     allow_dict: bool,
     allow_lambda: bool,
     allow_ident: bool,
 };
-const struct_unnamed_165 = extern struct {
-    type_guesses: struct_unnamed_166,
+const struct_unnamed_173 = extern struct {
+    type_guesses: struct_unnamed_174,
     opening_hl_idx: usize,
 };
-const struct_unnamed_167 = extern struct {
+const struct_unnamed_175 = extern struct {
     scope: ExprVarScope,
     ident: [*c]const u8,
     ident_len: usize,
 };
-const struct_unnamed_168 = extern struct {
+const struct_unnamed_176 = extern struct {
     got_colon: bool,
 };
-const struct_unnamed_169 = extern struct {
+const struct_unnamed_177 = extern struct {
     type: ExprComparisonType,
     ccs: ExprCaseCompareStrategy,
     inv: bool,
 };
-const struct_unnamed_170 = extern struct {
+const struct_unnamed_178 = extern struct {
     value: uvarnumber_T,
 };
-const struct_unnamed_171 = extern struct {
+const struct_unnamed_179 = extern struct {
     value: float_T,
 };
-const struct_unnamed_172 = extern struct {
+const struct_unnamed_180 = extern struct {
     value: [*c]u8,
     size: usize,
 };
-const struct_unnamed_173 = extern struct {
+const struct_unnamed_181 = extern struct {
     ident: [*c]const u8,
     ident_len: usize,
     scope: ExprOptScope,
 };
-const struct_unnamed_174 = extern struct {
+const struct_unnamed_182 = extern struct {
     ident: [*c]const u8,
     ident_len: usize,
 };
-const struct_unnamed_175 = extern struct {
+const struct_unnamed_183 = extern struct {
     type: ExprAssignmentType,
 };
-const union_unnamed_163 = extern union {
-    reg: struct_unnamed_164,
-    fig: struct_unnamed_165,
-    @"var": struct_unnamed_167,
-    ter: struct_unnamed_168,
-    cmp: struct_unnamed_169,
-    num: struct_unnamed_170,
-    flt: struct_unnamed_171,
-    str: struct_unnamed_172,
-    opt: struct_unnamed_173,
-    env: struct_unnamed_174,
-    ass: struct_unnamed_175,
+const union_unnamed_171 = extern union {
+    reg: struct_unnamed_172,
+    fig: struct_unnamed_173,
+    @"var": struct_unnamed_175,
+    ter: struct_unnamed_176,
+    cmp: struct_unnamed_177,
+    num: struct_unnamed_178,
+    flt: struct_unnamed_179,
+    str: struct_unnamed_180,
+    opt: struct_unnamed_181,
+    env: struct_unnamed_182,
+    ass: struct_unnamed_183,
 };
 pub const struct_expr_ast_node = extern struct {
     type: ExprASTNodeType,
@@ -53792,7 +54666,7 @@ pub const struct_expr_ast_node = extern struct {
     next: [*c]ExprASTNode,
     start: ParserPosition,
     len: usize,
-    data: union_unnamed_163,
+    data: union_unnamed_171,
 };
 pub const kCCStrategyUseOption: c_int = 0;
 pub const kCCStrategyMatchCase: c_int = 35;
@@ -53851,7 +54725,7 @@ pub const kExprVarScopeTabpage: c_int = 116;
 pub const kExprVarScopeLocal: c_int = 108;
 pub const kExprVarScopeArguments: c_int = 97;
 pub const ExprVarScope = c_uint;
-const struct_unnamed_177 = extern struct {
+const struct_unnamed_185 = extern struct {
     type: ExprComparisonType,
     ccs: ExprCaseCompareStrategy,
     inv: bool,
@@ -53859,61 +54733,61 @@ const struct_unnamed_177 = extern struct {
 pub const kExprLexMulMul: c_int = 0;
 pub const kExprLexMulDiv: c_int = 1;
 pub const kExprLexMulMod: c_int = 2;
-const enum_unnamed_179 = c_uint;
-const struct_unnamed_178 = extern struct {
-    type: enum_unnamed_179,
+const enum_unnamed_187 = c_uint;
+const struct_unnamed_186 = extern struct {
+    type: enum_unnamed_187,
 };
-const struct_unnamed_180 = extern struct {
+const struct_unnamed_188 = extern struct {
     closing: bool,
 };
-const struct_unnamed_181 = extern struct {
+const struct_unnamed_189 = extern struct {
     name: c_int,
 };
-const struct_unnamed_182 = extern struct {
+const struct_unnamed_190 = extern struct {
     closed: bool,
 };
-const struct_unnamed_183 = extern struct {
+const struct_unnamed_191 = extern struct {
     name: [*c]const u8,
     len: usize,
     scope: ExprOptScope,
 };
-const struct_unnamed_184 = extern struct {
+const struct_unnamed_192 = extern struct {
     scope: ExprVarScope,
     autoload: bool,
 };
-const struct_unnamed_185 = extern struct {
+const struct_unnamed_193 = extern struct {
     type: LexExprTokenType,
     msg: [*c]const u8,
 };
-const union_unnamed_187 = extern union {
+const union_unnamed_195 = extern union {
     floating: float_T,
     integer: uvarnumber_T,
 };
-const struct_unnamed_186 = extern struct {
-    val: union_unnamed_187,
+const struct_unnamed_194 = extern struct {
+    val: union_unnamed_195,
     base: u8,
     is_float: bool,
 };
-const struct_unnamed_188 = extern struct {
+const struct_unnamed_196 = extern struct {
     type: ExprAssignmentType,
 };
-const union_unnamed_176 = extern union {
-    cmp: struct_unnamed_177,
-    mul: struct_unnamed_178,
-    brc: struct_unnamed_180,
-    reg: struct_unnamed_181,
-    str: struct_unnamed_182,
-    opt: struct_unnamed_183,
-    @"var": struct_unnamed_184,
-    err: struct_unnamed_185,
-    num: struct_unnamed_186,
-    ass: struct_unnamed_188,
+const union_unnamed_184 = extern union {
+    cmp: struct_unnamed_185,
+    mul: struct_unnamed_186,
+    brc: struct_unnamed_188,
+    reg: struct_unnamed_189,
+    str: struct_unnamed_190,
+    opt: struct_unnamed_191,
+    @"var": struct_unnamed_192,
+    err: struct_unnamed_193,
+    num: struct_unnamed_194,
+    ass: struct_unnamed_196,
 };
 pub const LexExprToken = extern struct {
     start: ParserPosition,
     len: usize,
     type: LexExprTokenType,
-    data: union_unnamed_176,
+    data: union_unnamed_184,
 };
 pub const kELFlagPeek: c_int = 1;
 pub const kELFlagForbidScope: c_int = 2;
@@ -54013,46 +54887,43 @@ pub const __NTH = @compileError("unable to translate macro: undefined identifier
 pub const __NTHNL = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:82:11
 pub const __CONCAT = @compileError("unable to translate C expr: unexpected token '##'"); // /usr/include/sys/cdefs.h:124:9
 pub const __STRING = @compileError("unable to translate C expr: unexpected token '#'"); // /usr/include/sys/cdefs.h:125:9
-pub const __glibc_unsigned_or_positive = @compileError("unable to translate macro: undefined identifier `__typeof`"); // /usr/include/sys/cdefs.h:160:9
-pub const __glibc_fortify = @compileError("unable to translate C expr: expected ')' instead got '...'"); // /usr/include/sys/cdefs.h:185:9
-pub const __glibc_fortify_n = @compileError("unable to translate C expr: expected ')' instead got '...'"); // /usr/include/sys/cdefs.h:195:9
-pub const __warnattr = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:207:10
-pub const __errordecl = @compileError("unable to translate C expr: unexpected token 'extern'"); // /usr/include/sys/cdefs.h:208:10
-pub const __flexarr = @compileError("unable to translate C expr: unexpected token '['"); // /usr/include/sys/cdefs.h:216:10
-pub const __REDIRECT = @compileError("unable to translate macro: undefined identifier `__asm__`"); // /usr/include/sys/cdefs.h:247:10
-pub const __REDIRECT_NTH = @compileError("unable to translate macro: undefined identifier `__asm__`"); // /usr/include/sys/cdefs.h:254:11
-pub const __REDIRECT_NTHNL = @compileError("unable to translate macro: undefined identifier `__asm__`"); // /usr/include/sys/cdefs.h:256:11
-pub const __ASMNAME2 = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // /usr/include/sys/cdefs.h:260:10
-pub const __attribute_malloc__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:281:10
-pub const __attribute_alloc_size__ = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:292:10
-pub const __attribute_alloc_align__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:298:10
-pub const __attribute_pure__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:308:10
-pub const __attribute_const__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:315:10
-pub const __attribute_maybe_unused__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:321:10
-pub const __attribute_used__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:330:10
-pub const __attribute_noinline__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:331:10
-pub const __attribute_deprecated__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:339:10
-pub const __attribute_deprecated_msg__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:349:10
-pub const __attribute_format_arg__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:362:10
-pub const __attribute_format_strfmon__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:372:10
-pub const __attribute_nonnull__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:384:11
-pub const __returns_nonnull = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:397:10
-pub const __attribute_warn_unused_result__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:406:10
-pub const __always_inline = @compileError("unable to translate macro: undefined identifier `__inline`"); // /usr/include/sys/cdefs.h:424:10
-pub const __attribute_artificial__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:433:10
-pub const __extern_inline = @compileError("unable to translate macro: undefined identifier `__inline`"); // /usr/include/sys/cdefs.h:451:11
-pub const __extern_always_inline = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:452:11
-pub const __restrict_arr = @compileError("unable to translate macro: undefined identifier `__restrict`"); // /usr/include/sys/cdefs.h:495:10
-pub const __attribute_copy__ = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:544:10
-pub const __LDBL_REDIR2_DECL = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:620:10
-pub const __LDBL_REDIR_DECL = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:621:10
-pub const __glibc_macro_warning1 = @compileError("unable to translate macro: undefined identifier `_Pragma`"); // /usr/include/sys/cdefs.h:635:10
-pub const __glibc_macro_warning = @compileError("unable to translate macro: undefined identifier `GCC`"); // /usr/include/sys/cdefs.h:636:10
-pub const __fortified_attr_access = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:681:11
-pub const __attr_access = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:682:11
-pub const __attr_access_none = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:683:11
-pub const __attr_dealloc = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:693:10
-pub const __attribute_returns_twice__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:700:10
+pub const __warnattr = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:209:10
+pub const __errordecl = @compileError("unable to translate C expr: unexpected token 'extern'"); // /usr/include/sys/cdefs.h:210:10
+pub const __flexarr = @compileError("unable to translate C expr: unexpected token '['"); // /usr/include/sys/cdefs.h:218:10
+pub const __REDIRECT = @compileError("unable to translate macro: undefined identifier `__asm__`"); // /usr/include/sys/cdefs.h:249:10
+pub const __REDIRECT_NTH = @compileError("unable to translate macro: undefined identifier `__asm__`"); // /usr/include/sys/cdefs.h:256:11
+pub const __REDIRECT_NTHNL = @compileError("unable to translate macro: undefined identifier `__asm__`"); // /usr/include/sys/cdefs.h:258:11
+pub const __ASMNAME2 = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // /usr/include/sys/cdefs.h:262:10
+pub const __attribute_malloc__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:283:10
+pub const __attribute_alloc_size__ = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:294:10
+pub const __attribute_alloc_align__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:300:10
+pub const __attribute_pure__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:310:10
+pub const __attribute_const__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:317:10
+pub const __attribute_maybe_unused__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:323:10
+pub const __attribute_used__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:332:10
+pub const __attribute_noinline__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:333:10
+pub const __attribute_deprecated__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:341:10
+pub const __attribute_deprecated_msg__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:351:10
+pub const __attribute_format_arg__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:364:10
+pub const __attribute_format_strfmon__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:374:10
+pub const __attribute_nonnull__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:386:11
+pub const __returns_nonnull = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:399:10
+pub const __attribute_warn_unused_result__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:408:10
+pub const __always_inline = @compileError("unable to translate macro: undefined identifier `__inline`"); // /usr/include/sys/cdefs.h:426:10
+pub const __attribute_artificial__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:435:10
+pub const __extern_inline = @compileError("unable to translate macro: undefined identifier `__inline`"); // /usr/include/sys/cdefs.h:453:11
+pub const __extern_always_inline = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:454:11
+pub const __restrict_arr = @compileError("unable to translate macro: undefined identifier `__restrict`"); // /usr/include/sys/cdefs.h:497:10
+pub const __attribute_copy__ = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:546:10
+pub const __LDBL_REDIR2_DECL = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:622:10
+pub const __LDBL_REDIR_DECL = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:623:10
+pub const __glibc_macro_warning1 = @compileError("unable to translate macro: undefined identifier `_Pragma`"); // /usr/include/sys/cdefs.h:637:10
+pub const __glibc_macro_warning = @compileError("unable to translate macro: undefined identifier `GCC`"); // /usr/include/sys/cdefs.h:638:10
+pub const __fortified_attr_access = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:683:11
+pub const __attr_access = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:684:11
+pub const __attr_access_none = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:685:11
+pub const __attr_dealloc = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/sys/cdefs.h:695:10
+pub const __attribute_returns_twice__ = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/sys/cdefs.h:702:10
 pub const __STD_TYPE = @compileError("unable to translate C expr: unexpected token 'typedef'"); // /usr/include/bits/types.h:137:10
 pub const __FSID_T_TYPE = @compileError("unable to translate macro: undefined identifier `__val`"); // /usr/include/bits/typesizes.h:73:9
 pub const __CFLOAT32 = @compileError("unable to translate: TODO _Complex"); // /usr/include/bits/floatn-common.h:149:12
@@ -54185,13 +55056,13 @@ pub const REMOTE_TYPE = @compileError("unable to translate C expr: unexpected to
 pub const ArrayOf = @compileError("unable to translate C expr: expected ')' instead got '...'"); // _nvim/src/nvim/api/private/defs.h:21:10
 pub const DictionaryOf = @compileError("unable to translate C expr: expected ')' instead got '...'"); // _nvim/src/nvim/api/private/defs.h:22:10
 pub const Dict = @compileError("unable to translate macro: undefined identifier `KeyDict_`"); // _nvim/src/nvim/api/private/defs.h:23:10
-pub const LUA_API = @compileError("unable to translate C expr: unexpected token 'extern'"); // /usr/include/luaconf.h:282:9
-pub const LUAI_FUNC = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/luaconf.h:310:9
-pub const l_floor = @compileError("unable to translate macro: undefined identifier `floor`"); // /usr/include/luaconf.h:403:9
-pub const lua_numbertointeger = @compileError("unable to translate C expr: expected ')' instead got '='"); // /usr/include/luaconf.h:417:9
-pub const l_floatatt = @compileError("unable to translate macro: undefined identifier `DBL_`"); // /usr/include/luaconf.h:460:9
-pub const lua_getlocaledecpoint = @compileError("unable to translate macro: undefined identifier `localeconv`"); // /usr/include/luaconf.h:656:9
-pub const LUAI_MAXALIGN = @compileError("unable to translate macro: undefined identifier `n`"); // /usr/include/luaconf.h:766:9
+pub const LUA_API = @compileError("unable to translate C expr: unexpected token 'extern'"); // /usr/include/luaconf.h:288:9
+pub const LUAI_FUNC = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // /usr/include/luaconf.h:316:9
+pub const l_floor = @compileError("unable to translate macro: undefined identifier `floor`"); // /usr/include/luaconf.h:409:9
+pub const lua_numbertointeger = @compileError("unable to translate C expr: expected ')' instead got '='"); // /usr/include/luaconf.h:423:9
+pub const l_floatatt = @compileError("unable to translate macro: undefined identifier `DBL_`"); // /usr/include/luaconf.h:466:9
+pub const lua_getlocaledecpoint = @compileError("unable to translate macro: undefined identifier `localeconv`"); // /usr/include/luaconf.h:662:9
+pub const LUAI_MAXALIGN = @compileError("unable to translate macro: undefined identifier `n`"); // /usr/include/luaconf.h:773:9
 pub const va_start = @compileError("unable to translate macro: undefined identifier `__builtin_va_start`"); // /home/lordmzte/.local/share/zupper/installs/master/lib/include/stdarg.h:33:9
 pub const va_end = @compileError("unable to translate macro: undefined identifier `__builtin_va_end`"); // /home/lordmzte/.local/share/zupper/installs/master/lib/include/stdarg.h:35:9
 pub const va_arg = @compileError("unable to translate macro: undefined identifier `__builtin_va_arg`"); // /home/lordmzte/.local/share/zupper/installs/master/lib/include/stdarg.h:36:9
@@ -54201,10 +55072,6 @@ pub const luaL_newlibtable = @compileError("unable to translate C expr: unexpect
 pub const luaL_addchar = @compileError("TODO postfix inc/dec expr"); // /usr/include/lauxlib.h:207:9
 pub const luaL_addsize = @compileError("unable to translate C expr: expected ')' instead got '+='"); // /usr/include/lauxlib.h:211:9
 pub const luaL_buffsub = @compileError("unable to translate C expr: expected ')' instead got '-='"); // /usr/include/lauxlib.h:213:9
-pub const __ASSERT_VOID_CAST = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/assert.h:40:10
-pub const assert = @compileError("unable to translate macro: undefined identifier `__extension__`"); // /usr/include/assert.h:104:11
-pub const __ASSERT_FUNCTION = @compileError("unable to translate macro: undefined identifier `__extension__`"); // /usr/include/assert.h:126:12
-pub const static_assert = @compileError("unable to translate C expr: unexpected token '_Static_assert'"); // /usr/include/assert.h:144:10
 pub const _SDT_PROBE = @compileError("unable to translate macro: undefined identifier `__asm__`"); // /usr/include/sys/sdt.h:67:10
 pub const _SDT_S = @compileError("unable to translate C expr: unexpected token '#'"); // /usr/include/sys/sdt.h:73:10
 pub const _SDT_ASM_1 = @compileError("unable to translate C expr: unexpected token 'StringLiteral'"); // /usr/include/sys/sdt.h:74:10
@@ -54250,20 +55117,11 @@ pub const GA_DEEP_CLEAR = @compileError("unable to translate macro: undefined id
 pub const HASHTAB_ITER = @compileError("unable to translate macro: undefined identifier `ht_`"); // ./_nvim/src/nvim/hashtab.h:80:9
 pub const QUEUE_DATA = @compileError("unable to translate C expr: unexpected token ')'"); // ./_nvim/src/nvim/lib/queue.h:33:9
 pub const QUEUE_FOREACH = @compileError("unable to translate macro: undefined identifier `next`"); // ./_nvim/src/nvim/lib/queue.h:39:9
-pub const CALLBACK_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // _nvim/src/nvim/eval/typval_defs.h:72:9
-pub const TV_INITIAL_VALUE = @compileError("unable to translate C expr: expected '.' instead got '}'"); // _nvim/src/nvim/eval/typval_defs.h:135:9
-pub const TV_LIST_STATIC10_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // _nvim/src/nvim/eval/typval_defs.h:191:9
-pub const TV_DICTITEM_STRUCT = @compileError("unable to translate C expr: expected ')' instead got '...'"); // _nvim/src/nvim/eval/typval_defs.h:205:9
-pub const MBYTE_NONE_CONV = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mbyte_defs.h:39:9
+pub const CALLBACK_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/eval/typval_defs.h:72:9
+pub const TV_INITIAL_VALUE = @compileError("unable to translate C expr: expected '.' instead got '}'"); // ./_nvim/src/nvim/eval/typval_defs.h:135:9
+pub const TV_LIST_STATIC10_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/eval/typval_defs.h:191:9
+pub const TV_DICTITEM_STRUCT = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/eval/typval_defs.h:205:9
 pub const SCREEN_GRID_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/grid_defs.h:109:9
-pub const list_log = @compileError("unable to translate C expr: expected ')' instead got '...'"); // _nvim/src/nvim/eval/typval.h:84:10
-pub const list_write_log = @compileError("unable to translate C expr: expected ')' instead got '...'"); // _nvim/src/nvim/eval/typval.h:85:10
-pub const list_free_log = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/eval/typval.h:86:10
-pub const TV_DICT_HI2DI = @compileError("unable to translate macro: undefined identifier `di_key`"); // _nvim/src/nvim/eval/typval.h:93:9
-pub const _TV_LIST_ITER_MOD = @compileError("unable to translate macro: undefined identifier `l_`"); // _nvim/src/nvim/eval/typval.h:416:9
-pub const TV_LIST_ITER = @compileError("unable to translate C expr: unexpected token ','"); // _nvim/src/nvim/eval/typval.h:436:9
-pub const TV_LIST_ITER_CONST = @compileError("unable to translate C expr: unexpected token 'const'"); // _nvim/src/nvim/eval/typval.h:447:9
-pub const TV_DICT_ITER = @compileError("unable to translate macro: undefined identifier `hi_`"); // _nvim/src/nvim/eval/typval.h:484:9
 pub const HLATTRS_INIT = @compileError("unable to translate C expr: expected '.' instead got '}'"); // ./_nvim/src/nvim/highlight_defs.h:46:9
 pub const COLOR_ITEM_INITIALIZER = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/highlight_defs.h:245:9
 pub const kh_inline = @compileError("unable to translate C expr: unexpected token 'inline'"); // _nvim/src/klib/khash.h:152:10
@@ -54272,48 +55130,58 @@ pub const __ac_set_isempty_false = @compileError("unable to translate C expr: ex
 pub const __ac_set_isboth_false = @compileError("unable to translate C expr: expected ')' instead got '&='"); // _nvim/src/klib/khash.h:163:9
 pub const __ac_set_isdel_true = @compileError("unable to translate C expr: expected ')' instead got '|='"); // _nvim/src/klib/khash.h:164:9
 pub const kroundup32 = @compileError("TODO unary inc/dec expr"); // _nvim/src/klib/khash.h:169:10
-pub const __KHASH_TYPE = @compileError("unable to translate macro: undefined identifier `n_buckets`"); // _nvim/src/klib/khash.h:188:9
-pub const __KHASH_PROTOTYPES = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:196:9
-pub const __KHASH_IMPL = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:206:9
-pub const KHASH_DECLARE = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // _nvim/src/klib/khash.h:419:9
-pub const KHASH_INIT2 = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // _nvim/src/klib/khash.h:423:9
-pub const KHASH_INIT = @compileError("unable to translate C expr: unexpected token 'static'"); // _nvim/src/klib/khash.h:427:9
-pub const kh_int_hash_func2 = @compileError("unable to translate macro: undefined identifier `key`"); // _nvim/src/klib/khash.h:486:9
-pub const khash_t = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:496:9
-pub const kh_init = @compileError("unable to translate macro: undefined identifier `kh_init_`"); // _nvim/src/klib/khash.h:503:9
-pub const kh_destroy = @compileError("unable to translate macro: undefined identifier `kh_destroy_`"); // _nvim/src/klib/khash.h:510:9
-pub const kh_dealloc = @compileError("unable to translate macro: undefined identifier `kh_dealloc_`"); // _nvim/src/klib/khash.h:517:9
-pub const kh_clear = @compileError("unable to translate macro: undefined identifier `kh_clear_`"); // _nvim/src/klib/khash.h:524:9
-pub const kh_resize = @compileError("unable to translate macro: undefined identifier `kh_resize_`"); // _nvim/src/klib/khash.h:532:9
-pub const kh_put = @compileError("unable to translate macro: undefined identifier `kh_put_`"); // _nvim/src/klib/khash.h:545:9
-pub const kh_get = @compileError("unable to translate macro: undefined identifier `kh_get_`"); // _nvim/src/klib/khash.h:554:9
-pub const kh_del = @compileError("unable to translate macro: undefined identifier `kh_del_`"); // _nvim/src/klib/khash.h:562:9
-pub const kh_foreach = @compileError("unable to translate macro: undefined identifier `__i`"); // _nvim/src/klib/khash.h:629:9
-pub const kh_foreach_value = @compileError("unable to translate macro: undefined identifier `__i`"); // _nvim/src/klib/khash.h:643:9
-pub const kh_foreach_key = @compileError("unable to translate macro: undefined identifier `__i`"); // _nvim/src/klib/khash.h:656:9
-pub const KHASH_EMPTY_TABLE = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:720:9
-pub const Map = @compileError("unable to translate macro: undefined identifier `Map_`"); // ./_nvim/src/nvim/map_defs.h:9:9
-pub const MAP_DECLS = @compileError("unable to translate macro: undefined identifier `_map`"); // ./_nvim/src/nvim/map.h:23:9
-pub const MAP_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/map.h:63:9
-pub const map_init = @compileError("unable to translate C expr: unexpected token 'do'"); // ./_nvim/src/nvim/map.h:64:9
-pub const map_destroy = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:66:9
-pub const map_get = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:67:9
-pub const map_has = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:68:9
-pub const map_key = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:69:9
-pub const map_put = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:70:9
-pub const map_ref = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:71:9
-pub const map_del = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:72:9
-pub const map_clear = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:73:9
-pub const INIT_FMARKV = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mark_defs.h:68:9
-pub const INIT_FMARK = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mark_defs.h:79:9
-pub const INIT_XFMARK = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mark_defs.h:87:9
+pub const __KHASH_TYPE = @compileError("unable to translate macro: undefined identifier `n_buckets`"); // _nvim/src/klib/khash.h:191:9
+pub const __KHASH_PROTOTYPES = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:199:9
+pub const kh_bval = @compileError("unable to translate macro: undefined identifier `val_size`"); // _nvim/src/klib/khash.h:209:9
+pub const kh_copyval = @compileError("unable to translate macro: undefined identifier `val_size`"); // _nvim/src/klib/khash.h:210:9
+pub const __KHASH_IMPL = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:212:9
+pub const KHASH_DECLARE = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // _nvim/src/klib/khash.h:423:9
+pub const KHASH_INIT2 = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // _nvim/src/klib/khash.h:427:9
+pub const KHASH_INIT = @compileError("unable to translate C expr: unexpected token 'static'"); // _nvim/src/klib/khash.h:431:9
+pub const kh_int_hash_func2 = @compileError("unable to translate macro: undefined identifier `key`"); // _nvim/src/klib/khash.h:490:9
+pub const khash_t = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:500:9
+pub const kh_init = @compileError("unable to translate macro: undefined identifier `kh_init_`"); // _nvim/src/klib/khash.h:507:9
+pub const kh_destroy = @compileError("unable to translate macro: undefined identifier `kh_destroy_`"); // _nvim/src/klib/khash.h:514:9
+pub const kh_dealloc = @compileError("unable to translate macro: undefined identifier `kh_dealloc_`"); // _nvim/src/klib/khash.h:521:9
+pub const kh_clear = @compileError("unable to translate macro: undefined identifier `kh_clear_`"); // _nvim/src/klib/khash.h:528:9
+pub const kh_resize = @compileError("unable to translate macro: undefined identifier `kh_resize_`"); // _nvim/src/klib/khash.h:536:9
+pub const kh_put = @compileError("unable to translate macro: undefined identifier `kh_put_`"); // _nvim/src/klib/khash.h:549:9
+pub const kh_get = @compileError("unable to translate macro: undefined identifier `kh_get_`"); // _nvim/src/klib/khash.h:558:9
+pub const kh_del = @compileError("unable to translate macro: undefined identifier `kh_del_`"); // _nvim/src/klib/khash.h:566:9
+pub const kh_val = @compileError("unable to translate C expr: unexpected token ')'"); // _nvim/src/klib/khash.h:591:9
+pub const kh_foreach = @compileError("unable to translate macro: undefined identifier `__i`"); // _nvim/src/klib/khash.h:628:9
+pub const kh_foreach_value = @compileError("unable to translate macro: undefined identifier `__i`"); // _nvim/src/klib/khash.h:644:9
+pub const kh_foreach_key = @compileError("unable to translate macro: undefined identifier `__i`"); // _nvim/src/klib/khash.h:659:9
+pub const KHASH_EMPTY_TABLE = @compileError("unable to translate macro: undefined identifier `kh_`"); // _nvim/src/klib/khash.h:723:9
 pub const STATIC_ASSERT = @compileError("unable to translate C expr: unexpected token 'do'"); // ./_nvim/src/nvim/assert.h:51:9
 pub const STATIC_ASSERT_STATEMENT = @compileError("unable to translate C expr: unexpected token '_Static_assert'"); // ./_nvim/src/nvim/assert.h:61:10
 pub const ASSERT_CONCAT_ = @compileError("unable to translate C expr: unexpected token '##'"); // ./_nvim/src/nvim/assert.h:111:9
 pub const STATIC_ASSERT_EXPR = @compileError("unable to translate macro: undefined identifier `static_assert_`"); // ./_nvim/src/nvim/assert.h:115:10
 pub const STRICT_ADD = @compileError("unable to translate macro: undefined identifier `__builtin_add_overflow`"); // ./_nvim/src/nvim/assert.h:141:10
 pub const STRICT_SUB = @compileError("unable to translate macro: undefined identifier `__builtin_sub_overflow`"); // ./_nvim/src/nvim/assert.h:157:10
-pub const MT_INVALID_KEY = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/marktree.h:58:9
+pub const Map = @compileError("unable to translate macro: undefined identifier `Map_`"); // ./_nvim/src/nvim/map.h:22:9
+pub const KEY_DECLS = @compileError("unable to translate macro: undefined identifier `set_put_`"); // ./_nvim/src/nvim/map.h:25:9
+pub const MAP_DECLS = @compileError("unable to translate macro: undefined identifier `table`"); // ./_nvim/src/nvim/map.h:46:9
+pub const SET_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/map.h:90:9
+pub const MAP_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/map.h:91:9
+pub const map_get = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:93:9
+pub const map_has = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:94:9
+pub const map_put = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:95:9
+pub const map_ref = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:96:9
+pub const map_put_ref = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:97:9
+pub const map_del = @compileError("unable to translate macro: undefined identifier `map_`"); // ./_nvim/src/nvim/map.h:98:9
+pub const set_has = @compileError("unable to translate macro: undefined identifier `set_has_`"); // ./_nvim/src/nvim/map.h:123:9
+pub const set_put = @compileError("unable to translate macro: undefined identifier `set_put_`"); // ./_nvim/src/nvim/map.h:124:9
+pub const set_put_ref = @compileError("unable to translate macro: undefined identifier `set_put_`"); // ./_nvim/src/nvim/map.h:125:9
+pub const set_del = @compileError("unable to translate macro: undefined identifier `set_del_`"); // ./_nvim/src/nvim/map.h:126:9
+pub const INIT_FMARKV = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mark_defs.h:68:9
+pub const INIT_FMARK = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mark_defs.h:79:9
+pub const INIT_XFMARK = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mark_defs.h:87:9
+pub const __ASSERT_VOID_CAST = @compileError("unable to translate C expr: unexpected token 'Eof'"); // /usr/include/assert.h:40:10
+pub const assert = @compileError("unable to translate macro: undefined identifier `__extension__`"); // /usr/include/assert.h:104:11
+pub const __ASSERT_FUNCTION = @compileError("unable to translate macro: undefined identifier `__extension__`"); // /usr/include/assert.h:126:12
+pub const static_assert = @compileError("unable to translate C expr: unexpected token '_Static_assert'"); // /usr/include/assert.h:144:10
+pub const MT_INVALID_KEY = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/marktree.h:57:9
 pub const SHM_ALL_ABBREVIATIONS = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/option_defs.h:266:9
 pub const STL_ALL = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/option_defs.h:353:9
 pub const SGN_KEY_OFF = @compileError("unable to translate macro: undefined identifier `sg_name`"); // ./_nvim/src/nvim/sign_defs.h:19:9
@@ -54421,35 +55289,36 @@ pub const w_p_pvw = @compileError("unable to translate macro: undefined identifi
 pub const w_p_rl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:190:9
 pub const w_p_rlc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:192:9
 pub const w_p_scr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:194:9
-pub const w_p_spell = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:196:9
-pub const w_p_cuc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:198:9
-pub const w_p_cul = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:200:9
-pub const w_p_culopt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:202:9
-pub const w_p_cc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:204:9
-pub const w_p_sbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:206:9
-pub const w_p_stc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:208:9
-pub const w_p_stl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:210:9
-pub const w_p_wbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:212:9
-pub const w_p_scb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:214:9
-pub const w_p_diff_saved = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:216:9
-pub const w_p_scb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:218:9
-pub const w_p_wrap = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:220:9
-pub const w_p_wrap_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:222:9
-pub const w_p_cocu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:224:9
-pub const w_p_cole = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:226:9
-pub const w_p_crb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:228:9
-pub const w_p_crb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:230:9
-pub const w_p_scl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:232:9
-pub const w_p_winhl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:234:9
-pub const w_p_lcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:236:9
-pub const w_p_fcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:238:9
-pub const w_p_winbl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:240:9
-pub const w_p_script_ctx = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:243:9
-pub const BUF_UPDATE_CALLBACKS_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:442:9
-pub const b_fnum = @compileError("unable to translate macro: undefined identifier `handle`"); // ./_nvim/src/nvim/buffer_defs.h:461:9
-pub const FLOAT_CONFIG_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:1042:9
-pub const CHANGEDTICK = @compileError("unable to translate macro: undefined identifier `Include`"); // ./_nvim/src/nvim/buffer_defs.h:1398:9
-pub const DECORATION_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/decoration.h:71:9
+pub const w_p_sms = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:196:9
+pub const w_p_spell = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:198:9
+pub const w_p_cuc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:200:9
+pub const w_p_cul = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:202:9
+pub const w_p_culopt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:204:9
+pub const w_p_cc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:206:9
+pub const w_p_sbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:208:9
+pub const w_p_stc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:210:9
+pub const w_p_stl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:212:9
+pub const w_p_wbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:214:9
+pub const w_p_scb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:216:9
+pub const w_p_diff_saved = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:218:9
+pub const w_p_scb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:220:9
+pub const w_p_wrap = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:222:9
+pub const w_p_wrap_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:224:9
+pub const w_p_cocu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:226:9
+pub const w_p_cole = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:228:9
+pub const w_p_crb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:230:9
+pub const w_p_crb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:232:9
+pub const w_p_scl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:234:9
+pub const w_p_winhl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:236:9
+pub const w_p_lcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:238:9
+pub const w_p_fcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:240:9
+pub const w_p_winbl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:242:9
+pub const w_p_script_ctx = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:245:9
+pub const BUF_UPDATE_CALLBACKS_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:444:9
+pub const b_fnum = @compileError("unable to translate macro: undefined identifier `handle`"); // ./_nvim/src/nvim/buffer_defs.h:463:9
+pub const FLOAT_CONFIG_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:1045:9
+pub const CHANGEDTICK = @compileError("unable to translate macro: undefined identifier `Include`"); // ./_nvim/src/nvim/buffer_defs.h:1403:9
+pub const DECORATION_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/decoration.h:73:9
 pub const AUCMD_EXECUTABLE_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/ex_cmds_defs.h:125:9
 pub const cs_rettv = @compileError("unable to translate macro: undefined identifier `cs_pend`"); // ./_nvim/src/nvim/ex_cmds_defs.h:168:9
 pub const cs_exception = @compileError("unable to translate macro: undefined identifier `cs_pend`"); // ./_nvim/src/nvim/ex_cmds_defs.h:169:9
@@ -54473,8 +55342,9 @@ pub const _NOOP = @compileError("unable to translate C expr: unexpected token 'E
 pub const CREATE_EVENT = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/event/loop.h:46:9
 pub const LOOP_PROCESS_EVENTS_UNTIL = @compileError("unable to translate macro: undefined identifier `remaining`"); // ./_nvim/src/nvim/event/loop.h:59:9
 pub const LOOP_PROCESS_EVENTS = @compileError("unable to translate C expr: unexpected token 'do'"); // ./_nvim/src/nvim/event/loop.h:78:9
-pub const FOR_ALL_AUEVENTS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/autocmd.h:102:9
-pub const SCRIPT_ITEM = @compileError("unable to translate C expr: expected ')' instead got '*'"); // ./_nvim/src/nvim/runtime.h:90:9
+pub const MBYTE_NONE_CONV = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mbyte_defs.h:39:9
+pub const FOR_ALL_AUEVENTS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/autocmd.h:96:9
+pub const SCRIPT_ITEM = @compileError("unable to translate C expr: expected ')' instead got '*'"); // ./_nvim/src/nvim/runtime.h:89:9
 pub const FOR_ALL_FRAMES = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:410:9
 pub const FOR_ALL_TAB_WINDOWS = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // ./_nvim/src/nvim/globals.h:415:9
 pub const FOR_ALL_WINDOWS_IN_TAB = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:420:9
@@ -54483,6 +55353,14 @@ pub const FOR_ALL_BUFFERS = @compileError("unable to translate C expr: unexpecte
 pub const FOR_ALL_BUFFERS_BACKWARDS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:463:9
 pub const FOR_ALL_BUF_WININFO = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:466:9
 pub const FOR_ALL_SIGNS_IN_BUF = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:470:9
+pub const list_log = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/eval/typval.h:84:10
+pub const list_write_log = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/eval/typval.h:85:10
+pub const list_free_log = @compileError("unable to translate C expr: unexpected token 'Eof'"); // ./_nvim/src/nvim/eval/typval.h:86:10
+pub const TV_DICT_HI2DI = @compileError("unable to translate macro: undefined identifier `di_key`"); // ./_nvim/src/nvim/eval/typval.h:93:9
+pub const _TV_LIST_ITER_MOD = @compileError("unable to translate macro: undefined identifier `l_`"); // ./_nvim/src/nvim/eval/typval.h:416:9
+pub const TV_LIST_ITER = @compileError("unable to translate C expr: unexpected token ','"); // ./_nvim/src/nvim/eval/typval.h:436:9
+pub const TV_LIST_ITER_CONST = @compileError("unable to translate C expr: unexpected token 'const'"); // ./_nvim/src/nvim/eval/typval.h:447:9
+pub const TV_DICT_ITER = @compileError("unable to translate macro: undefined identifier `hi_`"); // ./_nvim/src/nvim/eval/typval.h:484:9
 pub const RBUFFER_UNTIL_EMPTY = @compileError("unable to translate macro: undefined identifier `_r`"); // ./_nvim/src/nvim/rbuffer.h:43:9
 pub const RBUFFER_UNTIL_FULL = @compileError("unable to translate macro: undefined identifier `_r`"); // ./_nvim/src/nvim/rbuffer.h:49:9
 pub const RBUFFER_EACH = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/rbuffer.h:56:9
@@ -54519,34 +55397,50 @@ pub const TIOCGISO7816 = @compileError("unable to translate macro: undefined ide
 pub const TIOCSISO7816 = @compileError("unable to translate macro: undefined identifier `serial_iso7816`"); // /usr/include/asm-generic/ioctls.h:83:9
 pub const MSGPACK_SBUFFER_INIT = @compileError("unable to translate C expr: expected '.' instead got '}'"); // ./_nvim/src/nvim/context.h:20:9
 pub const CONTEXT_INIT = @compileError("unable to translate C expr: expected '.' instead got '}'"); // ./_nvim/src/nvim/context.h:26:9
+pub const _TYPVAL_ENCODE_DO_CHECK_SELF_REFERENCE = @compileError("unable to translate macro: undefined identifier `te_csr_ret`"); // ./_nvim/src/nvim/eval/typval_encode.h:99:9
+pub const _TYPVAL_ENCODE_FUNC_NAME_INNER_2 = @compileError("unable to translate C expr: unexpected token '##'"); // ./_nvim/src/nvim/eval/typval_encode.h:110:9
+pub const _TYPVAL_ENCODE_FUNC_NAME = @compileError("unable to translate macro: undefined identifier `TYPVAL_ENCODE_NAME`"); // ./_nvim/src/nvim/eval/typval_encode.h:125:9
+pub const _TYPVAL_ENCODE_CHECK_SELF_REFERENCE = @compileError("unable to translate macro: undefined identifier `_typval_encode_`"); // ./_nvim/src/nvim/eval/typval_encode.h:129:9
+pub const _TYPVAL_ENCODE_ENCODE = @compileError("unable to translate macro: undefined identifier `encode_vim_to_`"); // ./_nvim/src/nvim/eval/typval_encode.h:133:9
+pub const _TYPVAL_ENCODE_CONVERT_ONE_VALUE = @compileError("unable to translate macro: undefined identifier `_typval_encode_`"); // ./_nvim/src/nvim/eval/typval_encode.h:137:9
+pub const TYPVAL_ENCODE_NODICT_VAR = @compileError("unable to translate macro: undefined identifier `_typval_encode_`"); // ./_nvim/src/nvim/eval/typval_encode.h:141:9
+pub const HIKEY2UF = @compileError("unable to translate macro: undefined identifier `uf_name`"); // ./_nvim/src/nvim/eval/userfunc.h:19:9
+pub const FUNCEXE_INIT = @compileError("unable to translate C expr: expected '.' instead got '}'"); // ./_nvim/src/nvim/eval/userfunc.h:81:9
+pub const FUNCARG = @compileError("unable to translate C expr: expected ')' instead got '*'"); // ./_nvim/src/nvim/eval/userfunc.h:93:9
+pub const FUNCLINE = @compileError("unable to translate C expr: expected ')' instead got '*'"); // ./_nvim/src/nvim/eval/userfunc.h:94:9
+pub const SET_FMARK = @compileError("unable to translate macro: undefined identifier `fmarkp__`"); // ./_nvim/src/nvim/mark.h:19:9
+pub const RESET_FMARK = @compileError("unable to translate macro: undefined identifier `fmarkp___`"); // ./_nvim/src/nvim/mark.h:30:9
+pub const SET_XFMARK = @compileError("unable to translate macro: undefined identifier `xfmarkp__`"); // ./_nvim/src/nvim/mark.h:42:9
+pub const RESET_XFMARK = @compileError("unable to translate macro: undefined identifier `xfmarkp__`"); // ./_nvim/src/nvim/mark.h:50:9
+pub const WIN_EXECUTE = @compileError("unable to translate macro: undefined identifier `wp_`"); // ./_nvim/src/nvim/eval/window.h:29:9
 pub const HL_SET_DEFAULT_COLORS = @compileError("unable to translate macro: undefined identifier `dark_`"); // ./_nvim/src/nvim/highlight.h:26:9
 pub const BOOLEAN_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:20:9
 pub const INTEGER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:25:9
 pub const FLOAT_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:29:9
 pub const STRING_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:33:9
-pub const BUFFER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:39:9
-pub const WINDOW_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:43:9
-pub const TABPAGE_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:47:9
-pub const ARRAY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:51:9
-pub const DICTIONARY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:55:9
-pub const LUAREF_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:59:9
-pub const PUT_BOOL = @compileError("unable to translate C expr: unexpected token ';'"); // _nvim/src/nvim/api/private/helpers.h:75:9
-pub const MAXSIZE_TEMP_ARRAY = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:83:9
-pub const MAXSIZE_TEMP_DICT = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:89:9
-pub const api_init_string = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:110:9
-pub const api_init_object = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:114:9
-pub const api_init_array = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:115:9
-pub const api_init_dictionary = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:116:9
-pub const api_free_boolean = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:118:9
-pub const api_free_integer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:119:9
-pub const api_free_float = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:120:9
-pub const api_free_buffer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:121:9
-pub const api_free_window = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:122:9
-pub const api_free_tabpage = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:123:9
-pub const TRY_WRAP = @compileError("unable to translate macro: undefined identifier `saved_msg_list`"); // _nvim/src/nvim/api/private/helpers.h:152:9
-pub const TEXTLOCK_WRAP = @compileError("unable to translate macro: undefined identifier `save_cursor`"); // _nvim/src/nvim/api/private/helpers.h:165:9
-pub const FOREACH_ITEM = @compileError("unable to translate macro: undefined identifier `_index`"); // _nvim/src/nvim/api/private/helpers.h:175:9
-pub const WITH_SCRIPT_CONTEXT = @compileError("unable to translate macro: undefined identifier `save_current_sctx`"); // _nvim/src/nvim/api/private/helpers.h:186:9
+pub const BUFFER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:40:9
+pub const WINDOW_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:44:9
+pub const TABPAGE_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:48:9
+pub const ARRAY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:52:9
+pub const DICTIONARY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:56:9
+pub const LUAREF_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:60:9
+pub const PUT_BOOL = @compileError("unable to translate C expr: unexpected token ';'"); // _nvim/src/nvim/api/private/helpers.h:76:9
+pub const MAXSIZE_TEMP_ARRAY = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:84:9
+pub const MAXSIZE_TEMP_DICT = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:90:9
+pub const api_init_string = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:114:9
+pub const api_init_object = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:118:9
+pub const api_init_array = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:119:9
+pub const api_init_dictionary = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:120:9
+pub const api_free_boolean = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:122:9
+pub const api_free_integer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:123:9
+pub const api_free_float = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:124:9
+pub const api_free_buffer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:125:9
+pub const api_free_window = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:126:9
+pub const api_free_tabpage = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:127:9
+pub const TRY_WRAP = @compileError("unable to translate macro: undefined identifier `saved_msg_list`"); // _nvim/src/nvim/api/private/helpers.h:156:9
+pub const TEXTLOCK_WRAP = @compileError("unable to translate macro: undefined identifier `save_cursor`"); // _nvim/src/nvim/api/private/helpers.h:169:9
+pub const FOREACH_ITEM = @compileError("unable to translate macro: undefined identifier `_index`"); // _nvim/src/nvim/api/private/helpers.h:179:9
+pub const WITH_SCRIPT_CONTEXT = @compileError("unable to translate macro: undefined identifier `save_current_sctx`"); // _nvim/src/nvim/api/private/helpers.h:190:9
 pub const RINGBUF_FORALL = @compileError("unable to translate macro: undefined identifier `_length_fa_`"); // ./_nvim/src/nvim/lib/ringbuf.h:42:9
 pub const RINGBUF_ITER_BACK = @compileError("unable to translate macro: undefined identifier `_length_ib_`"); // ./_nvim/src/nvim/lib/ringbuf.h:57:9
 pub const RINGBUF_TYPEDEF = @compileError("unable to translate macro: undefined identifier `buf`"); // ./_nvim/src/nvim/lib/ringbuf.h:69:9
@@ -54555,10 +55449,6 @@ pub const RINGBUF_STATIC = @compileError("unable to translate macro: undefined i
 pub const RINGBUF_INIT = @compileError("unable to translate macro: undefined identifier `RingBuffer`"); // ./_nvim/src/nvim/lib/ringbuf.h:114:9
 pub const NLUA_CLEAR_REF = @compileError("unable to translate C expr: unexpected token 'do'"); // ./_nvim/src/nvim/lua/executor.h:33:9
 pub const MAP_ARGUMENTS_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mapping.h:53:9
-pub const SET_FMARK = @compileError("unable to translate macro: undefined identifier `fmarkp__`"); // _nvim/src/nvim/mark.h:19:9
-pub const RESET_FMARK = @compileError("unable to translate macro: undefined identifier `fmarkp___`"); // _nvim/src/nvim/mark.h:30:9
-pub const SET_XFMARK = @compileError("unable to translate macro: undefined identifier `xfmarkp__`"); // _nvim/src/nvim/mark.h:42:9
-pub const RESET_XFMARK = @compileError("unable to translate macro: undefined identifier `xfmarkp__`"); // _nvim/src/nvim/mark.h:50:9
 pub const MPACK_API = @compileError("unable to translate C expr: unexpected token 'extern'"); // _nvim/src/mpack/mpack_core.h:5:10
 pub const FPURE = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // _nvim/src/mpack/mpack_core.h:14:10
 pub const FNONULL = @compileError("unable to translate macro: undefined identifier `__attribute__`"); // _nvim/src/mpack/mpack_core.h:15:10
@@ -54570,8 +55460,8 @@ pub const MPACK_PARSER_STRUCT = @compileError("unable to translate macro: undefi
 pub const TIME_MSG = @compileError("unable to translate C expr: unexpected token 'do'"); // ./_nvim/src/nvim/profile.h:10:9
 pub const WC_KEY_OFF = @compileError("unable to translate macro: undefined identifier `wc_word`"); // ./_nvim/src/nvim/spell_defs.h:249:9
 pub const UGRID_FOREACH_CELL = @compileError("unable to translate macro: undefined identifier `row_cells`"); // ./_nvim/src/nvim/ugrid.h:29:9
-pub const EXPR_OPT_SCOPE_LIST = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/viml/parser/expressions.h:85:9
-pub const EXPR_VAR_SCOPE_LIST = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/viml/parser/expressions.h:101:9
+pub const EXPR_OPT_SCOPE_LIST = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/viml/parser/expressions.h:84:9
+pub const EXPR_VAR_SCOPE_LIST = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/viml/parser/expressions.h:100:9
 pub const __llvm__ = @as(c_int, 1);
 pub const __clang__ = @as(c_int, 1);
 pub const __clang_major__ = @as(c_int, 16);
@@ -55040,15 +55930,6 @@ pub inline fn __glibc_objsize0(__o: anytype) @TypeOf(__bos0(__o)) {
 }
 pub inline fn __glibc_objsize(__o: anytype) @TypeOf(__bos(__o)) {
     return __bos(__o);
-}
-pub inline fn __glibc_safe_len_cond(__l: anytype, __s: anytype, __osz: anytype) @TypeOf(__l <= @import("std").zig.c_translation.MacroArithmetic.div(__osz, __s)) {
-    return __l <= @import("std").zig.c_translation.MacroArithmetic.div(__osz, __s);
-}
-pub inline fn __glibc_safe_or_unknown_len(__l: anytype, __s: anytype, __osz: anytype) @TypeOf(((__builtin_constant_p(__osz) != 0) and (__osz == (__SIZE_TYPE__ - @as(c_int, 1)))) or (((__glibc_unsigned_or_positive(__l) != 0) and (__builtin_constant_p(__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz)) != 0)) and (__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz) != 0))) {
-    return ((__builtin_constant_p(__osz) != 0) and (__osz == (__SIZE_TYPE__ - @as(c_int, 1)))) or (((__glibc_unsigned_or_positive(__l) != 0) and (__builtin_constant_p(__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz)) != 0)) and (__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz) != 0));
-}
-pub inline fn __glibc_unsafe_len(__l: anytype, __s: anytype, __osz: anytype) @TypeOf(((__glibc_unsigned_or_positive(__l) != 0) and (__builtin_constant_p(__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz)) != 0)) and !(__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz) != 0)) {
-    return ((__glibc_unsigned_or_positive(__l) != 0) and (__builtin_constant_p(__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz)) != 0)) and !(__glibc_safe_len_cond(__SIZE_TYPE__(__l), __s, __osz) != 0);
 }
 pub const __glibc_c99_flexarr_available = @as(c_int, 1);
 pub inline fn __ASMNAME(cname: anytype) @TypeOf(__ASMNAME2(__USER_LABEL_PREFIX__, cname)) {
@@ -56546,12 +57427,12 @@ pub const __STDARG_H = "";
 pub const _VA_LIST = "";
 pub const LUA_VERSION_MAJOR = "5";
 pub const LUA_VERSION_MINOR = "4";
-pub const LUA_VERSION_RELEASE = "4";
+pub const LUA_VERSION_RELEASE = "6";
 pub const LUA_VERSION_NUM = @as(c_int, 504);
-pub const LUA_VERSION_RELEASE_NUM = (LUA_VERSION_NUM * @as(c_int, 100)) + @as(c_int, 4);
+pub const LUA_VERSION_RELEASE_NUM = (LUA_VERSION_NUM * @as(c_int, 100)) + @as(c_int, 6);
 pub const LUA_VERSION = "Lua " ++ LUA_VERSION_MAJOR ++ "." ++ LUA_VERSION_MINOR;
 pub const LUA_RELEASE = LUA_VERSION ++ "." ++ LUA_VERSION_RELEASE;
-pub const LUA_COPYRIGHT = LUA_RELEASE ++ "  Copyright (C) 1994-2022 Lua.org, PUC-Rio";
+pub const LUA_COPYRIGHT = LUA_RELEASE ++ "  Copyright (C) 1994-2023 Lua.org, PUC-Rio";
 pub const LUA_AUTHORS = "R. Ierusalimschy, L. H. de Figueiredo, W. Celes";
 pub const LUA_SIGNATURE = "\x1bLua";
 pub const LUA_MULTRET = -@as(c_int, 1);
@@ -56794,8 +57675,6 @@ pub inline fn lua_writestringerror(s: anytype, p: anytype) @TypeOf(fflush(stderr
     };
 }
 pub const NVIM_BUFFER_DEFS_H = "";
-pub const NVIM_EVAL_TYPVAL_H = "";
-pub const _ASSERT_H = @as(c_int, 1);
 pub const NVIM_EVAL_TYPVAL_DEFS_H = "";
 pub const __CLANG_INTTYPES_H = "";
 pub const _INTTYPES_H = @as(c_int, 1);
@@ -57344,197 +58223,8 @@ pub const VARNUMBER_MIN = INT64_MIN;
 pub const PRIdVARNUMBER = PRId64;
 pub const CALLBACK_NONE = @import("std").zig.c_translation.cast(Callback, CALLBACK_INIT);
 pub const PRIdSCID = "d";
-pub const NVIM_GETTEXT_H = "";
-pub const _LIBINTL_H = @as(c_int, 1);
-pub const __USE_GNU_GETTEXT = @as(c_int, 1);
-pub inline fn __GNU_GETTEXT_SUPPORTED_REVISION(major: anytype) @TypeOf(if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1)) {
-    return if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1);
-}
-pub inline fn @"_"(x: anytype) @TypeOf(gettext(x)) {
-    return gettext(x);
-}
-pub inline fn N_(x: anytype) @TypeOf(x) {
-    return x;
-}
-pub inline fn NGETTEXT(x: anytype, xs: anytype, n: anytype) @TypeOf(ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n))) {
-    return ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n));
-}
-pub const NVIM_MBYTE_DEFS_H = "";
-pub const NVIM_ICONV_H = "";
-pub const _ERRNO_H = @as(c_int, 1);
-pub const _BITS_ERRNO_H = @as(c_int, 1);
-pub const _ASM_GENERIC_ERRNO_H = "";
-pub const _ASM_GENERIC_ERRNO_BASE_H = "";
-pub const EPERM = @as(c_int, 1);
-pub const ENOENT = @as(c_int, 2);
-pub const ESRCH = @as(c_int, 3);
-pub const EINTR = @as(c_int, 4);
-pub const EIO = @as(c_int, 5);
-pub const ENXIO = @as(c_int, 6);
-pub const E2BIG = @as(c_int, 7);
-pub const ENOEXEC = @as(c_int, 8);
-pub const EBADF = @as(c_int, 9);
-pub const ECHILD = @as(c_int, 10);
-pub const EAGAIN = @as(c_int, 11);
-pub const ENOMEM = @as(c_int, 12);
-pub const EACCES = @as(c_int, 13);
-pub const EFAULT = @as(c_int, 14);
-pub const ENOTBLK = @as(c_int, 15);
-pub const EBUSY = @as(c_int, 16);
-pub const EEXIST = @as(c_int, 17);
-pub const EXDEV = @as(c_int, 18);
-pub const ENODEV = @as(c_int, 19);
-pub const ENOTDIR = @as(c_int, 20);
-pub const EISDIR = @as(c_int, 21);
-pub const EINVAL = @as(c_int, 22);
-pub const ENFILE = @as(c_int, 23);
-pub const EMFILE = @as(c_int, 24);
-pub const ENOTTY = @as(c_int, 25);
-pub const ETXTBSY = @as(c_int, 26);
-pub const EFBIG = @as(c_int, 27);
-pub const ENOSPC = @as(c_int, 28);
-pub const ESPIPE = @as(c_int, 29);
-pub const EROFS = @as(c_int, 30);
-pub const EMLINK = @as(c_int, 31);
-pub const EPIPE = @as(c_int, 32);
-pub const EDOM = @as(c_int, 33);
-pub const ERANGE = @as(c_int, 34);
-pub const EDEADLK = @as(c_int, 35);
-pub const ENAMETOOLONG = @as(c_int, 36);
-pub const ENOLCK = @as(c_int, 37);
-pub const ENOSYS = @as(c_int, 38);
-pub const ENOTEMPTY = @as(c_int, 39);
-pub const ELOOP = @as(c_int, 40);
-pub const EWOULDBLOCK = EAGAIN;
-pub const ENOMSG = @as(c_int, 42);
-pub const EIDRM = @as(c_int, 43);
-pub const ECHRNG = @as(c_int, 44);
-pub const EL2NSYNC = @as(c_int, 45);
-pub const EL3HLT = @as(c_int, 46);
-pub const EL3RST = @as(c_int, 47);
-pub const ELNRNG = @as(c_int, 48);
-pub const EUNATCH = @as(c_int, 49);
-pub const ENOCSI = @as(c_int, 50);
-pub const EL2HLT = @as(c_int, 51);
-pub const EBADE = @as(c_int, 52);
-pub const EBADR = @as(c_int, 53);
-pub const EXFULL = @as(c_int, 54);
-pub const ENOANO = @as(c_int, 55);
-pub const EBADRQC = @as(c_int, 56);
-pub const EBADSLT = @as(c_int, 57);
-pub const EDEADLOCK = EDEADLK;
-pub const EBFONT = @as(c_int, 59);
-pub const ENOSTR = @as(c_int, 60);
-pub const ENODATA = @as(c_int, 61);
-pub const ETIME = @as(c_int, 62);
-pub const ENOSR = @as(c_int, 63);
-pub const ENONET = @as(c_int, 64);
-pub const ENOPKG = @as(c_int, 65);
-pub const EREMOTE = @as(c_int, 66);
-pub const ENOLINK = @as(c_int, 67);
-pub const EADV = @as(c_int, 68);
-pub const ESRMNT = @as(c_int, 69);
-pub const ECOMM = @as(c_int, 70);
-pub const EPROTO = @as(c_int, 71);
-pub const EMULTIHOP = @as(c_int, 72);
-pub const EDOTDOT = @as(c_int, 73);
-pub const EBADMSG = @as(c_int, 74);
-pub const EOVERFLOW = @as(c_int, 75);
-pub const ENOTUNIQ = @as(c_int, 76);
-pub const EBADFD = @as(c_int, 77);
-pub const EREMCHG = @as(c_int, 78);
-pub const ELIBACC = @as(c_int, 79);
-pub const ELIBBAD = @as(c_int, 80);
-pub const ELIBSCN = @as(c_int, 81);
-pub const ELIBMAX = @as(c_int, 82);
-pub const ELIBEXEC = @as(c_int, 83);
-pub const EILSEQ = @as(c_int, 84);
-pub const ERESTART = @as(c_int, 85);
-pub const ESTRPIPE = @as(c_int, 86);
-pub const EUSERS = @as(c_int, 87);
-pub const ENOTSOCK = @as(c_int, 88);
-pub const EDESTADDRREQ = @as(c_int, 89);
-pub const EMSGSIZE = @as(c_int, 90);
-pub const EPROTOTYPE = @as(c_int, 91);
-pub const ENOPROTOOPT = @as(c_int, 92);
-pub const EPROTONOSUPPORT = @as(c_int, 93);
-pub const ESOCKTNOSUPPORT = @as(c_int, 94);
-pub const EOPNOTSUPP = @as(c_int, 95);
-pub const EPFNOSUPPORT = @as(c_int, 96);
-pub const EAFNOSUPPORT = @as(c_int, 97);
-pub const EADDRINUSE = @as(c_int, 98);
-pub const EADDRNOTAVAIL = @as(c_int, 99);
-pub const ENETDOWN = @as(c_int, 100);
-pub const ENETUNREACH = @as(c_int, 101);
-pub const ENETRESET = @as(c_int, 102);
-pub const ECONNABORTED = @as(c_int, 103);
-pub const ECONNRESET = @as(c_int, 104);
-pub const ENOBUFS = @as(c_int, 105);
-pub const EISCONN = @as(c_int, 106);
-pub const ENOTCONN = @as(c_int, 107);
-pub const ESHUTDOWN = @as(c_int, 108);
-pub const ETOOMANYREFS = @as(c_int, 109);
-pub const ETIMEDOUT = @as(c_int, 110);
-pub const ECONNREFUSED = @as(c_int, 111);
-pub const EHOSTDOWN = @as(c_int, 112);
-pub const EHOSTUNREACH = @as(c_int, 113);
-pub const EALREADY = @as(c_int, 114);
-pub const EINPROGRESS = @as(c_int, 115);
-pub const ESTALE = @as(c_int, 116);
-pub const EUCLEAN = @as(c_int, 117);
-pub const ENOTNAM = @as(c_int, 118);
-pub const ENAVAIL = @as(c_int, 119);
-pub const EISNAM = @as(c_int, 120);
-pub const EREMOTEIO = @as(c_int, 121);
-pub const EDQUOT = @as(c_int, 122);
-pub const ENOMEDIUM = @as(c_int, 123);
-pub const EMEDIUMTYPE = @as(c_int, 124);
-pub const ECANCELED = @as(c_int, 125);
-pub const ENOKEY = @as(c_int, 126);
-pub const EKEYEXPIRED = @as(c_int, 127);
-pub const EKEYREVOKED = @as(c_int, 128);
-pub const EKEYREJECTED = @as(c_int, 129);
-pub const EOWNERDEAD = @as(c_int, 130);
-pub const ENOTRECOVERABLE = @as(c_int, 131);
-pub const ERFKILL = @as(c_int, 132);
-pub const EHWPOISON = @as(c_int, 133);
-pub const ENOTSUP = EOPNOTSUPP;
-pub const errno = __errno_location().*;
-pub const _ICONV_H = @as(c_int, 1);
-pub const ICONV_ERRNO = errno;
-pub const ICONV_E2BIG = E2BIG;
-pub const ICONV_EINVAL = EINVAL;
-pub const ICONV_EILSEQ = EILSEQ;
-pub const NVIM_MESSAGE_H = "";
 pub const NVIM_GRID_DEFS_H = "";
 pub const MAX_MCO = @as(c_int, 6);
-pub const VIM_GENERIC = @as(c_int, 0);
-pub const VIM_ERROR = @as(c_int, 1);
-pub const VIM_WARNING = @as(c_int, 2);
-pub const VIM_INFO = @as(c_int, 3);
-pub const VIM_QUESTION = @as(c_int, 4);
-pub const VIM_LAST_TYPE = @as(c_int, 4);
-pub const VIM_YES = @as(c_int, 2);
-pub const VIM_NO = @as(c_int, 3);
-pub const VIM_CANCEL = @as(c_int, 4);
-pub const VIM_ALL = @as(c_int, 5);
-pub const VIM_DISCARDALL = @as(c_int, 6);
-pub inline fn TV_LIST_ITEM_TV(li: anytype) @TypeOf(&li.*.li_tv) {
-    return &li.*.li_tv;
-}
-pub inline fn TV_LIST_ITEM_NEXT(l: anytype, li: anytype) @TypeOf(li.*.li_next) {
-    _ = @TypeOf(l);
-    return li.*.li_next;
-}
-pub inline fn TV_LIST_ITEM_PREV(l: anytype, li: anytype) @TypeOf(li.*.li_prev) {
-    _ = @TypeOf(l);
-    return li.*.li_prev;
-}
-pub const TV_TRANSLATE = SIZE_MAX;
-pub const TV_CSTRING = SIZE_MAX - @as(c_int, 1);
-pub const tv_get_bool = tv_get_number;
-pub const tv_get_bool_chk = tv_get_number_chk;
-pub const tv_dict_get_bool = tv_dict_get_number_def;
 pub const NVIM_HIGHLIGHT_DEFS_H = "";
 pub const NVIM_MAP_H = "";
 pub const NVIM_LIB_KHASH_H = "";
@@ -57564,6 +58254,7 @@ pub inline fn kfree(P: anytype) @TypeOf(XFREE_CLEAR(P)) {
     return XFREE_CLEAR(P);
 }
 pub const __ac_HASH_UPPER = @as(f64, 0.77);
+pub const KHASH_MAX_VAL_SIZE = @as(c_int, 32);
 pub inline fn kh_int_hash_func(key: anytype) khint32_t {
     return @import("std").zig.c_translation.cast(khint32_t, key);
 }
@@ -57587,12 +58278,6 @@ pub inline fn kh_exist(h: anytype, x: anytype) @TypeOf(!(__ac_iseither(h.*.flags
 }
 pub inline fn kh_key(h: anytype, x: anytype) @TypeOf(h.*.keys[@intCast(usize, x)]) {
     return h.*.keys[@intCast(usize, x)];
-}
-pub inline fn kh_val(h: anytype, x: anytype) @TypeOf(h.*.vals[@intCast(usize, x)]) {
-    return h.*.vals[@intCast(usize, x)];
-}
-pub inline fn kh_value(h: anytype, x: anytype) @TypeOf(h.*.vals[@intCast(usize, x)]) {
-    return h.*.vals[@intCast(usize, x)];
 }
 pub inline fn kh_begin(h: anytype) khint_t {
     _ = @TypeOf(h);
@@ -57625,19 +58310,26 @@ pub inline fn KHASH_SET_INIT_STR(name: anytype) @TypeOf(KHASH_INIT(name, kh_cstr
 pub inline fn KHASH_MAP_INIT_STR(name: anytype, khval_t: anytype) @TypeOf(KHASH_INIT(name, kh_cstr_t, khval_t, @as(c_int, 1), kh_str_hash_func, kh_str_hash_equal)) {
     return KHASH_INIT(name, kh_cstr_t, khval_t, @as(c_int, 1), kh_str_hash_func, kh_str_hash_equal);
 }
-pub const NVIM_EXTMARK_DEFS_H = "";
-pub const NVIM_MAP_DEFS_H = "";
+pub const NVIM_ASSERT_H = "";
+pub const STATIC_ASSERT_PRAGMA_START = "";
+pub const STATIC_ASSERT_PRAGMA_END = "";
+pub inline fn ASSERT_CONCAT(a: anytype, b: anytype) @TypeOf(ASSERT_CONCAT_(a, b)) {
+    return ASSERT_CONCAT_(a, b);
+}
 pub inline fn PMap(T: anytype) @TypeOf(Map(T, ptr_t)) {
     return Map(T, ptr_t);
 }
-pub const NVIM_TUI_INPUT_DEFS_H = "";
-pub const NVIM_UI_CLIENT_H = "";
-pub const UI_CLIENT_STDIN_FD = @as(c_int, 3);
+pub inline fn Set(@"type": anytype) @TypeOf(khash_t(@"type")) {
+    return khash_t(@"type");
+}
+pub inline fn map_destroy(T: anytype, map: anytype) @TypeOf(kh_dealloc(T, &map.*.table)) {
+    return kh_dealloc(T, &map.*.table);
+}
+pub inline fn map_clear(T: anytype, map: anytype) @TypeOf(kh_clear(T, &map.*.table)) {
+    return kh_clear(T, &map.*.table);
+}
 pub inline fn map_size(map: anytype) @TypeOf(map.*.table.size) {
     return map.*.table.size;
-}
-pub inline fn pmap_destroy(T: anytype) @TypeOf(map_destroy(T, ptr_t)) {
-    return map_destroy(T, ptr_t);
 }
 pub inline fn pmap_get(T: anytype) @TypeOf(map_get(T, ptr_t)) {
     return map_get(T, ptr_t);
@@ -57645,29 +58337,41 @@ pub inline fn pmap_get(T: anytype) @TypeOf(map_get(T, ptr_t)) {
 pub inline fn pmap_has(T: anytype) @TypeOf(map_has(T, ptr_t)) {
     return map_has(T, ptr_t);
 }
-pub inline fn pmap_key(T: anytype) @TypeOf(map_key(T, ptr_t)) {
-    return map_key(T, ptr_t);
-}
 pub inline fn pmap_put(T: anytype) @TypeOf(map_put(T, ptr_t)) {
     return map_put(T, ptr_t);
 }
 pub inline fn pmap_ref(T: anytype) @TypeOf(map_ref(T, ptr_t)) {
     return map_ref(T, ptr_t);
 }
+pub inline fn pmap_put_ref(T: anytype) @TypeOf(map_put_ref(T, ptr_t)) {
+    return map_put_ref(T, ptr_t);
+}
 pub inline fn pmap_del(T: anytype) @TypeOf(map_del(T, ptr_t)) {
     return map_del(T, ptr_t);
 }
-pub inline fn pmap_clear(T: anytype) @TypeOf(map_clear(T, ptr_t)) {
-    return map_clear(T, ptr_t);
+pub inline fn map_foreach(U: anytype, map: anytype, key: anytype, value: anytype, block: anytype) @TypeOf(kh_foreach(U, &map.*.table, key, value, block)) {
+    return kh_foreach(U, &map.*.table, key, value, block);
 }
-pub inline fn pmap_init(k: anytype, map: anytype) @TypeOf(map_init(k, ptr_t, map)) {
-    return map_init(k, ptr_t, map);
+pub inline fn map_foreach_value(U: anytype, map: anytype, value: anytype, block: anytype) @TypeOf(kh_foreach_value(U, &map.*.table, value, block)) {
+    return kh_foreach_value(U, &map.*.table, value, block);
 }
-pub inline fn map_foreach(map: anytype, key: anytype, value: anytype, block: anytype) @TypeOf(kh_foreach(&map.*.table, key, value, block)) {
-    return kh_foreach(&map.*.table, key, value, block);
+pub inline fn map_foreach_key(map: anytype, key: anytype, block: anytype) @TypeOf(kh_foreach_key(&map.*.table, key, block)) {
+    return kh_foreach_key(&map.*.table, key, block);
 }
-pub inline fn map_foreach_value(map: anytype, value: anytype, block: anytype) @TypeOf(kh_foreach_value(&map.*.table, value, block)) {
-    return kh_foreach_value(&map.*.table, value, block);
+pub inline fn set_foreach(set: anytype, key: anytype, block: anytype) @TypeOf(kh_foreach_key(set, key, block)) {
+    return kh_foreach_key(set, key, block);
+}
+pub inline fn pmap_foreach_value(map: anytype, value: anytype, block: anytype) @TypeOf(map_foreach_value(ptr_t, map, value, block)) {
+    return map_foreach_value(ptr_t, map, value, block);
+}
+pub inline fn pmap_foreach(map: anytype, key: anytype, value: anytype, block: anytype) @TypeOf(map_foreach(ptr_t, map, key, value, block)) {
+    return map_foreach(ptr_t, map, key, value, block);
+}
+pub inline fn set_destroy(T: anytype, set: anytype) @TypeOf(kh_dealloc(T, set)) {
+    return kh_dealloc(T, set);
+}
+pub inline fn set_clear(T: anytype, set: anytype) @TypeOf(kh_clear(T, set)) {
+    return kh_clear(T, set);
 }
 pub const NVIM_MARK_DEFS_H = "";
 pub const NVIM_OS_TIME_H = "";
@@ -57679,12 +58383,7 @@ pub const NMARK_LOCAL_MAX = @as(c_int, 126);
 pub const JUMPLISTSIZE = @as(c_int, 100);
 pub const TAGSTACKSIZE = @as(c_int, 20);
 pub const NVIM_MARKTREE_H = "";
-pub const NVIM_ASSERT_H = "";
-pub const STATIC_ASSERT_PRAGMA_START = "";
-pub const STATIC_ASSERT_PRAGMA_END = "";
-pub inline fn ASSERT_CONCAT(a: anytype, b: anytype) @TypeOf(ASSERT_CONCAT_(a, b)) {
-    return ASSERT_CONCAT_(a, b);
-}
+pub const _ASSERT_H = @as(c_int, 1);
 pub const MT_MAX_DEPTH = @as(c_int, 20);
 pub const MT_BRANCH_FACTOR = @as(c_int, 10);
 pub inline fn marktree_itr_valid(itr: anytype) @TypeOf(itr.*.node != NULL) {
@@ -57701,6 +58400,7 @@ pub const MT_FLAG_RIGHT_GRAVITY = @import("std").zig.c_translation.cast(u16, @as
 pub const MT_FLAG_LAST = @import("std").zig.c_translation.cast(u16, @as(c_int, 1)) << @as(c_int, 15);
 pub const MT_FLAG_EXTERNAL_MASK = (MT_FLAG_DECOR_MASK | MT_FLAG_RIGHT_GRAVITY) | MT_FLAG_HL_EOL;
 pub const MARKTREE_END_FLAG = @import("std").zig.c_translation.cast(u64, @as(c_int, 1)) << @as(c_int, 63);
+pub const NVIM_EXTMARK_DEFS_H = "";
 pub const NVIM_OPTION_DEFS_H = "";
 pub const P_BOOL = @as(c_uint, 0x01);
 pub const P_NUM = @as(c_uint, 0x02);
@@ -57866,7 +58566,7 @@ pub const GO_TOOLBAR = 'T';
 pub const GO_FOOTER = 'F';
 pub const GO_VERTICAL = 'v';
 pub const GO_KEEPWINSIZE = 'k';
-pub const GO_ALL = "aAbcdefFghilmMprTvk";
+pub const GO_ALL = "!aAbcdefFghilLmMpPrRtTvk";
 pub const COM_NEST = 'n';
 pub const COM_BLANK = 'b';
 pub const COM_START = 's';
@@ -58057,6 +58757,145 @@ pub const ML_ALLOCATED = @as(c_int, 0x10);
 pub const NVIM_OS_FS_DEFS_H = "";
 pub const UV_H = "";
 pub const UV_ERRNO_H_ = "";
+pub const _ERRNO_H = @as(c_int, 1);
+pub const _BITS_ERRNO_H = @as(c_int, 1);
+pub const _ASM_GENERIC_ERRNO_H = "";
+pub const _ASM_GENERIC_ERRNO_BASE_H = "";
+pub const EPERM = @as(c_int, 1);
+pub const ENOENT = @as(c_int, 2);
+pub const ESRCH = @as(c_int, 3);
+pub const EINTR = @as(c_int, 4);
+pub const EIO = @as(c_int, 5);
+pub const ENXIO = @as(c_int, 6);
+pub const E2BIG = @as(c_int, 7);
+pub const ENOEXEC = @as(c_int, 8);
+pub const EBADF = @as(c_int, 9);
+pub const ECHILD = @as(c_int, 10);
+pub const EAGAIN = @as(c_int, 11);
+pub const ENOMEM = @as(c_int, 12);
+pub const EACCES = @as(c_int, 13);
+pub const EFAULT = @as(c_int, 14);
+pub const ENOTBLK = @as(c_int, 15);
+pub const EBUSY = @as(c_int, 16);
+pub const EEXIST = @as(c_int, 17);
+pub const EXDEV = @as(c_int, 18);
+pub const ENODEV = @as(c_int, 19);
+pub const ENOTDIR = @as(c_int, 20);
+pub const EISDIR = @as(c_int, 21);
+pub const EINVAL = @as(c_int, 22);
+pub const ENFILE = @as(c_int, 23);
+pub const EMFILE = @as(c_int, 24);
+pub const ENOTTY = @as(c_int, 25);
+pub const ETXTBSY = @as(c_int, 26);
+pub const EFBIG = @as(c_int, 27);
+pub const ENOSPC = @as(c_int, 28);
+pub const ESPIPE = @as(c_int, 29);
+pub const EROFS = @as(c_int, 30);
+pub const EMLINK = @as(c_int, 31);
+pub const EPIPE = @as(c_int, 32);
+pub const EDOM = @as(c_int, 33);
+pub const ERANGE = @as(c_int, 34);
+pub const EDEADLK = @as(c_int, 35);
+pub const ENAMETOOLONG = @as(c_int, 36);
+pub const ENOLCK = @as(c_int, 37);
+pub const ENOSYS = @as(c_int, 38);
+pub const ENOTEMPTY = @as(c_int, 39);
+pub const ELOOP = @as(c_int, 40);
+pub const EWOULDBLOCK = EAGAIN;
+pub const ENOMSG = @as(c_int, 42);
+pub const EIDRM = @as(c_int, 43);
+pub const ECHRNG = @as(c_int, 44);
+pub const EL2NSYNC = @as(c_int, 45);
+pub const EL3HLT = @as(c_int, 46);
+pub const EL3RST = @as(c_int, 47);
+pub const ELNRNG = @as(c_int, 48);
+pub const EUNATCH = @as(c_int, 49);
+pub const ENOCSI = @as(c_int, 50);
+pub const EL2HLT = @as(c_int, 51);
+pub const EBADE = @as(c_int, 52);
+pub const EBADR = @as(c_int, 53);
+pub const EXFULL = @as(c_int, 54);
+pub const ENOANO = @as(c_int, 55);
+pub const EBADRQC = @as(c_int, 56);
+pub const EBADSLT = @as(c_int, 57);
+pub const EDEADLOCK = EDEADLK;
+pub const EBFONT = @as(c_int, 59);
+pub const ENOSTR = @as(c_int, 60);
+pub const ENODATA = @as(c_int, 61);
+pub const ETIME = @as(c_int, 62);
+pub const ENOSR = @as(c_int, 63);
+pub const ENONET = @as(c_int, 64);
+pub const ENOPKG = @as(c_int, 65);
+pub const EREMOTE = @as(c_int, 66);
+pub const ENOLINK = @as(c_int, 67);
+pub const EADV = @as(c_int, 68);
+pub const ESRMNT = @as(c_int, 69);
+pub const ECOMM = @as(c_int, 70);
+pub const EPROTO = @as(c_int, 71);
+pub const EMULTIHOP = @as(c_int, 72);
+pub const EDOTDOT = @as(c_int, 73);
+pub const EBADMSG = @as(c_int, 74);
+pub const EOVERFLOW = @as(c_int, 75);
+pub const ENOTUNIQ = @as(c_int, 76);
+pub const EBADFD = @as(c_int, 77);
+pub const EREMCHG = @as(c_int, 78);
+pub const ELIBACC = @as(c_int, 79);
+pub const ELIBBAD = @as(c_int, 80);
+pub const ELIBSCN = @as(c_int, 81);
+pub const ELIBMAX = @as(c_int, 82);
+pub const ELIBEXEC = @as(c_int, 83);
+pub const EILSEQ = @as(c_int, 84);
+pub const ERESTART = @as(c_int, 85);
+pub const ESTRPIPE = @as(c_int, 86);
+pub const EUSERS = @as(c_int, 87);
+pub const ENOTSOCK = @as(c_int, 88);
+pub const EDESTADDRREQ = @as(c_int, 89);
+pub const EMSGSIZE = @as(c_int, 90);
+pub const EPROTOTYPE = @as(c_int, 91);
+pub const ENOPROTOOPT = @as(c_int, 92);
+pub const EPROTONOSUPPORT = @as(c_int, 93);
+pub const ESOCKTNOSUPPORT = @as(c_int, 94);
+pub const EOPNOTSUPP = @as(c_int, 95);
+pub const EPFNOSUPPORT = @as(c_int, 96);
+pub const EAFNOSUPPORT = @as(c_int, 97);
+pub const EADDRINUSE = @as(c_int, 98);
+pub const EADDRNOTAVAIL = @as(c_int, 99);
+pub const ENETDOWN = @as(c_int, 100);
+pub const ENETUNREACH = @as(c_int, 101);
+pub const ENETRESET = @as(c_int, 102);
+pub const ECONNABORTED = @as(c_int, 103);
+pub const ECONNRESET = @as(c_int, 104);
+pub const ENOBUFS = @as(c_int, 105);
+pub const EISCONN = @as(c_int, 106);
+pub const ENOTCONN = @as(c_int, 107);
+pub const ESHUTDOWN = @as(c_int, 108);
+pub const ETOOMANYREFS = @as(c_int, 109);
+pub const ETIMEDOUT = @as(c_int, 110);
+pub const ECONNREFUSED = @as(c_int, 111);
+pub const EHOSTDOWN = @as(c_int, 112);
+pub const EHOSTUNREACH = @as(c_int, 113);
+pub const EALREADY = @as(c_int, 114);
+pub const EINPROGRESS = @as(c_int, 115);
+pub const ESTALE = @as(c_int, 116);
+pub const EUCLEAN = @as(c_int, 117);
+pub const ENOTNAM = @as(c_int, 118);
+pub const ENAVAIL = @as(c_int, 119);
+pub const EISNAM = @as(c_int, 120);
+pub const EREMOTEIO = @as(c_int, 121);
+pub const EDQUOT = @as(c_int, 122);
+pub const ENOMEDIUM = @as(c_int, 123);
+pub const EMEDIUMTYPE = @as(c_int, 124);
+pub const ECANCELED = @as(c_int, 125);
+pub const ENOKEY = @as(c_int, 126);
+pub const EKEYEXPIRED = @as(c_int, 127);
+pub const EKEYREVOKED = @as(c_int, 128);
+pub const EKEYREJECTED = @as(c_int, 129);
+pub const EOWNERDEAD = @as(c_int, 130);
+pub const ENOTRECOVERABLE = @as(c_int, 131);
+pub const ERFKILL = @as(c_int, 132);
+pub const EHWPOISON = @as(c_int, 133);
+pub const ENOTSUP = EOPNOTSUPP;
+pub const errno = __errno_location().*;
 pub inline fn UV__ERR(x: anytype) @TypeOf(-x) {
     return -x;
 }
@@ -59049,6 +59888,11 @@ pub const ECMD_ONE = @import("std").zig.c_translation.cast(linenr_T, @as(c_int, 
 pub const NVIM_API_DEPRECATED_H = "";
 pub const NVIM_API_EXTMARK_H = "";
 pub const NVIM_API_OPTIONS_H = "";
+pub const NVIM_OPTION_H = "";
+pub const BCO_ENTER = @as(c_int, 1);
+pub const BCO_ALWAYS = @as(c_int, 2);
+pub const BCO_NOHELP = @as(c_int, 4);
+pub const MAX_NUMBERWIDTH = @as(c_int, 20);
 pub const NVIM_API_TABPAGE_H = "";
 pub const NVIM_API_UI_H = "";
 pub const NVIM_UI_H = "";
@@ -59152,7 +59996,14 @@ pub inline fn kl_iter(name: anytype, kl: anytype, p: anytype) @TypeOf(kl_iter_at
     return kl_iter_at(name, kl, p, NULL);
 }
 pub const NVIM_EX_EVAL_DEFS_H = "";
+pub const NVIM_ICONV_H = "";
+pub const _ICONV_H = @as(c_int, 1);
+pub const ICONV_ERRNO = errno;
+pub const ICONV_E2BIG = E2BIG;
+pub const ICONV_EINVAL = EINVAL;
+pub const ICONV_EILSEQ = EILSEQ;
 pub const NVIM_MBYTE_H = "";
+pub const NVIM_MBYTE_DEFS_H = "";
 pub inline fn MB_BYTE2LEN(b: anytype) @TypeOf(utf8len_tab[@intCast(usize, b)]) {
     return utf8len_tab[@intCast(usize, b)];
 }
@@ -59257,6 +60108,47 @@ pub inline fn ARABIC_CHAR(ch: anytype) @TypeOf((ch & @import("std").zig.c_transl
 }
 pub const NVIM_ARGLIST_H = "";
 pub const NVIM_BUFFER_H = "";
+pub const NVIM_EVAL_TYPVAL_H = "";
+pub const NVIM_GETTEXT_H = "";
+pub const _LIBINTL_H = @as(c_int, 1);
+pub const __USE_GNU_GETTEXT = @as(c_int, 1);
+pub inline fn __GNU_GETTEXT_SUPPORTED_REVISION(major: anytype) @TypeOf(if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1)) {
+    return if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1);
+}
+pub inline fn @"_"(x: anytype) @TypeOf(gettext(x)) {
+    return gettext(x);
+}
+pub inline fn N_(x: anytype) @TypeOf(x) {
+    return x;
+}
+pub inline fn NGETTEXT(x: anytype, xs: anytype, n: anytype) @TypeOf(ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n))) {
+    return ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n));
+}
+pub const NVIM_MESSAGE_H = "";
+pub const VIM_GENERIC = @as(c_int, 0);
+pub const VIM_ERROR = @as(c_int, 1);
+pub const VIM_WARNING = @as(c_int, 2);
+pub const VIM_INFO = @as(c_int, 3);
+pub const VIM_QUESTION = @as(c_int, 4);
+pub const VIM_LAST_TYPE = @as(c_int, 4);
+pub const VIM_YES = @as(c_int, 2);
+pub const VIM_NO = @as(c_int, 3);
+pub const VIM_CANCEL = @as(c_int, 4);
+pub const VIM_ALL = @as(c_int, 5);
+pub const VIM_DISCARDALL = @as(c_int, 6);
+pub inline fn TV_LIST_ITEM_TV(li: anytype) @TypeOf(&li.*.li_tv) {
+    return &li.*.li_tv;
+}
+pub inline fn TV_LIST_ITEM_NEXT(l: anytype, li: anytype) @TypeOf(li.*.li_next) {
+    _ = @TypeOf(l);
+    return li.*.li_next;
+}
+pub inline fn TV_LIST_ITEM_PREV(l: anytype, li: anytype) @TypeOf(li.*.li_prev) {
+    _ = @TypeOf(l);
+    return li.*.li_prev;
+}
+pub const TV_TRANSLATE = SIZE_MAX;
+pub const TV_CSTRING = SIZE_MAX - @as(c_int, 1);
 pub const NVIM_MEMLINE_H = "";
 pub const NVIM_BUFFER_UPDATES_H = "";
 pub const NVIM_EXTMARK_H = "";
@@ -60042,8 +60934,82 @@ pub const INSCHAR_DO_COM = @as(c_int, 2);
 pub const INSCHAR_CTRLV = @as(c_int, 4);
 pub const INSCHAR_NO_FEX = @as(c_int, 8);
 pub const INSCHAR_COM_LIST = @as(c_int, 16);
-pub const NVIM_EVENT_SIGNAL_H = "";
+pub const NVIM_EVAL_BUFFER_H = "";
+pub const NVIM_EVAL_DECODE_H = "";
+pub const NVIM_EVAL_ENCODE_H = "";
+pub const NVIM_EVAL_H = "";
 pub const NVIM_EVENT_TIME_H = "";
+pub const NVIM_OS_FILEIO_H = "";
+pub const NVIM_OS_STDPATHS_DEFS_H = "";
+pub const COPYID_INC = @as(c_int, 2);
+pub const COPYID_MASK = ~@as(c_int, 0x1);
+pub const LAST_MSGPACK_TYPE = kMPExt;
+pub const FNE_INCL_BR = @as(c_int, 1);
+pub const FNE_CHECK_START = @as(c_int, 2);
+pub const SURROGATE_HI_START = @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xD800, .hexadecimal);
+pub const SURROGATE_HI_END = @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xDBFF, .hexadecimal);
+pub const SURROGATE_LO_START = @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xDC00, .hexadecimal);
+pub const SURROGATE_LO_END = @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xDFFF, .hexadecimal);
+pub const SURROGATE_FIRST_CHAR = @import("std").zig.c_translation.promoteIntLiteral(c_int, 0x10000, .hexadecimal);
+pub const NVIM_EVAL_EXECUTOR_H = "";
+pub const NVIM_EVAL_FUNCS_H = "";
+pub const BASE_NONE = @as(c_int, 0);
+pub const BASE_LAST = UINT8_MAX;
+pub const NVIM_EVAL_GC_H = "";
+pub const NVIM_EVAL_TYPVAL_ENCODE_H = "";
+pub const _mp_size = kv_size;
+pub const _mp_init = kvi_init;
+pub const _mp_destroy = kvi_destroy;
+pub const _mp_push = kvi_push;
+pub const _mp_pop = kv_pop;
+pub const _mp_last = kv_last;
+pub inline fn _TYPVAL_ENCODE_FUNC_NAME_INNER(pref: anytype, name: anytype, suf: anytype) @TypeOf(_TYPVAL_ENCODE_FUNC_NAME_INNER_2(pref, name, suf)) {
+    return _TYPVAL_ENCODE_FUNC_NAME_INNER_2(pref, name, suf);
+}
+pub const NVIM_EVAL_USERFUNC_H = "";
+pub inline fn UF2HIKEY(fp: anytype) @TypeOf(fp.*.uf_name) {
+    return fp.*.uf_name;
+}
+pub inline fn HI2UF(hi: anytype) @TypeOf(HIKEY2UF(hi.*.hi_key)) {
+    return HIKEY2UF(hi.*.hi_key);
+}
+pub const FC_ABORT = @as(c_int, 0x01);
+pub const FC_RANGE = @as(c_int, 0x02);
+pub const FC_DICT = @as(c_int, 0x04);
+pub const FC_CLOSURE = @as(c_int, 0x08);
+pub const FC_DELETED = @as(c_int, 0x10);
+pub const FC_REMOVED = @as(c_int, 0x20);
+pub const FC_SANDBOX = @as(c_int, 0x40);
+pub const FC_NOARGS = @as(c_int, 0x200);
+pub const FC_LUAREF = @as(c_int, 0x800);
+pub const NVIM_EVAL_VARS_H = "";
+pub const NVIM_EVAL_WINDOW_H = "";
+pub const NVIM_MARK_H = "";
+pub inline fn CLEAR_FMARK(fmarkp_: anytype) @TypeOf(RESET_FMARK(fmarkp_, @import("std").mem.zeroInit(pos_T, .{ @as(c_int, 0), @as(c_int, 0), @as(c_int, 0) }), @as(c_int, 0), @import("std").zig.c_translation.cast(fmarkv_T, INIT_FMARKV))) {
+    return RESET_FMARK(fmarkp_, @import("std").mem.zeroInit(pos_T, .{ @as(c_int, 0), @as(c_int, 0), @as(c_int, 0) }), @as(c_int, 0), @import("std").zig.c_translation.cast(fmarkv_T, INIT_FMARKV));
+}
+pub const NVIM_OS_OS_H = "";
+pub const ENV_LOGFILE = "NVIM_LOG_FILE";
+pub const ENV_NVIM = "NVIM";
+pub const NVIM_WINDOW_H = "";
+pub const FNAME_MESS = @as(c_int, 1);
+pub const FNAME_EXP = @as(c_int, 2);
+pub const FNAME_HYP = @as(c_int, 4);
+pub const FNAME_INCL = @as(c_int, 8);
+pub const FNAME_REL = @as(c_int, 16);
+pub const FNAME_UNESC = @as(c_int, 32);
+pub const WSP_ROOM = @as(c_int, 0x01);
+pub const WSP_VERT = @as(c_int, 0x02);
+pub const WSP_HOR = @as(c_int, 0x04);
+pub const WSP_TOP = @as(c_int, 0x08);
+pub const WSP_BOT = @as(c_int, 0x10);
+pub const WSP_HELP = @as(c_int, 0x20);
+pub const WSP_BELOW = @as(c_int, 0x40);
+pub const WSP_ABOVE = @as(c_int, 0x80);
+pub const WSP_NEWLOC = @as(c_int, 0x100);
+pub const MIN_COLUMNS = @as(c_int, 12);
+pub const MIN_LINES = @as(c_int, 2);
+pub const NVIM_EVENT_SIGNAL_H = "";
 pub const NVIM_EX_CMDS2_H = "";
 pub const CCGD_AW = @as(c_int, 1);
 pub const CCGD_MULTWIN = @as(c_int, 2);
@@ -60069,10 +61035,6 @@ pub const FINDFILE_FILE = @as(c_int, 0);
 pub const FINDFILE_DIR = @as(c_int, 1);
 pub const FINDFILE_BOTH = @as(c_int, 2);
 pub const NVIM_FILEIO_H = "";
-pub const NVIM_OS_OS_H = "";
-pub const NVIM_OS_STDPATHS_DEFS_H = "";
-pub const ENV_LOGFILE = "NVIM_LOG_FILE";
-pub const ENV_NVIM = "NVIM";
 pub const READ_NEW = @as(c_int, 0x01);
 pub const READ_FILTER = @as(c_int, 0x02);
 pub const READ_STDIN = @as(c_int, 0x04);
@@ -60086,7 +61048,6 @@ pub const CONV_RESTLEN = @as(c_int, 30);
 pub const WRITEBUFSIZE = @as(c_int, 8192);
 pub const ICONV_MULT = @as(c_int, 8);
 pub const NVIM_GETCHAR_H = "";
-pub const NVIM_OS_FILEIO_H = "";
 pub const KEYLEN_PART_KEY = -@as(c_int, 1);
 pub const KEYLEN_PART_MAP = -@as(c_int, 2);
 pub const NVIM_GRID_H = "";
@@ -60101,6 +61062,9 @@ pub inline fn OBJECT_OBJ(o: anytype) @TypeOf(o) {
 }
 pub inline fn BOOL(b: anytype) @TypeOf(BOOLEAN_OBJ(b)) {
     return BOOLEAN_OBJ(b);
+}
+pub inline fn CSTR_AS_OBJ(s: anytype) @TypeOf(STRING_OBJ(cstr_as_string(s))) {
+    return STRING_OBJ(cstr_as_string(s));
 }
 pub inline fn CSTR_TO_OBJ(s: anytype) @TypeOf(STRING_OBJ(cstr_to_string(s))) {
     return STRING_OBJ(cstr_to_string(s));
@@ -60152,20 +61116,26 @@ pub inline fn STATIC_CSTR_TO_STRING(s: anytype) String {
         .size = @import("std").zig.c_translation.sizeof(s) - @as(c_int, 1),
     });
 }
+pub inline fn STATIC_CSTR_AS_OBJ(s: anytype) @TypeOf(STRING_OBJ(STATIC_CSTR_AS_STRING(s))) {
+    return STRING_OBJ(STATIC_CSTR_AS_STRING(s));
+}
+pub inline fn STATIC_CSTR_TO_OBJ(s: anytype) @TypeOf(STRING_OBJ(STATIC_CSTR_TO_STRING(s))) {
+    return STRING_OBJ(STATIC_CSTR_TO_STRING(s));
+}
 pub const api_init_boolean = "";
 pub const api_init_integer = "";
 pub const api_init_float = "";
 pub const api_init_buffer = "";
 pub const api_init_window = "";
 pub const api_init_tabpage = "";
-pub inline fn handle_get_buffer(h: anytype) @TypeOf(pmap_get(handle_T)(&buffer_handles, h)) {
-    return pmap_get(handle_T)(&buffer_handles, h);
+pub inline fn handle_get_buffer(h: anytype) @TypeOf(pmap_get(c_int)(&buffer_handles, h)) {
+    return pmap_get(c_int)(&buffer_handles, h);
 }
-pub inline fn handle_get_window(h: anytype) @TypeOf(pmap_get(handle_T)(&window_handles, h)) {
-    return pmap_get(handle_T)(&window_handles, h);
+pub inline fn handle_get_window(h: anytype) @TypeOf(pmap_get(c_int)(&window_handles, h)) {
+    return pmap_get(c_int)(&window_handles, h);
 }
-pub inline fn handle_get_tabpage(h: anytype) @TypeOf(pmap_get(handle_T)(&tabpage_handles, h)) {
-    return pmap_get(handle_T)(&tabpage_handles, h);
+pub inline fn handle_get_tabpage(h: anytype) @TypeOf(pmap_get(c_int)(&tabpage_handles, h)) {
+    return pmap_get(c_int)(&tabpage_handles, h);
 }
 pub const MAX_HL_ID = @as(c_int, 20000);
 pub const NVIM_INDENT_H = "";
@@ -60222,10 +61192,6 @@ pub const NVIM_MAPPING_H = "";
 pub const MAPTYPE_MAP = @as(c_int, 0);
 pub const MAPTYPE_UNMAP = @as(c_int, 1);
 pub const MAPTYPE_NOREMAP = @as(c_int, 2);
-pub const NVIM_MARK_H = "";
-pub inline fn CLEAR_FMARK(fmarkp_: anytype) @TypeOf(RESET_FMARK(fmarkp_, @import("std").mem.zeroInit(pos_T, .{ @as(c_int, 0), @as(c_int, 0), @as(c_int, 0) }), @as(c_int, 0), @import("std").zig.c_translation.cast(fmarkv_T, INIT_FMARKV))) {
-    return RESET_FMARK(fmarkp_, @import("std").mem.zeroInit(pos_T, .{ @as(c_int, 0), @as(c_int, 0), @as(c_int, 0) }), @as(c_int, 0), @import("std").zig.c_translation.cast(fmarkv_T, INIT_FMARKV));
-}
 pub const NVIM_MATCH_H = "";
 pub const NVIM_MATH_H = "";
 pub const NVIM_MEMFILE_H = "";
@@ -60235,24 +61201,6 @@ pub const MFS_FLUSH = @as(c_int, 4);
 pub const MFS_ZERO = @as(c_int, 8);
 pub const NVIM_MENU_H = "";
 pub const NVIM_MOUSE_H = "";
-pub const NVIM_WINDOW_H = "";
-pub const FNAME_MESS = @as(c_int, 1);
-pub const FNAME_EXP = @as(c_int, 2);
-pub const FNAME_HYP = @as(c_int, 4);
-pub const FNAME_INCL = @as(c_int, 8);
-pub const FNAME_REL = @as(c_int, 16);
-pub const FNAME_UNESC = @as(c_int, 32);
-pub const WSP_ROOM = @as(c_int, 0x01);
-pub const WSP_VERT = @as(c_int, 0x02);
-pub const WSP_HOR = @as(c_int, 0x04);
-pub const WSP_TOP = @as(c_int, 0x08);
-pub const WSP_BOT = @as(c_int, 0x10);
-pub const WSP_HELP = @as(c_int, 0x20);
-pub const WSP_BELOW = @as(c_int, 0x40);
-pub const WSP_ABOVE = @as(c_int, 0x80);
-pub const WSP_NEWLOC = @as(c_int, 0x100);
-pub const MIN_COLUMNS = @as(c_int, 12);
-pub const MIN_LINES = @as(c_int, 2);
 pub const NVIM_MOVE_H = "";
 pub const NVIM_MSGPACK_RPC_CHANNEL_H = "";
 pub const METHOD_MAXLEN = @as(c_int, 512);
@@ -60274,6 +61222,8 @@ pub inline fn MPACK_PARENT_NODE(n: anytype) @TypeOf(if ((n - @as(c_int, 1)).*.po
 pub inline fn MPACK_PARSER_STRUCT_SIZE(c: anytype) @TypeOf((@import("std").zig.c_translation.sizeof(mpack_node_t) * c) + @import("std").zig.c_translation.sizeof(mpack_one_parser_t)) {
     return (@import("std").zig.c_translation.sizeof(mpack_node_t) * c) + @import("std").zig.c_translation.sizeof(mpack_one_parser_t);
 }
+pub const NVIM_UI_CLIENT_H = "";
+pub const UI_CLIENT_STDIN_FD = @as(c_int, 3);
 pub const MAX_EXT_LEN = @as(c_int, 9);
 pub inline fn unpacker_closed(p: anytype) @TypeOf(p.*.state < @as(c_int, 0)) {
     return p.*.state < @as(c_int, 0);
@@ -60321,11 +61271,6 @@ pub const OP_FORMAT2 = @as(c_int, 26);
 pub const OP_FUNCTION = @as(c_int, 27);
 pub const OP_NR_ADD = @as(c_int, 28);
 pub const OP_NR_SUB = @as(c_int, 29);
-pub const NVIM_OPTION_H = "";
-pub const BCO_ENTER = @as(c_int, 1);
-pub const BCO_ALWAYS = @as(c_int, 2);
-pub const BCO_NOHELP = @as(c_int, 4);
-pub const MAX_NUMBERWIDTH = @as(c_int, 20);
 pub const NVIM_OPTIONSTR_H = "";
 pub const NVIM_PLINES_H = "";
 pub const NVIM_POPUPMENU_H = "";
@@ -60499,6 +61444,7 @@ pub const TERMKEY_VERSION_MINOR = @as(c_int, 22);
 pub const TERMKEY_CHECK_VERSION = termkey_check_version(TERMKEY_VERSION_MAJOR, TERMKEY_VERSION_MINOR);
 pub const TERMKEY_FORMAT_VIM = @import("std").zig.c_translation.cast(TermKeyFormat, TERMKEY_FORMAT_ALTISMETA | TERMKEY_FORMAT_WRAPBRACKET);
 pub const TERMKEY_FORMAT_URWID = @import("std").zig.c_translation.cast(TermKeyFormat, (((TERMKEY_FORMAT_LONGMOD | TERMKEY_FORMAT_ALTISMETA) | TERMKEY_FORMAT_LOWERMOD) | TERMKEY_FORMAT_SPACEMOD) | TERMKEY_FORMAT_LOWERSPACE);
+pub const NVIM_TUI_INPUT_DEFS_H = "";
 pub const NVIM_TUI_TUI_H = "";
 pub const NVIM_TUI_TERMINFO_H = "";
 pub const GUARD_UNIBILIUM_H_ = "";
@@ -60599,10 +61545,9 @@ pub const dict_watcher = struct_dict_watcher;
 pub const typval_vval_union = union_typval_vval_union;
 pub const ht_stack_S = struct_ht_stack_S;
 pub const list_stack_S = struct_list_stack_S;
-pub const msg_hist = struct_msg_hist;
 pub const attr_entry = struct_attr_entry;
-pub const undo_object = struct_undo_object;
 pub const mtnode_s = struct_mtnode_s;
+pub const undo_object = struct_undo_object;
 pub const vimoption = struct_vimoption;
 pub const foldinfo = struct_foldinfo;
 pub const stl_hlrec = struct_stl_hlrec;
@@ -60732,14 +61677,13 @@ pub const msglist = struct_msglist;
 pub const vim_exception = struct_vim_exception;
 pub const cleanup_stuff = struct_cleanup_stuff;
 pub const VimMenu = struct_VimMenu;
-pub const AutoCmd_S = struct_AutoCmd_S;
-pub const AutoPat_S = struct_AutoPat_S;
 pub const auto_event = enum_auto_event;
 pub const AutoPatCmd_S = struct_AutoPatCmd_S;
 pub const nvim_stats_s = struct_nvim_stats_s;
 pub const caller_scope = struct_caller_scope;
 pub const ui_t = struct_ui_t;
 pub const ui_event_callback = struct_ui_event_callback;
+pub const msg_hist = struct_msg_hist;
 pub const getf_values = enum_getf_values;
 pub const getf_retvalues = enum_getf_retvalues;
 pub const bln_values = enum_bln_values;
@@ -60763,8 +61707,10 @@ pub const termio = struct_termio;
 pub const cmdline_info = struct_cmdline_info;
 pub const hist_entry = struct_hist_entry;
 pub const cursor_entry = struct_cursor_entry;
-pub const signal_watcher = struct_signal_watcher;
 pub const time_watcher = struct_time_watcher;
+pub const lval_S = struct_lval_S;
+pub const funccal_entry = struct_funccal_entry;
+pub const signal_watcher = struct_signal_watcher;
 pub const RemapValues = enum_RemapValues;
 pub const ucmd = struct_ucmd;
 pub const map_arguments = struct_map_arguments;
