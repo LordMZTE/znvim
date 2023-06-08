@@ -1,9 +1,7 @@
 const std = @import("std");
 const c = @import("nvim_c");
 
-test {
-    std.testing.refAllDeclsRecursive(@This());
-}
+const log = std.log.scoped(.znvim);
 
 /// Convenient wrapper for nvim's Error
 pub const Error = struct {
@@ -161,6 +159,106 @@ pub const Dictionary = struct {
     }
 };
 
+/// Thin wrapper around TriState booleans
+pub const TriState = enum(c_int) {
+    none = c.kNone,
+    false = c.kFalse,
+    true = c.kTrue,
+
+    pub inline fn ofBool(b: bool) TriState {
+        return if (b) .true else .false;
+    }
+
+    pub inline fn fromNvim(n: c.TriState) TriState {
+        return @intToEnum(TriState, n);
+    }
+
+    pub inline fn toNvim(self: TriState) c.TriState {
+        return @enumToInt(self);
+    }
+};
+
+/// API for nvim options
+pub const OptionValue = union(enum) {
+    nil,
+    tristate: TriState,
+    number: i64,
+    string: []const u8,
+
+    /// Scope of an option
+    pub const Scope = enum(c_int) {
+        local = c.OPT_LOCAL,
+        global = c.OPT_GLOBAL,
+        both = 0,
+
+        pub inline fn toNvim(self: Scope) c_int {
+            return @enumToInt(self);
+        }
+    };
+
+    pub fn of(x: anytype) OptionValue {
+        if (@TypeOf(x) == TriState) {
+            return .{ .tristate = x };
+        } else {
+            return switch (@typeInfo(@TypeOf(x))) {
+                .Null => .nil,
+                .Bool => .{ .tristate = TriState.ofBool(x) },
+                .Int, .ComptimeInt => .{ .number = x },
+                .Pointer => .{ .string = @constCast(x) },
+                else => @compileError("Unsupported OptionValue type: " ++ @typeName(@TypeOf(x))),
+            };
+        }
+    }
+
+    pub fn fromNvim(v: c.OptVal) OptionValue {
+        return switch (v.type) {
+            c.kOptValTypeNil => .nil,
+            c.kOptValTypeBoolean => .{ .tristate = TriState.fromNvim(v.data.boolean) },
+            c.kOptValTypeNumber => .{ .number = v.data.number },
+            c.kOptValTypeString => .{ .string = v.data.string.data[0..v.data.string.size] },
+            else => unreachable,
+        };
+    }
+
+    pub fn toNvim(self: OptionValue) c.OptVal {
+        return switch (self) {
+            .nil => std.mem.zeroInit(c.OptVal, .{ .type = c.kOptValTypeNil }),
+            .tristate => |b| .{
+                .type = c.kOptValTypeBoolean,
+                .data = .{ .boolean = b.toNvim() },
+            },
+            .number => |n| .{
+                .type = c.kOptValTypeNumber,
+                .data = .{ .number = n },
+            },
+            .string => |s| .{
+                .type = c.kOptValTypeString,
+                .data = .{ .string = nvimString(@constCast(s)) },
+            },
+        };
+    }
+
+    /// Gets the option for a given scope and key.
+    pub inline fn get(key: [*:0]const u8, scope: Scope) OptionValue {
+        return OptionValue.fromNvim(c.get_option_value(key, null, scope.toNvim(), null));
+    }
+
+    /// Sets the option to this value for a given key and scope.
+    /// Returns null on success and an error message on error.
+    pub inline fn set(self: OptionValue, key: [*:0]const u8, scope: Scope) ?[*:0]const u8 {
+        return c.set_option_value(key, self.toNvim(), scope.toNvim());
+    }
+
+    /// Sets the option to this value for a given key and scope.
+    /// In case of an error, log that error and return error.SetOption
+    pub fn setLog(self: OptionValue, key: [*:0]const u8, scope: Scope) !void {
+        if (self.set(key, scope)) |e| {
+            log.err("setting option: {s}", .{e});
+            return error.SetOption;
+        }
+    }
+};
+
 test "Dictionary" {
     var dict = Dictionary{ .alloc = std.testing.allocator };
     defer dict.deinit();
@@ -168,4 +266,12 @@ test "Dictionary" {
     try dict.push(@constCast("string"), nvimObject(@as([]const u8, "Hello, World!")));
     try dict.push(@constCast("number"), nvimObject(@as(c_int, 42)));
     try dict.push(@constCast("bool"), nvimObject(true));
+}
+
+test "OptionValue.of" {
+    try std.testing.expectEqual(OptionValue.nil, OptionValue.of(null));
+    try std.testing.expectEqual(OptionValue{ .tristate = .true }, OptionValue.of(true));
+    try std.testing.expectEqual(OptionValue{ .tristate = .none }, OptionValue.of(TriState.none));
+    try std.testing.expectEqual(OptionValue{ .number = 42 }, OptionValue.of(42));
+    try std.testing.expectEqual(OptionValue{ .string = "Hello" }, OptionValue.of("Hello"));
 }
