@@ -2264,7 +2264,7 @@ pub const struct_memfile = extern struct {
     mf_neg_count: blocknr_T,
     mf_infile_count: blocknr_T,
     mf_page_size: c_uint,
-    mf_dirty: bool,
+    mf_dirty: mfdirty_T,
 };
 pub const memfile_T = struct_memfile;
 pub const struct_info_pointer = extern struct {
@@ -2578,8 +2578,9 @@ pub const struct_window_S = extern struct {
     w_stl_line_count: linenr_T,
     w_stl_topfill: c_int,
     w_stl_empty: u8,
-    w_stl_state: c_int,
     w_stl_recording: c_int,
+    w_stl_state: c_int,
+    w_stl_visual_mode: c_int,
     w_alt_fnum: c_int,
     w_alist: [*c]alist_T,
     w_arg_idx: c_int,
@@ -3335,12 +3336,45 @@ pub const ListSortItem = extern struct {
     idx: c_int,
 };
 pub const ListSorter = ?*const fn (?*const anyopaque, ?*const anyopaque) callconv(.C) c_int;
+pub const VirtTextChunk = extern struct {
+    text: [*c]u8,
+    hl_id: c_int,
+};
+pub const VirtText = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]VirtTextChunk,
+};
+const union_unnamed_51 = extern union {
+    splice: ExtmarkSplice,
+    move: ExtmarkMove,
+    savepos: ExtmarkSavePos,
+};
+pub const struct_undo_object = extern struct {
+    type: UndoObjectType,
+    data: union_unnamed_51,
+};
+pub const ExtmarkUndoObject = struct_undo_object;
+pub const extmark_undo_vec_t = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]ExtmarkUndoObject,
+};
+pub const kExtmarkNOOP: c_int = 0;
+pub const kExtmarkUndo: c_int = 1;
+pub const kExtmarkNoUndo: c_int = 2;
+pub const kExtmarkUndoNoRedo: c_int = 3;
+pub const ExtmarkOp = c_uint;
+pub const kDecorLevelNone: c_int = 0;
+pub const kDecorLevelVisible: c_int = 1;
+pub const kDecorLevelVirtLine: c_int = 2;
+pub const DecorLevel = c_uint;
 pub const kZIndexDefaultGrid: c_int = 0;
 pub const kZIndexFloatDefault: c_int = 50;
 pub const kZIndexPopupMenu: c_int = 100;
 pub const kZIndexMessages: c_int = 200;
 pub const kZIndexCmdlinePopupMenu: c_int = 250;
-const enum_unnamed_51 = c_uint;
+const enum_unnamed_52 = c_uint;
 pub const GridLineEvent = extern struct {
     args: [3]c_int,
     icell: c_int,
@@ -4139,7 +4173,7 @@ pub const mtpos_t = extern struct {
     row: i32,
     col: i32,
 };
-const struct_unnamed_52 = extern struct {
+const struct_unnamed_53 = extern struct {
     oldcol: c_int,
     i: c_int,
 };
@@ -4148,7 +4182,7 @@ pub const MarkTreeIter = extern struct {
     lvl: c_int,
     node: [*c]mtnode_t,
     i: c_int,
-    s: [20]struct_unnamed_52,
+    s: [20]struct_unnamed_53,
     intersect_idx: usize,
     intersect_pos: mtpos_t,
 };
@@ -4239,39 +4273,6 @@ pub extern fn marktree_check(b: [*c]MarkTree) void;
 pub extern fn marktree_check_node(b: [*c]MarkTree, x: [*c]mtnode_t, last: [*c]mtpos_t, last_right: [*c]bool) usize;
 pub extern fn mt_inspect_rec(b: [*c]MarkTree) [*c]u8;
 pub extern fn mt_inspect_node(b: [*c]MarkTree, ga: [*c]garray_T, n: [*c]mtnode_t, off: mtpos_t) void;
-pub const VirtTextChunk = extern struct {
-    text: [*c]u8,
-    hl_id: c_int,
-};
-pub const VirtText = extern struct {
-    size: usize,
-    capacity: usize,
-    items: [*c]VirtTextChunk,
-};
-const union_unnamed_53 = extern union {
-    splice: ExtmarkSplice,
-    move: ExtmarkMove,
-    savepos: ExtmarkSavePos,
-};
-pub const struct_undo_object = extern struct {
-    type: UndoObjectType,
-    data: union_unnamed_53,
-};
-pub const ExtmarkUndoObject = struct_undo_object;
-pub const extmark_undo_vec_t = extern struct {
-    size: usize,
-    capacity: usize,
-    items: [*c]ExtmarkUndoObject,
-};
-pub const kExtmarkNOOP: c_int = 0;
-pub const kExtmarkUndo: c_int = 1;
-pub const kExtmarkNoUndo: c_int = 2;
-pub const kExtmarkUndoNoRedo: c_int = 3;
-pub const ExtmarkOp = c_uint;
-pub const kDecorLevelNone: c_int = 0;
-pub const kDecorLevelVisible: c_int = 1;
-pub const kDecorLevelVirtLine: c_int = 2;
-pub const DecorLevel = c_uint;
 pub const OPT_FREE: c_int = 1;
 pub const OPT_GLOBAL: c_int = 2;
 pub const OPT_LOCAL: c_int = 4;
@@ -4846,6 +4847,20 @@ pub const struct_vimoption = extern struct {
     last_set: LastSet,
 };
 pub const vimoption_T = struct_vimoption;
+pub const kOptValTypeNil: c_int = 0;
+pub const kOptValTypeBoolean: c_int = 1;
+pub const kOptValTypeNumber: c_int = 2;
+pub const kOptValTypeString: c_int = 3;
+pub const OptValType = c_uint;
+const union_unnamed_60 = extern union {
+    boolean: TriState,
+    number: Integer,
+    string: String,
+};
+pub const OptVal = extern struct {
+    type: OptValType,
+    data: union_unnamed_60,
+};
 pub const struct_foldinfo = extern struct {
     fi_lnum: linenr_T,
     fi_level: c_int,
@@ -4866,9 +4881,9 @@ pub const kStlClickDisabled: c_int = 0;
 pub const kStlClickTabSwitch: c_int = 1;
 pub const kStlClickTabClose: c_int = 2;
 pub const kStlClickFuncRun: c_int = 3;
-const enum_unnamed_60 = c_uint;
+const enum_unnamed_61 = c_uint;
 pub const StlClickDefinition = extern struct {
-    type: enum_unnamed_60,
+    type: enum_unnamed_61,
     tabnr: c_int,
     func: [*c]u8,
 };
@@ -4889,13 +4904,13 @@ pub const Highlight: c_int = 4;
 pub const TabPage: c_int = 5;
 pub const ClickFunc: c_int = 6;
 pub const Trunc: c_int = 7;
-const enum_unnamed_61 = c_uint;
+const enum_unnamed_62 = c_uint;
 pub const struct_stl_item = extern struct {
     start: [*c]u8,
     cmd: [*c]u8,
     minwid: c_int,
     maxwid: c_int,
-    type: enum_unnamed_61,
+    type: enum_unnamed_62,
 };
 pub const stl_item_t = struct_stl_item;
 pub const struct_statuscol = extern struct {
@@ -4926,6 +4941,10 @@ pub const struct_mf_blocknr_trans_item = extern struct {
     nt_new_bnum: blocknr_T,
 };
 pub const mf_blocknr_trans_item_T = struct_mf_blocknr_trans_item;
+pub const MF_DIRTY_NO: c_int = 0;
+pub const MF_DIRTY_YES: c_int = 1;
+pub const MF_DIRTY_YES_NOSYNC: c_int = 2;
+pub const mfdirty_T = c_uint;
 pub extern fn __errno_location() [*c]c_int;
 pub const struct_flock = extern struct {
     l_type: c_short,
@@ -4956,7 +4975,7 @@ pub const DT_REG: c_int = 8;
 pub const DT_LNK: c_int = 10;
 pub const DT_SOCK: c_int = 12;
 pub const DT_WHT: c_int = 14;
-const enum_unnamed_62 = c_uint;
+const enum_unnamed_63 = c_uint;
 pub const struct___dirstream = opaque {};
 pub const DIR = struct___dirstream;
 pub extern fn closedir(__dirp: ?*DIR) c_int;
@@ -5016,7 +5035,7 @@ pub const MSG_BATCH: c_int = 262144;
 pub const MSG_ZEROCOPY: c_int = 67108864;
 pub const MSG_FASTOPEN: c_int = 536870912;
 pub const MSG_CMSG_CLOEXEC: c_int = 1073741824;
-const enum_unnamed_63 = c_uint;
+const enum_unnamed_64 = c_uint;
 pub const struct_msghdr = extern struct {
     msg_name: ?*anyopaque,
     msg_namelen: socklen_t,
@@ -5038,7 +5057,7 @@ pub const struct_cmsghdr = extern struct {
 };
 pub extern fn __cmsg_nxthdr(__mhdr: [*c]struct_msghdr, __cmsg: [*c]struct_cmsghdr) [*c]struct_cmsghdr;
 pub const SCM_RIGHTS: c_int = 1;
-const enum_unnamed_64 = c_uint;
+const enum_unnamed_65 = c_uint;
 pub const __kernel_fd_set = extern struct {
     fds_bits: [16]c_ulong,
 };
@@ -5088,7 +5107,7 @@ pub const struct_osockaddr = extern struct {
 pub const SHUT_RD: c_int = 0;
 pub const SHUT_WR: c_int = 1;
 pub const SHUT_RDWR: c_int = 2;
-const enum_unnamed_65 = c_uint;
+const enum_unnamed_66 = c_uint;
 pub extern fn socket(__domain: c_int, __type: c_int, __protocol: c_int) c_int;
 pub extern fn socketpair(__domain: c_int, __type: c_int, __protocol: c_int, __fds: [*c]c_int) c_int;
 pub extern fn bind(__fd: c_int, __addr: [*c]const struct_sockaddr, __len: socklen_t) c_int;
@@ -5150,7 +5169,7 @@ pub const IPPROTO_ETHERNET: c_int = 143;
 pub const IPPROTO_RAW: c_int = 255;
 pub const IPPROTO_MPTCP: c_int = 262;
 pub const IPPROTO_MAX: c_int = 263;
-const enum_unnamed_66 = c_uint;
+const enum_unnamed_67 = c_uint;
 pub const IPPROTO_HOPOPTS: c_int = 0;
 pub const IPPROTO_ROUTING: c_int = 43;
 pub const IPPROTO_FRAGMENT: c_int = 44;
@@ -5158,7 +5177,7 @@ pub const IPPROTO_ICMPV6: c_int = 58;
 pub const IPPROTO_NONE: c_int = 59;
 pub const IPPROTO_DSTOPTS: c_int = 60;
 pub const IPPROTO_MH: c_int = 135;
-const enum_unnamed_67 = c_uint;
+const enum_unnamed_68 = c_uint;
 pub const in_port_t = u16;
 pub const IPPORT_ECHO: c_int = 7;
 pub const IPPORT_DISCARD: c_int = 9;
@@ -5186,14 +5205,14 @@ pub const IPPORT_WHOSERVER: c_int = 513;
 pub const IPPORT_ROUTESERVER: c_int = 520;
 pub const IPPORT_RESERVED: c_int = 1024;
 pub const IPPORT_USERRESERVED: c_int = 5000;
-const enum_unnamed_68 = c_uint;
-const union_unnamed_69 = extern union {
+const enum_unnamed_69 = c_uint;
+const union_unnamed_70 = extern union {
     __u6_addr8: [16]u8,
     __u6_addr16: [8]u16,
     __u6_addr32: [4]u32,
 };
 pub const struct_in6_addr = extern struct {
-    __in6_u: union_unnamed_69,
+    __in6_u: union_unnamed_70,
 };
 pub extern const in6addr_any: struct_in6_addr;
 pub extern const in6addr_loopback: struct_in6_addr;
@@ -5258,14 +5277,14 @@ pub extern fn htons(__hostshort: u16) u16;
 pub extern fn bindresvport(__sockfd: c_int, __sock_in: [*c]struct_sockaddr_in) c_int;
 pub extern fn bindresvport6(__sockfd: c_int, __sock_in: [*c]struct_sockaddr_in6) c_int;
 pub const tcp_seq = u32; // /usr/include/netinet/tcp.h:109:10: warning: struct demoted to opaque type - has bitfield
-const struct_unnamed_71 = opaque {}; // /usr/include/netinet/tcp.h:134:11: warning: struct demoted to opaque type - has bitfield
-const struct_unnamed_72 = opaque {};
-const union_unnamed_70 = extern union {
-    unnamed_0: struct_unnamed_71,
-    unnamed_1: struct_unnamed_72,
+const struct_unnamed_72 = opaque {}; // /usr/include/netinet/tcp.h:134:11: warning: struct demoted to opaque type - has bitfield
+const struct_unnamed_73 = opaque {};
+const union_unnamed_71 = extern union {
+    unnamed_0: struct_unnamed_72,
+    unnamed_1: struct_unnamed_73,
 };
 pub const struct_tcphdr = extern struct {
-    unnamed_0: union_unnamed_70,
+    unnamed_0: union_unnamed_71,
 };
 pub const TCP_ESTABLISHED: c_int = 1;
 pub const TCP_SYN_SENT: c_int = 2;
@@ -5278,7 +5297,7 @@ pub const TCP_CLOSE_WAIT: c_int = 8;
 pub const TCP_LAST_ACK: c_int = 9;
 pub const TCP_LISTEN: c_int = 10;
 pub const TCP_CLOSING: c_int = 11;
-const enum_unnamed_73 = c_uint;
+const enum_unnamed_74 = c_uint;
 pub const TCP_CA_Open: c_int = 0;
 pub const TCP_CA_Disorder: c_int = 1;
 pub const TCP_CA_CWR: c_int = 2;
@@ -5302,7 +5321,7 @@ pub const TCP_NO_QUEUE: c_int = 0;
 pub const TCP_RECV_QUEUE: c_int = 1;
 pub const TCP_SEND_QUEUE: c_int = 2;
 pub const TCP_QUEUES_NR: c_int = 3;
-const enum_unnamed_74 = c_uint;
+const enum_unnamed_75 = c_uint;
 pub const struct_tcp_cookie_transactions = extern struct {
     tcpct_flags: u16,
     __tcpct_pad1: u8,
@@ -5500,7 +5519,7 @@ pub const struct___jmp_buf_tag = extern struct {
 };
 pub const PTHREAD_CREATE_JOINABLE: c_int = 0;
 pub const PTHREAD_CREATE_DETACHED: c_int = 1;
-const enum_unnamed_75 = c_uint;
+const enum_unnamed_76 = c_uint;
 pub const PTHREAD_MUTEX_TIMED_NP: c_int = 0;
 pub const PTHREAD_MUTEX_RECURSIVE_NP: c_int = 1;
 pub const PTHREAD_MUTEX_ERRORCHECK_NP: c_int = 2;
@@ -5509,30 +5528,30 @@ pub const PTHREAD_MUTEX_NORMAL: c_int = 0;
 pub const PTHREAD_MUTEX_RECURSIVE: c_int = 1;
 pub const PTHREAD_MUTEX_ERRORCHECK: c_int = 2;
 pub const PTHREAD_MUTEX_DEFAULT: c_int = 0;
-const enum_unnamed_76 = c_uint;
+const enum_unnamed_77 = c_uint;
 pub const PTHREAD_MUTEX_STALLED: c_int = 0;
 pub const PTHREAD_MUTEX_STALLED_NP: c_int = 0;
 pub const PTHREAD_MUTEX_ROBUST: c_int = 1;
 pub const PTHREAD_MUTEX_ROBUST_NP: c_int = 1;
-const enum_unnamed_77 = c_uint;
+const enum_unnamed_78 = c_uint;
 pub const PTHREAD_PRIO_NONE: c_int = 0;
 pub const PTHREAD_PRIO_INHERIT: c_int = 1;
 pub const PTHREAD_PRIO_PROTECT: c_int = 2;
-const enum_unnamed_78 = c_uint;
+const enum_unnamed_79 = c_uint;
 pub const PTHREAD_RWLOCK_PREFER_READER_NP: c_int = 0;
 pub const PTHREAD_RWLOCK_PREFER_WRITER_NP: c_int = 1;
 pub const PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP: c_int = 2;
 pub const PTHREAD_RWLOCK_DEFAULT_NP: c_int = 0;
-const enum_unnamed_79 = c_uint;
+const enum_unnamed_80 = c_uint;
 pub const PTHREAD_INHERIT_SCHED: c_int = 0;
 pub const PTHREAD_EXPLICIT_SCHED: c_int = 1;
-const enum_unnamed_80 = c_uint;
+const enum_unnamed_81 = c_uint;
 pub const PTHREAD_SCOPE_SYSTEM: c_int = 0;
 pub const PTHREAD_SCOPE_PROCESS: c_int = 1;
-const enum_unnamed_81 = c_uint;
+const enum_unnamed_82 = c_uint;
 pub const PTHREAD_PROCESS_PRIVATE: c_int = 0;
 pub const PTHREAD_PROCESS_SHARED: c_int = 1;
-const enum_unnamed_82 = c_uint;
+const enum_unnamed_83 = c_uint;
 pub const struct__pthread_cleanup_buffer = extern struct {
     __routine: ?*const fn (?*anyopaque) callconv(.C) void,
     __arg: ?*anyopaque,
@@ -5541,10 +5560,10 @@ pub const struct__pthread_cleanup_buffer = extern struct {
 };
 pub const PTHREAD_CANCEL_ENABLE: c_int = 0;
 pub const PTHREAD_CANCEL_DISABLE: c_int = 1;
-const enum_unnamed_83 = c_uint;
+const enum_unnamed_84 = c_uint;
 pub const PTHREAD_CANCEL_DEFERRED: c_int = 0;
 pub const PTHREAD_CANCEL_ASYNCHRONOUS: c_int = 1;
-const enum_unnamed_84 = c_uint;
+const enum_unnamed_85 = c_uint;
 pub extern fn pthread_create(noalias __newthread: [*c]pthread_t, noalias __attr: [*c]const pthread_attr_t, __start_routine: ?*const fn (?*anyopaque) callconv(.C) ?*anyopaque, noalias __arg: ?*anyopaque) c_int;
 pub extern fn pthread_exit(__retval: ?*anyopaque) noreturn;
 pub extern fn pthread_join(__th: pthread_t, __thread_return: [*c]?*anyopaque) c_int;
@@ -5663,7 +5682,7 @@ pub extern fn pthread_getspecific(__key: pthread_key_t) ?*anyopaque;
 pub extern fn pthread_setspecific(__key: pthread_key_t, __pointer: ?*const anyopaque) c_int;
 pub extern fn pthread_getcpuclockid(__thread_id: pthread_t, __clock_id: [*c]__clockid_t) c_int;
 pub extern fn pthread_atfork(__prepare: ?*const fn () callconv(.C) void, __parent: ?*const fn () callconv(.C) void, __child: ?*const fn () callconv(.C) void) c_int;
-const union_unnamed_85 = extern union {
+const union_unnamed_86 = extern union {
     unused: ?*anyopaque,
     count: c_uint,
 };
@@ -5679,7 +5698,7 @@ pub const struct_uv__io_s = extern struct {
 pub const uv__io_t = struct_uv__io_s;
 pub const uv_mutex_t = pthread_mutex_t;
 pub const uv_loop_t = struct_uv_loop_s;
-const union_unnamed_86 = extern union {
+const union_unnamed_87 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -5689,13 +5708,13 @@ pub const struct_uv_handle_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_86,
+    u: union_unnamed_87,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
 };
 pub const uv_handle_t = struct_uv_handle_s;
 pub const uv_close_cb = ?*const fn ([*c]uv_handle_t) callconv(.C) void;
-const union_unnamed_87 = extern union {
+const union_unnamed_88 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -5706,7 +5725,7 @@ pub const struct_uv_async_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_87,
+    u: union_unnamed_88,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     async_cb: uv_async_cb,
@@ -5715,16 +5734,16 @@ pub const struct_uv_async_s = extern struct {
 };
 pub const uv_async_t = struct_uv_async_s;
 pub const uv_rwlock_t = pthread_rwlock_t;
-const struct_unnamed_88 = extern struct {
+const struct_unnamed_89 = extern struct {
     min: ?*anyopaque,
     nelts: c_uint,
 };
-const union_unnamed_89 = extern union {
+const union_unnamed_90 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
 pub const uv_signal_cb = ?*const fn ([*c]uv_signal_t, c_int) callconv(.C) void;
-const struct_unnamed_90 = extern struct {
+const struct_unnamed_91 = extern struct {
     rbe_left: [*c]struct_uv_signal_s,
     rbe_right: [*c]struct_uv_signal_s,
     rbe_parent: [*c]struct_uv_signal_s,
@@ -5736,12 +5755,12 @@ pub const struct_uv_signal_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_89,
+    u: union_unnamed_90,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     signal_cb: uv_signal_cb,
     signum: c_int,
-    tree_entry: struct_unnamed_90,
+    tree_entry: struct_unnamed_91,
     caught_signals: c_uint,
     dispatched_signals: c_uint,
 };
@@ -5750,7 +5769,7 @@ pub const struct_uv_loop_s = extern struct {
     data: ?*anyopaque,
     active_handles: c_uint,
     handle_queue: [2]?*anyopaque,
-    active_reqs: union_unnamed_85,
+    active_reqs: union_unnamed_86,
     internal_fields: ?*anyopaque,
     stop_flag: c_uint,
     flags: c_ulong,
@@ -5773,7 +5792,7 @@ pub const struct_uv_loop_s = extern struct {
     async_unused: ?*const fn () callconv(.C) void,
     async_io_watcher: uv__io_t,
     async_wfd: c_int,
-    timer_heap: struct_unnamed_88,
+    timer_heap: struct_unnamed_89,
     timer_counter: u64,
     time: u64,
     signal_pipefd: [2]c_int,
@@ -5941,7 +5960,7 @@ pub const struct_uv_dir_s = extern struct {
     dir: ?*DIR,
 };
 pub const uv_dir_t = struct_uv_dir_s;
-const union_unnamed_91 = extern union {
+const union_unnamed_92 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -5974,32 +5993,6 @@ pub const struct_uv_stream_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_91,
-    next_closing: [*c]uv_handle_t,
-    flags: c_uint,
-    write_queue_size: usize,
-    alloc_cb: uv_alloc_cb,
-    read_cb: uv_read_cb,
-    connect_req: [*c]uv_connect_t,
-    shutdown_req: [*c]uv_shutdown_t,
-    io_watcher: uv__io_t,
-    write_queue: [2]?*anyopaque,
-    write_completed_queue: [2]?*anyopaque,
-    connection_cb: uv_connection_cb,
-    delayed_error: c_int,
-    accepted_fd: c_int,
-    queued_fds: ?*anyopaque,
-};
-const union_unnamed_92 = extern union {
-    fd: c_int,
-    reserved: [4]?*anyopaque,
-};
-pub const struct_uv_tcp_s = extern struct {
-    data: ?*anyopaque,
-    loop: [*c]uv_loop_t,
-    type: uv_handle_type,
-    close_cb: uv_close_cb,
-    handle_queue: [2]?*anyopaque,
     u: union_unnamed_92,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
@@ -6016,41 +6009,17 @@ pub const struct_uv_tcp_s = extern struct {
     accepted_fd: c_int,
     queued_fds: ?*anyopaque,
 };
-pub const uv_tcp_t = struct_uv_tcp_s;
 const union_unnamed_93 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
-pub const uv_udp_t = struct_uv_udp_s;
-pub const uv_udp_recv_cb = ?*const fn ([*c]uv_udp_t, isize, [*c]const uv_buf_t, [*c]const struct_sockaddr, c_uint) callconv(.C) void;
-pub const struct_uv_udp_s = extern struct {
+pub const struct_uv_tcp_s = extern struct {
     data: ?*anyopaque,
     loop: [*c]uv_loop_t,
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
     u: union_unnamed_93,
-    next_closing: [*c]uv_handle_t,
-    flags: c_uint,
-    send_queue_size: usize,
-    send_queue_count: usize,
-    alloc_cb: uv_alloc_cb,
-    recv_cb: uv_udp_recv_cb,
-    io_watcher: uv__io_t,
-    write_queue: [2]?*anyopaque,
-    write_completed_queue: [2]?*anyopaque,
-};
-const union_unnamed_94 = extern union {
-    fd: c_int,
-    reserved: [4]?*anyopaque,
-};
-pub const struct_uv_pipe_s = extern struct {
-    data: ?*anyopaque,
-    loop: [*c]uv_loop_t,
-    type: uv_handle_type,
-    close_cb: uv_close_cb,
-    handle_queue: [2]?*anyopaque,
-    u: union_unnamed_94,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     write_queue_size: usize,
@@ -6065,15 +6034,36 @@ pub const struct_uv_pipe_s = extern struct {
     delayed_error: c_int,
     accepted_fd: c_int,
     queued_fds: ?*anyopaque,
-    ipc: c_int,
-    pipe_fname: [*c]const u8,
 };
-pub const uv_pipe_t = struct_uv_pipe_s;
+pub const uv_tcp_t = struct_uv_tcp_s;
+const union_unnamed_94 = extern union {
+    fd: c_int,
+    reserved: [4]?*anyopaque,
+};
+pub const uv_udp_t = struct_uv_udp_s;
+pub const uv_udp_recv_cb = ?*const fn ([*c]uv_udp_t, isize, [*c]const uv_buf_t, [*c]const struct_sockaddr, c_uint) callconv(.C) void;
+pub const struct_uv_udp_s = extern struct {
+    data: ?*anyopaque,
+    loop: [*c]uv_loop_t,
+    type: uv_handle_type,
+    close_cb: uv_close_cb,
+    handle_queue: [2]?*anyopaque,
+    u: union_unnamed_94,
+    next_closing: [*c]uv_handle_t,
+    flags: c_uint,
+    send_queue_size: usize,
+    send_queue_count: usize,
+    alloc_cb: uv_alloc_cb,
+    recv_cb: uv_udp_recv_cb,
+    io_watcher: uv__io_t,
+    write_queue: [2]?*anyopaque,
+    write_completed_queue: [2]?*anyopaque,
+};
 const union_unnamed_95 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
-pub const struct_uv_tty_s = extern struct {
+pub const struct_uv_pipe_s = extern struct {
     data: ?*anyopaque,
     loop: [*c]uv_loop_t,
     type: uv_handle_type,
@@ -6094,11 +6084,40 @@ pub const struct_uv_tty_s = extern struct {
     delayed_error: c_int,
     accepted_fd: c_int,
     queued_fds: ?*anyopaque,
+    ipc: c_int,
+    pipe_fname: [*c]const u8,
+};
+pub const uv_pipe_t = struct_uv_pipe_s;
+const union_unnamed_96 = extern union {
+    fd: c_int,
+    reserved: [4]?*anyopaque,
+};
+pub const struct_uv_tty_s = extern struct {
+    data: ?*anyopaque,
+    loop: [*c]uv_loop_t,
+    type: uv_handle_type,
+    close_cb: uv_close_cb,
+    handle_queue: [2]?*anyopaque,
+    u: union_unnamed_96,
+    next_closing: [*c]uv_handle_t,
+    flags: c_uint,
+    write_queue_size: usize,
+    alloc_cb: uv_alloc_cb,
+    read_cb: uv_read_cb,
+    connect_req: [*c]uv_connect_t,
+    shutdown_req: [*c]uv_shutdown_t,
+    io_watcher: uv__io_t,
+    write_queue: [2]?*anyopaque,
+    write_completed_queue: [2]?*anyopaque,
+    connection_cb: uv_connection_cb,
+    delayed_error: c_int,
+    accepted_fd: c_int,
+    queued_fds: ?*anyopaque,
     orig_termios: struct_termios,
     mode: c_int,
 };
 pub const uv_tty_t = struct_uv_tty_s;
-const union_unnamed_96 = extern union {
+const union_unnamed_97 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6110,13 +6129,13 @@ pub const struct_uv_poll_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_96,
+    u: union_unnamed_97,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     poll_cb: uv_poll_cb,
     io_watcher: uv__io_t,
 };
-const union_unnamed_97 = extern union {
+const union_unnamed_98 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6128,7 +6147,7 @@ pub const struct_uv_timer_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_97,
+    u: union_unnamed_98,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     timer_cb: uv_timer_cb,
@@ -6137,7 +6156,7 @@ pub const struct_uv_timer_s = extern struct {
     repeat: u64,
     start_id: u64,
 };
-const union_unnamed_98 = extern union {
+const union_unnamed_99 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6149,13 +6168,13 @@ pub const struct_uv_prepare_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_98,
+    u: union_unnamed_99,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     prepare_cb: uv_prepare_cb,
     queue: [2]?*anyopaque,
 };
-const union_unnamed_99 = extern union {
+const union_unnamed_100 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6167,13 +6186,13 @@ pub const struct_uv_check_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_99,
+    u: union_unnamed_100,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     check_cb: uv_check_cb,
     queue: [2]?*anyopaque,
 };
-const union_unnamed_100 = extern union {
+const union_unnamed_101 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6185,13 +6204,13 @@ pub const struct_uv_idle_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_100,
+    u: union_unnamed_101,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     idle_cb: uv_idle_cb,
     queue: [2]?*anyopaque,
 };
-const union_unnamed_101 = extern union {
+const union_unnamed_102 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6203,7 +6222,7 @@ pub const struct_uv_process_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_101,
+    u: union_unnamed_102,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     exit_cb: uv_exit_cb,
@@ -6211,7 +6230,7 @@ pub const struct_uv_process_s = extern struct {
     queue: [2]?*anyopaque,
     status: c_int,
 };
-const union_unnamed_102 = extern union {
+const union_unnamed_103 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6223,7 +6242,7 @@ pub const struct_uv_fs_event_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_102,
+    u: union_unnamed_103,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     path: [*c]u8,
@@ -6231,7 +6250,7 @@ pub const struct_uv_fs_event_s = extern struct {
     watchers: [2]?*anyopaque,
     wd: c_int,
 };
-const union_unnamed_103 = extern union {
+const union_unnamed_104 = extern union {
     fd: c_int,
     reserved: [4]?*anyopaque,
 };
@@ -6241,7 +6260,7 @@ pub const struct_uv_fs_poll_s = extern struct {
     type: uv_handle_type,
     close_cb: uv_close_cb,
     handle_queue: [2]?*anyopaque,
-    u: union_unnamed_103,
+    u: union_unnamed_104,
     next_closing: [*c]uv_handle_t,
     flags: c_uint,
     poll_ctx: ?*anyopaque,
@@ -6385,11 +6404,11 @@ pub const struct_uv_cpu_info_s = extern struct {
     cpu_times: struct_uv_cpu_times_s,
 };
 pub const uv_cpu_info_t = struct_uv_cpu_info_s;
-const union_unnamed_104 = extern union {
+const union_unnamed_105 = extern union {
     address4: struct_sockaddr_in,
     address6: struct_sockaddr_in6,
 };
-const union_unnamed_105 = extern union {
+const union_unnamed_106 = extern union {
     netmask4: struct_sockaddr_in,
     netmask6: struct_sockaddr_in6,
 };
@@ -6397,8 +6416,8 @@ pub const struct_uv_interface_address_s = extern struct {
     name: [*c]u8,
     phys_addr: [6]u8,
     is_internal: c_int,
-    address: union_unnamed_104,
-    netmask: union_unnamed_105,
+    address: union_unnamed_105,
+    netmask: union_unnamed_106,
 };
 pub const uv_interface_address_t = struct_uv_interface_address_s;
 pub const struct_uv_passwd_s = extern struct {
@@ -6633,13 +6652,13 @@ pub const UV_WRITABLE_PIPE: c_int = 32;
 pub const UV_NONBLOCK_PIPE: c_int = 64;
 pub const UV_OVERLAPPED_PIPE: c_int = 64;
 pub const uv_stdio_flags = c_uint;
-const union_unnamed_106 = extern union {
+const union_unnamed_107 = extern union {
     stream: [*c]uv_stream_t,
     fd: c_int,
 };
 pub const struct_uv_stdio_container_s = extern struct {
     flags: uv_stdio_flags,
-    data: union_unnamed_106,
+    data: union_unnamed_107,
 };
 pub const uv_stdio_container_t = struct_uv_stdio_container_s;
 pub const struct_uv_process_options_s = extern struct {
@@ -7051,14 +7070,14 @@ pub const struct_buf_state = extern struct {
     bs_extmatch: [*c]reg_extmatch_T,
 };
 pub const bufstate_T = struct_buf_state;
-const union_unnamed_107 = extern union {
+const union_unnamed_108 = extern union {
     sst_stack: [7]bufstate_T,
     sst_ga: garray_T,
 };
 pub const struct_syn_state = extern struct {
     sst_next: [*c]synstate_T,
     sst_lnum: linenr_T,
-    sst_union: union_unnamed_107,
+    sst_union: union_unnamed_108,
     sst_next_flags: c_int,
     sst_stacksize: c_int,
     sst_next_list: [*c]i16,
@@ -7324,7 +7343,7 @@ pub const llpos_T = extern struct {
 pub const FloatAnchor = c_int;
 pub const kFloatAnchorEast: c_int = 1;
 pub const kFloatAnchorSouth: c_int = 2;
-const enum_unnamed_108 = c_uint;
+const enum_unnamed_109 = c_uint;
 pub const float_anchor_str: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
     .name = "float_anchor_str",
 });
@@ -7434,18 +7453,18 @@ pub const DecorRange = extern struct {
     decor: Decoration,
     attr_id: c_int,
     virt_text_owned: bool,
-    win_col: c_int,
+    draw_col: c_int,
     ns_id: u64,
     mark_id: u64,
 };
-const struct_unnamed_109 = extern struct {
+const struct_unnamed_110 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]DecorRange,
 };
 pub const DecorState = extern struct {
     itr: [1]MarkTreeIter,
-    active: struct_unnamed_109,
+    active: struct_unnamed_110,
     win: [*c]win_T,
     top_row: c_int,
     row: c_int,
@@ -7473,6 +7492,7 @@ pub extern fn clear_virttext(text: [*c]VirtText) void;
 pub extern fn decor_find_virttext(buf: [*c]buf_T, row: c_int, ns_id: u64) [*c]Decoration;
 pub extern fn decor_redraw_reset(wp: [*c]win_T, state: [*c]DecorState) bool;
 pub extern fn get_decor(mark: mtkey_t) Decoration;
+pub extern fn decor_virt_pos(decor: [*c]const Decoration) bool;
 pub extern fn decor_redraw_start(wp: [*c]win_T, top_row: c_int, state: [*c]DecorState) bool;
 pub extern fn decor_redraw_line(wp: [*c]win_T, row: c_int, state: [*c]DecorState) bool;
 pub extern fn decor_redraw_col(wp: [*c]win_T, col: c_int, win_col: c_int, hidden: bool, state: [*c]DecorState) c_int;
@@ -8166,13 +8186,13 @@ pub const CALLABLE_NONE: c_int = 0;
 pub const CALLABLE_EX: c_int = 1;
 pub const CALLABLE_CB: c_int = 2;
 pub const AucmdExecutableType = c_uint;
-const union_unnamed_110 = extern union {
+const union_unnamed_111 = extern union {
     cmd: [*c]u8,
     cb: Callback,
 };
 pub const struct_aucmd_executable_t = extern struct {
     type: AucmdExecutableType,
-    callable: union_unnamed_110,
+    callable: union_unnamed_111,
 };
 pub const AucmdExecutable = struct_aucmd_executable_t;
 pub const struct_cmdname = extern struct {
@@ -8189,15 +8209,15 @@ pub const struct_eslist_elem = extern struct {
     next: [*c]eslist_T,
 };
 pub const CSTACK_LEN: c_int = 50;
-const enum_unnamed_111 = c_uint;
-const union_unnamed_112 = extern union {
+const enum_unnamed_112 = c_uint;
+const union_unnamed_113 = extern union {
     csp_rv: [50]?*anyopaque,
     csp_ex: [50]?*anyopaque,
 };
 pub const cstack_T = extern struct {
     cs_flags: [50]c_int,
     cs_pending: [50]u8,
-    cs_pend: union_unnamed_112,
+    cs_pend: union_unnamed_113,
     cs_forinfo: [50]?*anyopaque,
     cs_line: [50]c_int,
     cs_idx: c_int,
@@ -8210,7 +8230,7 @@ pub const CSL_HAD_LOOP: c_int = 1;
 pub const CSL_HAD_ENDLOOP: c_int = 2;
 pub const CSL_HAD_CONT: c_int = 4;
 pub const CSL_HAD_FINA: c_int = 8;
-const enum_unnamed_113 = c_uint;
+const enum_unnamed_114 = c_uint;
 pub const XP_PREFIX_NONE: c_int = 0;
 pub const XP_PREFIX_NO: c_int = 1;
 pub const XP_PREFIX_INV: c_int = 2;
@@ -8229,7 +8249,7 @@ pub const CMOD_KEEPJUMPS: c_int = 1024;
 pub const CMOD_LOCKMARKS: c_int = 2048;
 pub const CMOD_KEEPPATTERNS: c_int = 4096;
 pub const CMOD_NOSWAPFILE: c_int = 8192;
-const enum_unnamed_114 = c_uint;
+const enum_unnamed_115 = c_uint;
 pub const cmdmod_T = extern struct {
     cmod_flags: c_int,
     cmod_split: c_int,
@@ -8245,13 +8265,13 @@ pub const cmdmod_T = extern struct {
     cmod_save_msg_scroll: c_int,
     cmod_did_esilent: c_int,
 };
-const struct_unnamed_115 = extern struct {
+const struct_unnamed_116 = extern struct {
     file: bool,
     bar: bool,
 };
 pub const CmdParseInfo = extern struct {
     cmdmod: cmdmod_T,
-    magic: struct_unnamed_115,
+    magic: struct_unnamed_116,
 };
 pub const SubReplacementString = extern struct {
     sub: [*c]u8,
@@ -8348,138 +8368,138 @@ pub extern fn nvim_buf_add_highlight(buffer: Buffer, ns_id: Integer, hl_group: S
 pub extern fn nvim_buf_clear_namespace(buffer: Buffer, ns_id: Integer, line_start: Integer, line_end: Integer, err: [*c]Error) void;
 pub extern fn nvim_set_decoration_provider(ns_id: Integer, opts: [*c]KeyDict_set_decoration_provider, err: [*c]Error) void;
 pub extern fn parse_virt_text(chunks: Array, err: [*c]Error, width: [*c]c_int) VirtText;
-pub const gov_unknown: c_int = 0;
-pub const gov_bool: c_int = 1;
-pub const gov_number: c_int = 2;
-pub const gov_string: c_int = 3;
-pub const gov_hidden_bool: c_int = 4;
-pub const gov_hidden_number: c_int = 5;
-pub const gov_hidden_string: c_int = 6;
-pub const getoption_T = c_uint;
-pub extern fn set_init_tablocal() void;
-pub extern fn set_init_1(clean_arg: bool) void;
-pub extern fn set_number_default(name: [*c]u8, val: c_long) void;
-pub extern fn set_init_2(headless: bool) void;
-pub extern fn set_init_3() void;
-pub extern fn set_helplang_default(lang: [*c]const u8) void;
-pub extern fn set_title_defaults() void;
-pub extern fn ex_set(eap: [*c]exarg_T) void;
-pub extern fn do_set(arg: [*c]u8, opt_flags: c_int) c_int;
-pub extern fn did_set_option(opt_idx: c_int, opt_flags: c_int, new_value: c_int, value_checked: c_int) void;
-pub extern fn string_to_key(arg: [*c]u8) c_int;
-pub extern fn did_set_title() void;
-pub extern fn set_options_bin(oldval: c_int, newval: c_int, opt_flags: c_int) void;
-pub extern fn get_shada_parameter(@"type": c_int) c_int;
-pub extern fn find_shada_parameter(@"type": c_int) [*c]u8;
-pub extern fn check_options() void;
-pub extern fn was_set_insecurely(wp: [*c]win_T, opt: [*c]u8, opt_flags: c_int) c_int;
-pub extern fn redraw_titles() void;
-pub extern fn valid_name(val: [*c]const u8, allowed: [*c]const u8) bool;
-pub extern fn check_blending(wp: [*c]win_T) void;
-pub extern fn parse_winhl_opt(wp: [*c]win_T) bool;
-pub extern fn get_option_sctx(name: [*c]const u8) [*c]sctx_T;
-pub extern fn set_option_sctx_idx(opt_idx: c_int, opt_flags: c_int, script_ctx: sctx_T) void;
-pub extern fn did_set_global_undolevels(value: c_long, old_value: c_long) [*c]const u8;
-pub extern fn did_set_buflocal_undolevels(buf: [*c]buf_T, value: c_long, old_value: c_long) [*c]const u8;
-pub extern fn check_redraw_for(buf: [*c]buf_T, win: [*c]win_T, flags: u32) void;
-pub extern fn check_redraw(flags: u32) void;
-pub extern fn findoption_len(arg: [*c]const u8, len: usize) c_int;
-pub extern fn is_tty_option(name: [*c]const u8) bool;
-pub extern fn get_tty_option(name: [*c]const u8, value: [*c][*c]u8) bool;
-pub extern fn set_tty_option(name: [*c]const u8, value: [*c]u8) bool;
-pub extern fn set_tty_background(value: [*c]const u8) void;
-pub extern fn findoption(arg: [*c]const u8) c_int;
-pub extern fn get_option_value(name: [*c]const u8, numval: [*c]c_long, stringval: [*c][*c]u8, flagsp: [*c]u32, scope: c_int) getoption_T;
-pub extern fn get_option_value_strict(name: [*c]u8, numval: [*c]i64, stringval: [*c][*c]u8, opt_type: c_int, from: ?*anyopaque) c_int;
-pub extern fn get_option(opt_idx: c_int) [*c]vimoption_T;
-pub extern fn set_option_value(name: [*c]const u8, number: c_long, string: [*c]const u8, opt_flags: c_int) [*c]const u8;
-pub extern fn set_option_value_give_err(name: [*c]const u8, number: c_long, string: [*c]const u8, opt_flags: c_int) void;
-pub extern fn is_option_allocated(name: [*c]const u8) bool;
-pub extern fn is_string_option(name: [*c]const u8) bool;
-pub extern fn find_key_option_len(arg_arg: [*c]const u8, len: usize, has_lt: bool) c_int;
-pub extern fn ui_refresh_options() void;
-pub extern fn makeset(fd: [*c]FILE, opt_flags: c_int, local_only: c_int) c_int;
-pub extern fn makefoldset(fd: [*c]FILE) c_int;
-pub extern fn unset_global_local_option(name: [*c]u8, from: ?*anyopaque) void;
-pub extern fn get_varp_scope_from(p: [*c]vimoption_T, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
-pub extern fn get_varp_scope(p: [*c]vimoption_T, scope: c_int) [*c]u8;
-pub extern fn get_option_varp_scope_from(opt_idx: c_int, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
-pub extern fn get_option_did_set_cb(opt_idx: c_int) opt_did_set_cb_T;
-pub extern fn get_equalprg() [*c]u8;
-pub extern fn win_copy_options(wp_from: [*c]win_T, wp_to: [*c]win_T) void;
-pub extern fn copy_winopt(from: [*c]winopt_T, to: [*c]winopt_T) void;
-pub extern fn check_win_options(win: [*c]win_T) void;
-pub extern fn clear_winopt(wop: [*c]winopt_T) void;
-pub extern fn didset_window_options(wp: [*c]win_T, valid_cursor: bool) void;
-pub extern fn buf_copy_options(buf: [*c]buf_T, flags: c_int) void;
-pub extern fn reset_modifiable() void;
-pub extern fn set_iminsert_global(buf: [*c]buf_T) void;
-pub extern fn set_imsearch_global(buf: [*c]buf_T) void;
-pub extern fn set_context_in_set_cmd(xp: [*c]expand_T, arg: [*c]u8, opt_flags: c_int) void;
-pub extern fn ExpandSettings(xp: [*c]expand_T, regmatch: [*c]regmatch_T, fuzzystr: [*c]u8, numMatches: [*c]c_int, matches: [*c][*c][*c]u8, can_fuzzy: bool) c_int;
-pub extern fn ExpandOldSetting(numMatches: [*c]c_int, matches: [*c][*c][*c]u8) void;
-pub extern fn shortmess(x: c_int) bool;
-pub extern fn vimrc_found(fname: [*c]u8, envname: [*c]u8) void;
-pub extern fn option_was_set(name: [*c]const u8) bool;
-pub extern fn reset_option_was_set(name: [*c]const u8) void;
-pub extern fn fill_culopt_flags(val: [*c]u8, wp: [*c]win_T) c_int;
-pub extern fn magic_isset() bool;
-pub extern fn option_set_callback_func(optval: [*c]u8, optcb: [*c]Callback) c_int;
-pub extern fn can_bs(what: c_int) bool;
-pub extern fn get_bkc_value(buf: [*c]buf_T) c_uint;
-pub extern fn get_flp_value(buf: [*c]buf_T) [*c]u8;
-pub extern fn get_ve_flags() c_uint;
-pub extern fn get_showbreak_value(win: [*c]win_T) [*c]u8;
-pub extern fn get_fileformat(buf: [*c]const buf_T) c_int;
-pub extern fn get_fileformat_force(buf: [*c]const buf_T, eap: [*c]const exarg_T) c_int;
-pub extern fn default_fileformat() c_int;
-pub extern fn set_fileformat(eol_style: c_int, opt_flags: c_int) void;
-pub extern fn skip_to_option_part(p: [*c]const u8) [*c]u8;
-pub extern fn copy_option_part(option: [*c][*c]u8, buf: [*c]u8, maxlen: usize, sep_chars: [*c]u8) usize;
-pub extern fn csh_like_shell() c_int;
-pub extern fn fish_like_shell() bool;
-pub extern fn win_signcol_count(wp: [*c]win_T) c_int;
-pub extern fn win_no_signcol(wp: [*c]win_T) bool;
-pub extern fn win_signcol_configured(wp: [*c]win_T, is_fixed: [*c]c_int) c_int;
-pub extern fn get_winbuf_options(bufopt: c_int) [*c]dict_T;
-pub extern fn get_scrolloff_value(wp: [*c]win_T) c_long;
-pub extern fn get_sidescrolloff_value(wp: [*c]win_T) c_long;
-pub extern fn get_vimoption(name: String, scope: c_int, buf: [*c]buf_T, win: [*c]win_T, err: [*c]Error) Dictionary;
-pub extern fn get_all_vimoptions() Dictionary;
-pub extern fn nvim_get_option_value(name: String, opts: [*c]KeyDict_option, err: [*c]Error) Object;
-pub extern fn nvim_set_option_value(channel_id: u64, name: String, value: Object, opts: [*c]KeyDict_option, err: [*c]Error) void;
-pub extern fn nvim_get_all_options_info(err: [*c]Error) Dictionary;
-pub extern fn nvim_get_option_info2(name: String, opts: [*c]KeyDict_option, err: [*c]Error) Dictionary;
-pub extern fn access_option_value_for(key: [*c]u8, numval: [*c]c_long, stringval: [*c][*c]u8, opt_flags: c_int, opt_type: c_int, from: ?*anyopaque, get: bool, err: [*c]Error) getoption_T;
-pub extern fn nvim_tabpage_list_wins(tabpage: Tabpage, err: [*c]Error) Array;
-pub extern fn nvim_tabpage_get_var(tabpage: Tabpage, name: String, err: [*c]Error) Object;
-pub extern fn nvim_tabpage_set_var(tabpage: Tabpage, name: String, value: Object, err: [*c]Error) void;
-pub extern fn nvim_tabpage_del_var(tabpage: Tabpage, name: String, err: [*c]Error) void;
-pub extern fn nvim_tabpage_get_win(tabpage: Tabpage, err: [*c]Error) Window;
-pub extern fn nvim_tabpage_get_number(tabpage: Tabpage, err: [*c]Error) Integer;
-pub extern fn nvim_tabpage_is_valid(tabpage: Tabpage) Boolean;
-pub const argv_callback = ?*const fn ([*c]?*anyopaque) callconv(.C) void;
-pub const struct_message = extern struct {
-    handler: argv_callback,
-    argv: [10]?*anyopaque,
+pub const CSF_TRUE: c_int = 1;
+pub const CSF_ACTIVE: c_int = 2;
+pub const CSF_ELSE: c_int = 4;
+pub const CSF_WHILE: c_int = 8;
+pub const CSF_FOR: c_int = 16;
+pub const CSF_TRY: c_int = 256;
+pub const CSF_FINALLY: c_int = 512;
+pub const CSF_THROWN: c_int = 2048;
+pub const CSF_CAUGHT: c_int = 4096;
+pub const CSF_FINISHED: c_int = 8192;
+pub const CSF_SILENT: c_int = 16384;
+const enum_unnamed_117 = c_uint;
+pub const CSTP_NONE: c_int = 0;
+pub const CSTP_ERROR: c_int = 1;
+pub const CSTP_INTERRUPT: c_int = 2;
+pub const CSTP_THROW: c_int = 4;
+pub const CSTP_BREAK: c_int = 8;
+pub const CSTP_CONTINUE: c_int = 16;
+pub const CSTP_RETURN: c_int = 24;
+pub const CSTP_FINISH: c_int = 32;
+const enum_unnamed_118 = c_uint;
+pub const msglist_T = struct_msglist;
+pub const struct_msglist = extern struct {
+    msg: [*c]u8,
+    throw_msg: [*c]u8,
+    sfile: [*c]u8,
+    slnum: linenr_T,
+    next: [*c]msglist_T,
 };
-pub const Event = struct_message;
-pub const event_scheduler = ?*const fn (Event, ?*anyopaque) callconv(.C) void; // ./_nvim/src/nvim/event/defs.h:30:21: warning: TODO unable to translate variadic function, demoted to extern
-pub extern fn event_create(cb: argv_callback, argc: c_int, ...) Event;
-pub const struct_multiqueue = opaque {};
-pub const MultiQueue = struct_multiqueue;
-pub const PutCallback = ?*const fn (?*MultiQueue, ?*anyopaque) callconv(.C) void;
-pub extern fn multiqueue_new_parent(put_cb: PutCallback, data: ?*anyopaque) ?*MultiQueue;
-pub extern fn multiqueue_new_child(parent: ?*MultiQueue) ?*MultiQueue;
-pub extern fn multiqueue_free(self: ?*MultiQueue) void;
-pub extern fn multiqueue_get(self: ?*MultiQueue) Event;
-pub extern fn multiqueue_put_event(self: ?*MultiQueue, event: Event) void;
-pub extern fn multiqueue_process_events(self: ?*MultiQueue) void;
-pub extern fn multiqueue_purge_events(self: ?*MultiQueue) void;
-pub extern fn multiqueue_empty(self: ?*MultiQueue) bool;
-pub extern fn multiqueue_replace_parent(self: ?*MultiQueue, new_parent: ?*MultiQueue) void;
-pub extern fn multiqueue_size(self: ?*MultiQueue) usize;
-pub extern fn event_create_oneshot(ev: Event, num: c_int) Event;
+pub const ET_USER: c_int = 0;
+pub const ET_ERROR: c_int = 1;
+pub const ET_INTERRUPT: c_int = 2;
+pub const except_type_T = c_uint;
+pub const except_T = struct_vim_exception;
+pub const struct_vim_exception = extern struct {
+    type: except_type_T,
+    value: [*c]u8,
+    messages: [*c]msglist_T,
+    throw_name: [*c]u8,
+    throw_lnum: linenr_T,
+    caught: [*c]except_T,
+};
+pub const struct_cleanup_stuff = extern struct {
+    pending: c_int,
+    exception: [*c]except_T,
+};
+pub const cleanup_T = struct_cleanup_stuff;
+pub const RBuffer = struct_rbuffer;
+pub const rbuffer_callback = ?*const fn ([*c]RBuffer, ?*anyopaque) callconv(.C) void;
+pub const struct_rbuffer = extern struct {
+    full_cb: rbuffer_callback align(8),
+    nonfull_cb: rbuffer_callback,
+    data: ?*anyopaque,
+    size: usize,
+    temp: [*c]u8,
+    end_ptr: [*c]u8,
+    read_ptr: [*c]u8,
+    write_ptr: [*c]u8,
+    pub fn start_ptr(self: anytype) @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8) {
+        const Intermediate = @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8);
+        const ReturnType = @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8);
+        return @ptrCast(ReturnType, @alignCast(@alignOf(u8), @ptrCast(Intermediate, self) + 64));
+    }
+};
+pub extern fn rbuffer_new(capacity: usize) [*c]RBuffer;
+pub extern fn rbuffer_free(buf: [*c]RBuffer) void;
+pub extern fn rbuffer_size(buf: [*c]RBuffer) usize;
+pub extern fn rbuffer_capacity(buf: [*c]RBuffer) usize;
+pub extern fn rbuffer_space(buf: [*c]RBuffer) usize;
+pub extern fn rbuffer_write_ptr(buf: [*c]RBuffer, write_count: [*c]usize) [*c]u8;
+pub extern fn rbuffer_reset(buf: [*c]RBuffer) void;
+pub extern fn rbuffer_produced(buf: [*c]RBuffer, count: usize) void;
+pub extern fn rbuffer_read_ptr(buf: [*c]RBuffer, read_count: [*c]usize) [*c]u8;
+pub extern fn rbuffer_consumed(buf: [*c]RBuffer, count: usize) void;
+pub extern fn rbuffer_consumed_compact(buf: [*c]RBuffer, count: usize) void;
+pub extern fn rbuffer_write(buf: [*c]RBuffer, src: [*c]const u8, src_size: usize) usize;
+pub extern fn rbuffer_read(buf: [*c]RBuffer, dst: [*c]u8, dst_size: usize) usize;
+pub extern fn rbuffer_get(buf: [*c]RBuffer, index: usize) [*c]u8;
+pub extern fn rbuffer_cmp(buf: [*c]RBuffer, str: [*c]const u8, count: usize) c_int;
+pub const FileDescriptor = extern struct {
+    fd: c_int,
+    _error: c_int,
+    rv: [*c]RBuffer,
+    wr: bool,
+    eof: bool,
+    non_blocking: bool,
+};
+pub const kFileReadOnly: c_int = 1;
+pub const kFileCreate: c_int = 2;
+pub const kFileWriteOnly: c_int = 4;
+pub const kFileNoSymlink: c_int = 8;
+pub const kFileCreateOnly: c_int = 16;
+pub const kFileTruncate: c_int = 32;
+pub const kFileAppend: c_int = 64;
+pub const kFileNonBlocking: c_int = 128;
+pub const kFileMkDir: c_int = 256;
+pub const FileOpenFlags = c_uint;
+pub fn file_eof(fp: [*c]const FileDescriptor) callconv(.C) bool {
+    return (@as(c_int, @boolToInt(fp.*.eof)) != 0) and (rbuffer_size(fp.*.rv) == @bitCast(usize, @as(c_long, @as(c_int, 0))));
+}
+pub fn file_fd(fp: [*c]const FileDescriptor) callconv(.C) c_int {
+    return fp.*.fd;
+}
+pub const kRWBufferSize: c_int = 1024;
+const enum_unnamed_119 = c_uint;
+pub extern fn file_open(ret_fp: [*c]FileDescriptor, fname: [*c]const u8, flags: c_int, mode: c_int) c_int;
+pub extern fn file_open_fd(ret_fp: [*c]FileDescriptor, fd: c_int, flags: c_int) c_int;
+pub extern fn file_open_new(@"error": [*c]c_int, fname: [*c]const u8, flags: c_int, mode: c_int) [*c]FileDescriptor;
+pub extern fn file_open_fd_new(@"error": [*c]c_int, fd: c_int, flags: c_int) [*c]FileDescriptor;
+pub extern fn file_open_stdin() [*c]FileDescriptor;
+pub extern fn file_close(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
+pub extern fn file_free(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
+pub extern fn file_flush(fp: [*c]FileDescriptor) c_int;
+pub extern fn file_fsync(fp: [*c]FileDescriptor) c_int;
+pub extern fn file_read(fp: [*c]FileDescriptor, ret_buf: [*c]u8, size: usize) ptrdiff_t;
+pub extern fn file_write(fp: [*c]FileDescriptor, buf: [*c]const u8, size: usize) ptrdiff_t;
+pub extern fn file_skip(fp: [*c]FileDescriptor, size: usize) ptrdiff_t;
+pub extern fn msgpack_file_write(data: ?*anyopaque, buf: [*c]const u8, len: usize) c_int;
+pub extern fn msgpack_file_write_error(@"error": c_int) c_int;
+pub const NUMBUFLEN: c_int = 65;
+const enum_unnamed_120 = c_uint;
+pub extern fn gettext(__msgid: [*c]const u8) [*c]u8;
+pub extern fn dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
+pub extern fn __dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
+pub extern fn dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
+pub extern fn __dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
+pub extern fn ngettext(__msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
+pub extern fn dngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
+pub extern fn dcngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong, __category: c_int) [*c]u8;
+pub extern fn textdomain(__domainname: [*c]const u8) [*c]u8;
+pub extern fn bindtextdomain(__domainname: [*c]const u8, __dirname: [*c]const u8) [*c]u8;
+pub extern fn bind_textdomain_codeset(__domainname: [*c]const u8, __codeset: [*c]const u8) [*c]u8;
 pub inline fn ascii_iswhite(arg_c: c_int) bool {
     var c = arg_c;
     return (c == @as(c_int, ' ')) or (c == @as(c_int, '\t'));
@@ -8512,6 +8532,453 @@ pub fn ascii_isodigit(arg_c: c_int) callconv(.C) bool {
     var c = arg_c;
     return (c >= @as(c_int, '0')) and (c <= @as(c_int, '7'));
 }
+pub fn strappend(dst: [*c]u8, src: [*c]const u8) callconv(.C) [*c]u8 {
+    const src_len: usize = strlen(src);
+    return @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), memmove(@ptrCast(?*anyopaque, dst), @ptrCast(?*const anyopaque, src), src_len))) + src_len;
+}
+pub const StringBuilder = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]u8,
+};
+pub extern fn xstrnsave(string: [*c]const u8, len: usize) [*c]u8;
+pub extern fn vim_strsave_escaped(string: [*c]const u8, esc_chars: [*c]const u8) [*c]u8;
+pub extern fn vim_strsave_escaped_ext(string: [*c]const u8, esc_chars: [*c]const u8, cc: u8, bsl: bool) [*c]u8;
+pub extern fn vim_strnsave_unquoted(string: [*c]const u8, length: usize) [*c]u8;
+pub extern fn vim_strsave_shellescape(string: [*c]const u8, do_special: bool, do_newline: bool) [*c]u8;
+pub extern fn vim_strsave_up(string: [*c]const u8) [*c]u8;
+pub extern fn vim_strnsave_up(string: [*c]const u8, len: usize) [*c]u8;
+pub extern fn vim_strup(p: [*c]u8) void;
+pub extern fn strcase_save(orig: [*c]const u8, upper: bool) [*c]u8;
+pub extern fn del_trailing_spaces(ptr: [*c]u8) void;
+pub extern fn vim_strchr(string: [*c]const u8, c: c_int) [*c]u8;
+pub extern fn sort_strings(files: [*c][*c]u8, count: c_int) void;
+pub extern fn has_non_ascii(s: [*c]const u8) bool;
+pub extern fn has_non_ascii_len(s: [*c]const u8, len: usize) bool;
+pub extern fn concat_str(noalias str1: [*c]const u8, noalias str2: [*c]const u8) [*c]u8;
+pub extern fn vim_snprintf_add(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ...) c_int;
+pub extern fn vim_snprintf(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ...) c_int;
+pub extern fn vim_vsnprintf(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ap: [*c]struct___va_list_tag) c_int;
+pub extern fn vim_vsnprintf_typval(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ap: [*c]struct___va_list_tag, tvs: [*c]typval_T) c_int;
+pub extern fn kv_do_printf(str: [*c]StringBuilder, fmt: [*c]const u8, ...) c_int;
+pub extern fn reverse_text(s: [*c]u8) [*c]u8;
+pub extern fn strrep(src: [*c]const u8, what: [*c]const u8, rep: [*c]const u8) [*c]u8;
+pub extern fn f_byteidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_byteidxcomp(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_charidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_str2list(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_str2nr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strgetchar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_stridx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_string(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strlen(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strcharlen(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strchars(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strutf16len(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strdisplaywidth(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strwidth(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strcharpart(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strpart(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strridx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_strtrans(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_utf16idx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_tolower(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_toupper(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_tr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_trim(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub const KE_S_UP: c_int = 4;
+pub const KE_S_DOWN: c_int = 5;
+pub const KE_S_F1: c_int = 6;
+pub const KE_S_F2: c_int = 7;
+pub const KE_S_F3: c_int = 8;
+pub const KE_S_F4: c_int = 9;
+pub const KE_S_F5: c_int = 10;
+pub const KE_S_F6: c_int = 11;
+pub const KE_S_F7: c_int = 12;
+pub const KE_S_F8: c_int = 13;
+pub const KE_S_F9: c_int = 14;
+pub const KE_S_F10: c_int = 15;
+pub const KE_S_F11: c_int = 16;
+pub const KE_S_F12: c_int = 17;
+pub const KE_S_F13: c_int = 18;
+pub const KE_S_F14: c_int = 19;
+pub const KE_S_F15: c_int = 20;
+pub const KE_S_F16: c_int = 21;
+pub const KE_S_F17: c_int = 22;
+pub const KE_S_F18: c_int = 23;
+pub const KE_S_F19: c_int = 24;
+pub const KE_S_F20: c_int = 25;
+pub const KE_S_F21: c_int = 26;
+pub const KE_S_F22: c_int = 27;
+pub const KE_S_F23: c_int = 28;
+pub const KE_S_F24: c_int = 29;
+pub const KE_S_F25: c_int = 30;
+pub const KE_S_F26: c_int = 31;
+pub const KE_S_F27: c_int = 32;
+pub const KE_S_F28: c_int = 33;
+pub const KE_S_F29: c_int = 34;
+pub const KE_S_F30: c_int = 35;
+pub const KE_S_F31: c_int = 36;
+pub const KE_S_F32: c_int = 37;
+pub const KE_S_F33: c_int = 38;
+pub const KE_S_F34: c_int = 39;
+pub const KE_S_F35: c_int = 40;
+pub const KE_S_F36: c_int = 41;
+pub const KE_S_F37: c_int = 42;
+pub const KE_MOUSE: c_int = 43;
+pub const KE_LEFTMOUSE: c_int = 44;
+pub const KE_LEFTDRAG: c_int = 45;
+pub const KE_LEFTRELEASE: c_int = 46;
+pub const KE_MIDDLEMOUSE: c_int = 47;
+pub const KE_MIDDLEDRAG: c_int = 48;
+pub const KE_MIDDLERELEASE: c_int = 49;
+pub const KE_RIGHTMOUSE: c_int = 50;
+pub const KE_RIGHTDRAG: c_int = 51;
+pub const KE_RIGHTRELEASE: c_int = 52;
+pub const KE_IGNORE: c_int = 53;
+pub const KE_TAB: c_int = 54;
+pub const KE_S_TAB_OLD: c_int = 55;
+pub const KE_XF1: c_int = 57;
+pub const KE_XF2: c_int = 58;
+pub const KE_XF3: c_int = 59;
+pub const KE_XF4: c_int = 60;
+pub const KE_XEND: c_int = 61;
+pub const KE_ZEND: c_int = 62;
+pub const KE_XHOME: c_int = 63;
+pub const KE_ZHOME: c_int = 64;
+pub const KE_XUP: c_int = 65;
+pub const KE_XDOWN: c_int = 66;
+pub const KE_XLEFT: c_int = 67;
+pub const KE_XRIGHT: c_int = 68;
+pub const KE_LEFTMOUSE_NM: c_int = 69;
+pub const KE_LEFTRELEASE_NM: c_int = 70;
+pub const KE_S_XF1: c_int = 71;
+pub const KE_S_XF2: c_int = 72;
+pub const KE_S_XF3: c_int = 73;
+pub const KE_S_XF4: c_int = 74;
+pub const KE_MOUSEDOWN: c_int = 75;
+pub const KE_MOUSEUP: c_int = 76;
+pub const KE_MOUSELEFT: c_int = 77;
+pub const KE_MOUSERIGHT: c_int = 78;
+pub const KE_KINS: c_int = 79;
+pub const KE_KDEL: c_int = 80;
+pub const KE_SNR: c_int = 82;
+pub const KE_PLUG: c_int = 83;
+pub const KE_CMDWIN: c_int = 84;
+pub const KE_C_LEFT: c_int = 85;
+pub const KE_C_RIGHT: c_int = 86;
+pub const KE_C_HOME: c_int = 87;
+pub const KE_C_END: c_int = 88;
+pub const KE_X1MOUSE: c_int = 89;
+pub const KE_X1DRAG: c_int = 90;
+pub const KE_X1RELEASE: c_int = 91;
+pub const KE_X2MOUSE: c_int = 92;
+pub const KE_X2DRAG: c_int = 93;
+pub const KE_X2RELEASE: c_int = 94;
+pub const KE_DROP: c_int = 95;
+pub const KE_NOP: c_int = 97;
+pub const KE_MOUSEMOVE: c_int = 100;
+pub const KE_EVENT: c_int = 102;
+pub const KE_LUA: c_int = 103;
+pub const KE_COMMAND: c_int = 104;
+pub const enum_key_extra = c_uint;
+pub const REPTERM_FROM_PART: c_int = 1;
+pub const REPTERM_DO_LT: c_int = 2;
+pub const REPTERM_NO_SPECIAL: c_int = 4;
+pub const REPTERM_NO_SIMPLIFY: c_int = 8;
+const enum_unnamed_121 = c_uint;
+pub const FSK_KEYCODE: c_int = 1;
+pub const FSK_KEEP_X_KEY: c_int = 2;
+pub const FSK_IN_STRING: c_int = 4;
+pub const FSK_SIMPLIFY: c_int = 8;
+const enum_unnamed_122 = c_uint;
+pub extern fn name_to_mod_mask(c: c_int) c_int;
+pub extern fn simplify_key(key: c_int, modifiers: [*c]c_int) c_int;
+pub extern fn handle_x_keys(key: c_int) c_int;
+pub extern fn get_special_key_name(c: c_int, modifiers: c_int) [*c]u8;
+pub extern fn trans_special(srcp: [*c][*c]const u8, src_len: usize, dst: [*c]u8, flags: c_int, escape_ks: bool, did_simplify: [*c]bool) c_uint;
+pub extern fn special_to_buf(key: c_int, modifiers: c_int, escape_ks: bool, dst: [*c]u8) c_uint;
+pub extern fn find_special_key(srcp: [*c][*c]const u8, src_len: usize, modp: [*c]c_int, flags: c_int, did_simplify: [*c]bool) c_int;
+pub extern fn find_special_key_in_table(c: c_int) c_int;
+pub extern fn get_special_key_code(name: [*c]const u8) c_int;
+pub extern fn get_mouse_button(code: c_int, is_click: [*c]bool, is_drag: [*c]bool) c_int;
+pub extern fn replace_termcodes(from: [*c]const u8, from_len: usize, bufp: [*c][*c]u8, flags: c_int, did_simplify: [*c]bool, cpo_flags: c_int) [*c]u8;
+pub extern fn add_char2buf(c: c_int, s: [*c]u8) [*c]u8;
+pub extern fn vim_strsave_escape_ks(p: [*c]u8) [*c]u8;
+pub extern fn vim_unescape_ks(p: [*c]u8) void;
+pub const kDirectionNotSet: c_int = 0;
+pub const FORWARD: c_int = 1;
+pub const BACKWARD: c_int = -1;
+pub const FORWARD_FILE: c_int = 3;
+pub const BACKWARD_FILE: c_int = -3;
+pub const Direction = c_int;
+pub const EXPAND_UNSUCCESSFUL: c_int = -2;
+pub const EXPAND_OK: c_int = -1;
+pub const EXPAND_NOTHING: c_int = 0;
+pub const EXPAND_COMMANDS: c_int = 1;
+pub const EXPAND_FILES: c_int = 2;
+pub const EXPAND_DIRECTORIES: c_int = 3;
+pub const EXPAND_SETTINGS: c_int = 4;
+pub const EXPAND_BOOL_SETTINGS: c_int = 5;
+pub const EXPAND_TAGS: c_int = 6;
+pub const EXPAND_OLD_SETTING: c_int = 7;
+pub const EXPAND_HELP: c_int = 8;
+pub const EXPAND_BUFFERS: c_int = 9;
+pub const EXPAND_EVENTS: c_int = 10;
+pub const EXPAND_MENUS: c_int = 11;
+pub const EXPAND_SYNTAX: c_int = 12;
+pub const EXPAND_HIGHLIGHT: c_int = 13;
+pub const EXPAND_AUGROUP: c_int = 14;
+pub const EXPAND_USER_VARS: c_int = 15;
+pub const EXPAND_MAPPINGS: c_int = 16;
+pub const EXPAND_TAGS_LISTFILES: c_int = 17;
+pub const EXPAND_FUNCTIONS: c_int = 18;
+pub const EXPAND_USER_FUNC: c_int = 19;
+pub const EXPAND_EXPRESSION: c_int = 20;
+pub const EXPAND_MENUNAMES: c_int = 21;
+pub const EXPAND_USER_COMMANDS: c_int = 22;
+pub const EXPAND_USER_CMD_FLAGS: c_int = 23;
+pub const EXPAND_USER_NARGS: c_int = 24;
+pub const EXPAND_USER_COMPLETE: c_int = 25;
+pub const EXPAND_ENV_VARS: c_int = 26;
+pub const EXPAND_LANGUAGE: c_int = 27;
+pub const EXPAND_COLORS: c_int = 28;
+pub const EXPAND_COMPILER: c_int = 29;
+pub const EXPAND_USER_DEFINED: c_int = 30;
+pub const EXPAND_USER_LIST: c_int = 31;
+pub const EXPAND_USER_LUA: c_int = 32;
+pub const EXPAND_SHELLCMD: c_int = 33;
+pub const EXPAND_SIGN: c_int = 34;
+pub const EXPAND_PROFILE: c_int = 35;
+pub const EXPAND_FILETYPE: c_int = 36;
+pub const EXPAND_FILES_IN_PATH: c_int = 37;
+pub const EXPAND_OWNSYNTAX: c_int = 38;
+pub const EXPAND_LOCALES: c_int = 39;
+pub const EXPAND_HISTORY: c_int = 40;
+pub const EXPAND_USER: c_int = 41;
+pub const EXPAND_SYNTIME: c_int = 42;
+pub const EXPAND_USER_ADDR_TYPE: c_int = 43;
+pub const EXPAND_PACKADD: c_int = 44;
+pub const EXPAND_MESSAGES: c_int = 45;
+pub const EXPAND_MAPCLEAR: c_int = 46;
+pub const EXPAND_ARGLIST: c_int = 47;
+pub const EXPAND_DIFF_BUFFERS: c_int = 48;
+pub const EXPAND_BREAKPOINT: c_int = 49;
+pub const EXPAND_SCRIPTNAMES: c_int = 50;
+pub const EXPAND_RUNTIME: c_int = 51;
+pub const EXPAND_CHECKHEALTH: c_int = 52;
+pub const EXPAND_LUA: c_int = 53;
+const enum_unnamed_123 = c_int;
+pub const FOLD_TEXT_LEN: c_int = 51;
+const enum_unnamed_124 = c_uint;
+pub const HlMessageChunk = extern struct {
+    text: String,
+    attr: c_int,
+};
+pub const HlMessage = extern struct {
+    size: usize,
+    capacity: usize,
+    items: [*c]HlMessageChunk,
+};
+pub const struct_msg_hist = extern struct {
+    next: [*c]struct_msg_hist,
+    msg: [*c]u8,
+    kind: [*c]const u8,
+    attr: c_int,
+    multiline: bool,
+    multiattr: HlMessage,
+};
+pub const MessageHistoryEntry = struct_msg_hist;
+pub extern var first_msg_hist: [*c]MessageHistoryEntry;
+pub extern var last_msg_hist: [*c]MessageHistoryEntry;
+pub extern var msg_ext_need_clear: bool;
+pub extern var msg_grid: ScreenGrid;
+pub extern var msg_grid_pos: c_int;
+pub extern var msg_grid_adj: ScreenGrid;
+pub extern var msg_scrolled_at_flush: c_int;
+pub extern var msg_grid_scroll_discount: c_int;
+pub extern fn msg_grid_set_pos(row: c_int, scrolled: bool) void;
+pub extern fn msg_use_grid() bool;
+pub extern fn msg_grid_validate() void;
+pub extern fn msg(s: [*c]const u8) c_int;
+pub extern fn verb_msg(s: [*c]const u8) c_int;
+pub extern fn msg_attr(s: [*c]const u8, attr: c_int) c_int;
+pub extern fn msg_multiline_attr(s: [*c]const u8, attr: c_int, check_int: bool, need_clear: [*c]bool) void;
+pub extern fn msg_multiattr(hl_msg: HlMessage, kind: [*c]const u8, history: bool) void;
+pub extern fn msg_attr_keep(s: [*c]const u8, attr: c_int, keep: bool, multiline: bool) bool;
+pub extern fn msg_strtrunc(s: [*c]const u8, force: c_int) [*c]u8;
+pub extern fn trunc_string(s: [*c]const u8, buf: [*c]u8, room_in: c_int, buflen: c_int) void;
+pub extern fn smsg(s: [*c]const u8, ...) c_int;
+pub extern fn smsg_attr(attr: c_int, s: [*c]const u8, ...) c_int;
+pub extern fn smsg_attr_keep(attr: c_int, s: [*c]const u8, ...) c_int;
+pub extern fn reset_last_sourcing() void;
+pub extern fn msg_source(attr: c_int) void;
+pub extern fn emsg_not_now() c_int;
+pub extern fn emsg(s: [*c]const u8) bool;
+pub extern fn emsg_invreg(name: c_int) void;
+pub extern fn semsg(fmt: [*c]const u8, ...) bool;
+pub extern fn semsg_multiline(fmt: [*c]const u8, ...) bool;
+pub extern fn iemsg(s: [*c]const u8) void;
+pub extern fn siemsg(s: [*c]const u8, ...) void;
+pub extern fn internal_error(where: [*c]const u8) void;
+pub extern fn msg_schedule_semsg(fmt: [*c]const u8, ...) void;
+pub extern fn msg_trunc_attr(s: [*c]u8, force: bool, attr: c_int) [*c]u8;
+pub extern fn msg_may_trunc(force: bool, s: [*c]u8) [*c]u8;
+pub extern fn hl_msg_free(hl_msg: HlMessage) void;
+pub extern fn delete_first_msg() c_int;
+pub extern fn ex_messages(eap_p: ?*anyopaque) void;
+pub extern fn msg_end_prompt() void;
+pub extern fn wait_return(redraw: c_int) void;
+pub extern fn set_keep_msg(s: [*c]const u8, attr: c_int) void;
+pub extern fn messaging() bool;
+pub extern fn msgmore(n: c_long) void;
+pub extern fn msg_ext_set_kind(msg_kind: [*c]const u8) void;
+pub extern fn msg_start() void;
+pub extern fn msg_starthere() void;
+pub extern fn msg_putchar(c: c_int) void;
+pub extern fn msg_putchar_attr(c: c_int, attr: c_int) void;
+pub extern fn msg_outnum(n: c_long) void;
+pub extern fn msg_home_replace(fname: [*c]const u8) void;
+pub extern fn msg_home_replace_hl(fname: [*c]const u8) void;
+pub extern fn msg_outtrans(str: [*c]const u8) c_int;
+pub extern fn msg_outtrans_attr(str: [*c]const u8, attr: c_int) c_int;
+pub extern fn msg_outtrans_len(str: [*c]const u8, len: c_int) c_int;
+pub extern fn msg_outtrans_one(p: [*c]const u8, attr: c_int) [*c]const u8;
+pub extern fn msg_outtrans_len_attr(msgstr: [*c]const u8, len: c_int, attr: c_int) c_int;
+pub extern fn msg_make(arg: [*c]const u8) void;
+pub extern fn msg_outtrans_special(strstart: [*c]const u8, from: bool, maxlen: c_int) c_int;
+pub extern fn str2special_save(str: [*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]u8;
+pub extern fn str2special(sp: [*c][*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]const u8;
+pub extern fn str2specialbuf(sp: [*c]const u8, buf: [*c]u8, len: usize) void;
+pub extern fn msg_prt_line(s: [*c]const u8, list: c_int) void;
+pub extern fn msg_puts(s: [*c]const u8) void;
+pub extern fn msg_puts_title(s: [*c]const u8) void;
+pub extern fn msg_outtrans_long_attr(longstr: [*c]const u8, attr: c_int) void;
+pub extern fn msg_outtrans_long_len_attr(longstr: [*c]const u8, len: c_int, attr: c_int) void;
+pub extern fn msg_puts_attr(s: [*c]const u8, attr: c_int) void;
+pub extern fn msg_puts_attr_len(str: [*c]const u8, len: ptrdiff_t, attr: c_int) void;
+pub extern fn msg_printf_attr(attr: c_int, fmt: [*c]const u8, ...) void;
+pub extern fn message_filtered(msg: [*c]const u8) bool;
+pub extern fn msg_scrollsize() c_int;
+pub extern fn msg_do_throttle() bool;
+pub extern fn msg_scroll_up(may_throttle: bool, zerocmd: bool) void;
+pub extern fn msg_scroll_flush() void;
+pub extern fn msg_reset_scroll() void;
+pub extern fn may_clear_sb_text() void;
+pub extern fn sb_text_start_cmdline() void;
+pub extern fn sb_text_restart_cmdline() void;
+pub extern fn sb_text_end_cmdline() void;
+pub extern fn clear_sb_text(all: c_int) void;
+pub extern fn show_sb_text() void;
+pub extern fn msg_sb_eol() void;
+pub extern fn msg_use_printf() c_int;
+pub extern fn msg_moremsg(full: c_int) void;
+pub extern fn repeat_message() void;
+pub extern fn msg_clr_eos() void;
+pub extern fn msg_clr_eos_force() void;
+pub extern fn msg_clr_cmdline() void;
+pub extern fn msg_end() c_int;
+pub extern fn msg_ext_ui_flush() void;
+pub extern fn msg_ext_flush_showmode() void;
+pub extern fn msg_ext_clear(force: bool) void;
+pub extern fn msg_ext_clear_later() void;
+pub extern fn msg_ext_check_clear() void;
+pub extern fn msg_ext_is_visible() bool;
+pub extern fn msg_check() void;
+pub extern fn redirecting() c_int;
+pub extern fn verbose_enter() void;
+pub extern fn verbose_leave() void;
+pub extern fn verbose_enter_scroll() void;
+pub extern fn verbose_leave_scroll() void;
+pub extern fn verbose_stop() void;
+pub extern fn verbose_open() c_int;
+pub extern fn give_warning(message: [*c]const u8, hl: bool) void;
+pub extern fn give_warning2(message: [*c]const u8, a1: [*c]const u8, hl: bool) void;
+pub extern fn msg_advance(col: c_int) void;
+pub extern fn do_dialog(@"type": c_int, title: [*c]u8, message: [*c]u8, buttons: [*c]u8, dfltbutton: c_int, textfield: [*c]u8, ex_cmd: c_int) c_int;
+pub extern fn display_confirm_msg() void;
+pub extern fn vim_dialog_yesno(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
+pub extern fn vim_dialog_yesnocancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
+pub extern fn vim_dialog_yesnoallcancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
+pub extern fn msg_check_for_delay(check_msg_scroll: bool) void;
+pub const kEqualFiles: c_int = 1;
+pub const kDifferentFiles: c_int = 2;
+pub const kBothFilesMissing: c_int = 4;
+pub const kOneFileMissing: c_int = 6;
+pub const kEqualFileNames: c_int = 7;
+pub const enum_file_comparison = c_uint;
+pub const FileComparison = enum_file_comparison;
+pub extern fn path_full_compare(s1: [*c]u8, s2: [*c]u8, checkname: bool, expandenv: bool) FileComparison;
+pub extern fn path_tail(fname: [*c]const u8) [*c]u8;
+pub extern fn path_tail_with_sep(fname: [*c]u8) [*c]u8;
+pub extern fn invocation_path_tail(invocation: [*c]const u8, len: [*c]usize) [*c]const u8;
+pub extern fn path_next_component(fname: [*c]const u8) [*c]const u8;
+pub extern fn path_head_length() c_int;
+pub extern fn is_path_head(path: [*c]const u8) bool;
+pub extern fn get_past_head(path: [*c]const u8) [*c]u8;
+pub extern fn vim_ispathsep(c: c_int) c_int;
+pub extern fn vim_ispathsep_nocolon(c: c_int) c_int;
+pub extern fn vim_ispathlistsep(c: c_int) c_int;
+pub extern fn shorten_dir_len(str: [*c]u8, trim_len: c_int) void;
+pub extern fn shorten_dir(str: [*c]u8) void;
+pub extern fn dir_of_file_exists(fname: [*c]u8) bool;
+pub extern fn path_fnamecmp(fname1: [*c]const u8, fname2: [*c]const u8) c_int;
+pub extern fn path_fnamencmp(fname1: [*c]const u8, fname2: [*c]const u8, len: usize) c_int;
+pub extern fn concat_fnames(fname1: [*c]const u8, fname2: [*c]const u8, sep: bool) [*c]u8;
+pub extern fn concat_fnames_realloc(fname1: [*c]u8, fname2: [*c]const u8, sep: bool) [*c]u8;
+pub extern fn add_pathsep(p: [*c]u8) bool;
+pub extern fn FullName_save(fname: [*c]const u8, force: bool) [*c]u8;
+pub extern fn save_abs_path(name: [*c]const u8) [*c]u8;
+pub extern fn path_has_wildcard(p: [*c]const u8) bool;
+pub extern fn path_has_exp_wildcard(p: [*c]const u8) bool;
+pub extern fn gettail_dir(fname: [*c]const u8) [*c]const u8;
+pub extern fn gen_expand_wildcards(num_pat: c_int, pat: [*c][*c]u8, num_file: [*c]c_int, file: [*c][*c][*c]u8, flags: c_int) c_int;
+pub extern fn FreeWild(count: c_int, files: [*c][*c]u8) void;
+pub extern fn addfile(gap: [*c]garray_T, f: [*c]u8, flags: c_int) void;
+pub extern fn simplify_filename(filename: [*c]u8) void;
+pub extern fn find_file_name_in_path(ptr: [*c]u8, len: usize, options: c_int, count: c_long, rel_fname: [*c]u8) [*c]u8;
+pub extern fn path_has_drive_letter(p: [*c]const u8) bool;
+pub extern fn path_is_url(p: [*c]const u8) c_int;
+pub extern fn path_with_url(fname: [*c]const u8) c_int;
+pub extern fn path_with_extension(path: [*c]const u8, extension: [*c]const u8) bool;
+pub extern fn vim_isAbsName(name: [*c]u8) bool;
+pub extern fn vim_FullName(fname: [*c]const u8, buf: [*c]u8, len: usize, force: bool) c_int;
+pub extern fn fix_fname(fname: [*c]const u8) [*c]u8;
+pub extern fn path_fix_case(name: [*c]u8) void;
+pub extern fn after_pathsep(b: [*c]const u8, p: [*c]const u8) c_int;
+pub extern fn same_directory(f1: [*c]u8, f2: [*c]u8) bool;
+pub extern fn pathcmp(p: [*c]const u8, q: [*c]const u8, maxlen: c_int) c_int;
+pub extern fn path_try_shorten_fname(full_path: [*c]u8) [*c]u8;
+pub extern fn path_shorten_fname(full_path: [*c]u8, dir_name: [*c]u8) [*c]u8;
+pub extern fn expand_wildcards_eval(pat: [*c][*c]u8, num_file: [*c]c_int, file: [*c][*c][*c]u8, flags: c_int) c_int;
+pub extern fn expand_wildcards(num_pat: c_int, pat: [*c][*c]u8, num_files: [*c]c_int, files: [*c][*c][*c]u8, flags: c_int) c_int;
+pub extern fn match_suffix(fname: [*c]u8) c_int;
+pub extern fn path_full_dir_name(directory: [*c]u8, buffer: [*c]u8, len: usize) c_int;
+pub extern fn append_path(path: [*c]u8, to_append: [*c]const u8, max_len: usize) c_int;
+pub extern fn path_is_absolute(fname: [*c]const u8) c_int;
+pub extern fn path_guess_exepath(argv0: [*c]const u8, buf: [*c]u8, bufsize: usize) void;
+pub const argv_callback = ?*const fn ([*c]?*anyopaque) callconv(.C) void;
+pub const struct_message = extern struct {
+    handler: argv_callback,
+    argv: [10]?*anyopaque,
+};
+pub const Event = struct_message;
+pub const event_scheduler = ?*const fn (Event, ?*anyopaque) callconv(.C) void; // ./_nvim/src/nvim/event/defs.h:30:21: warning: TODO unable to translate variadic function, demoted to extern
+pub extern fn event_create(cb: argv_callback, argc: c_int, ...) Event;
+pub const struct_multiqueue = opaque {};
+pub const MultiQueue = struct_multiqueue;
+pub const PutCallback = ?*const fn (?*MultiQueue, ?*anyopaque) callconv(.C) void;
+pub extern fn multiqueue_new_parent(put_cb: PutCallback, data: ?*anyopaque) ?*MultiQueue;
+pub extern fn multiqueue_new_child(parent: ?*MultiQueue) ?*MultiQueue;
+pub extern fn multiqueue_free(self: ?*MultiQueue) void;
+pub extern fn multiqueue_get(self: ?*MultiQueue) Event;
+pub extern fn multiqueue_put_event(self: ?*MultiQueue, event: Event) void;
+pub extern fn multiqueue_process_events(self: ?*MultiQueue) void;
+pub extern fn multiqueue_purge_events(self: ?*MultiQueue) void;
+pub extern fn multiqueue_empty(self: ?*MultiQueue) bool;
+pub extern fn multiqueue_replace_parent(self: ?*MultiQueue, new_parent: ?*MultiQueue) void;
+pub extern fn multiqueue_size(self: ?*MultiQueue) usize;
+pub extern fn event_create_oneshot(ev: Event, num: c_int) Event;
 pub const WatcherPtr = ?*anyopaque;
 pub const struct___kl1_WatcherPtr = extern struct {
     data: WatcherPtr,
@@ -8678,59 +9145,12 @@ pub extern fn loop_on_put(queue: ?*MultiQueue, data: ?*anyopaque) void;
 pub extern fn loop_close(loop: [*c]Loop, wait: bool) bool;
 pub extern fn loop_purge(loop: [*c]Loop) void;
 pub extern fn loop_size(loop: [*c]Loop) usize;
-pub const CSF_TRUE: c_int = 1;
-pub const CSF_ACTIVE: c_int = 2;
-pub const CSF_ELSE: c_int = 4;
-pub const CSF_WHILE: c_int = 8;
-pub const CSF_FOR: c_int = 16;
-pub const CSF_TRY: c_int = 256;
-pub const CSF_FINALLY: c_int = 512;
-pub const CSF_THROWN: c_int = 2048;
-pub const CSF_CAUGHT: c_int = 4096;
-pub const CSF_FINISHED: c_int = 8192;
-pub const CSF_SILENT: c_int = 16384;
-const enum_unnamed_116 = c_uint;
-pub const CSTP_NONE: c_int = 0;
-pub const CSTP_ERROR: c_int = 1;
-pub const CSTP_INTERRUPT: c_int = 2;
-pub const CSTP_THROW: c_int = 4;
-pub const CSTP_BREAK: c_int = 8;
-pub const CSTP_CONTINUE: c_int = 16;
-pub const CSTP_RETURN: c_int = 24;
-pub const CSTP_FINISH: c_int = 32;
-const enum_unnamed_117 = c_uint;
-pub const msglist_T = struct_msglist;
-pub const struct_msglist = extern struct {
-    msg: [*c]u8,
-    throw_msg: [*c]u8,
-    sfile: [*c]u8,
-    slnum: linenr_T,
-    next: [*c]msglist_T,
-};
-pub const ET_USER: c_int = 0;
-pub const ET_ERROR: c_int = 1;
-pub const ET_INTERRUPT: c_int = 2;
-pub const except_type_T = c_uint;
-pub const except_T = struct_vim_exception;
-pub const struct_vim_exception = extern struct {
-    type: except_type_T,
-    value: [*c]u8,
-    messages: [*c]msglist_T,
-    throw_name: [*c]u8,
-    throw_lnum: linenr_T,
-    caught: [*c]except_T,
-};
-pub const struct_cleanup_stuff = extern struct {
-    pending: c_int,
-    exception: [*c]except_T,
-};
-pub const cleanup_T = struct_cleanup_stuff;
 pub const iconv_t = ?*anyopaque;
 pub extern fn iconv_close(__cd: iconv_t) c_int;
 pub extern fn iconv_open(__tocode: [*c]const u8, __fromcode: [*c]const u8) iconv_t;
 pub extern fn iconv(__cd: iconv_t, noalias __inbuf: [*c][*c]u8, noalias __inbytesleft: [*c]usize, noalias __outbuf: [*c][*c]u8, noalias __outbytesleft: [*c]usize) usize;
 pub const MB_MAXCHAR: c_int = 6;
-const enum_unnamed_118 = c_uint;
+const enum_unnamed_125 = c_uint;
 pub const ENC_8BIT: c_int = 1;
 pub const ENC_DBCS: c_int = 2;
 pub const ENC_UNICODE: c_int = 4;
@@ -8742,7 +9162,7 @@ pub const ENC_2WORD: c_int = 256;
 pub const ENC_LATIN1: c_int = 512;
 pub const ENC_LATIN9: c_int = 1024;
 pub const ENC_MACROMAN: c_int = 2048;
-const enum_unnamed_119 = c_uint;
+const enum_unnamed_126 = c_uint;
 pub const CONV_NONE: c_int = 0;
 pub const CONV_TO_UTF8: c_int = 1;
 pub const CONV_9_TO_UTF8: c_int = 2;
@@ -8843,7 +9263,7 @@ pub const MENU_INDEX_CMDLINE: c_int = 5;
 pub const MENU_INDEX_TERMINAL: c_int = 6;
 pub const MENU_INDEX_TIP: c_int = 7;
 pub const MENU_MODES: c_int = 8;
-const enum_unnamed_120 = c_int;
+const enum_unnamed_127 = c_int;
 pub const MENU_NORMAL_MODE: c_int = 1;
 pub const MENU_VISUAL_MODE: c_int = 2;
 pub const MENU_SELECT_MODE: c_int = 4;
@@ -8853,7 +9273,7 @@ pub const MENU_CMDLINE_MODE: c_int = 32;
 pub const MENU_TERMINAL_MODE: c_int = 64;
 pub const MENU_TIP_MODE: c_int = 128;
 pub const MENU_ALL_MODES: c_int = 127;
-const enum_unnamed_121 = c_uint;
+const enum_unnamed_128 = c_uint;
 pub const vimmenu_T = struct_VimMenu;
 pub const struct_VimMenu = extern struct {
     modes: c_int,
@@ -8944,61 +9364,62 @@ pub const EVENT_INSERTLEAVE: c_int = 68;
 pub const EVENT_INSERTLEAVEPRE: c_int = 69;
 pub const EVENT_LSPATTACH: c_int = 70;
 pub const EVENT_LSPDETACH: c_int = 71;
-pub const EVENT_LSPTOKENUPDATE: c_int = 72;
-pub const EVENT_MENUPOPUP: c_int = 73;
-pub const EVENT_MODECHANGED: c_int = 74;
-pub const EVENT_OPTIONSET: c_int = 75;
-pub const EVENT_QUICKFIXCMDPOST: c_int = 76;
-pub const EVENT_QUICKFIXCMDPRE: c_int = 77;
-pub const EVENT_QUITPRE: c_int = 78;
-pub const EVENT_RECORDINGENTER: c_int = 79;
-pub const EVENT_RECORDINGLEAVE: c_int = 80;
-pub const EVENT_REMOTEREPLY: c_int = 81;
-pub const EVENT_SEARCHWRAPPED: c_int = 82;
-pub const EVENT_SESSIONLOADPOST: c_int = 83;
-pub const EVENT_SHELLCMDPOST: c_int = 84;
-pub const EVENT_SHELLFILTERPOST: c_int = 85;
-pub const EVENT_SIGNAL: c_int = 86;
-pub const EVENT_SOURCECMD: c_int = 87;
-pub const EVENT_SOURCEPOST: c_int = 88;
-pub const EVENT_SOURCEPRE: c_int = 89;
-pub const EVENT_SPELLFILEMISSING: c_int = 90;
-pub const EVENT_STDINREADPOST: c_int = 91;
-pub const EVENT_STDINREADPRE: c_int = 92;
-pub const EVENT_SWAPEXISTS: c_int = 93;
-pub const EVENT_SYNTAX: c_int = 94;
-pub const EVENT_TABCLOSED: c_int = 95;
-pub const EVENT_TABENTER: c_int = 96;
-pub const EVENT_TABLEAVE: c_int = 97;
-pub const EVENT_TABNEW: c_int = 98;
-pub const EVENT_TABNEWENTERED: c_int = 99;
-pub const EVENT_TERMCHANGED: c_int = 100;
-pub const EVENT_TERMCLOSE: c_int = 101;
-pub const EVENT_TERMENTER: c_int = 102;
-pub const EVENT_TERMLEAVE: c_int = 103;
-pub const EVENT_TERMOPEN: c_int = 104;
-pub const EVENT_TERMRESPONSE: c_int = 105;
-pub const EVENT_TEXTCHANGED: c_int = 106;
-pub const EVENT_TEXTCHANGEDI: c_int = 107;
-pub const EVENT_TEXTCHANGEDP: c_int = 108;
-pub const EVENT_TEXTCHANGEDT: c_int = 109;
-pub const EVENT_TEXTYANKPOST: c_int = 110;
-pub const EVENT_UIENTER: c_int = 111;
-pub const EVENT_UILEAVE: c_int = 112;
-pub const EVENT_USER: c_int = 113;
-pub const EVENT_VIMENTER: c_int = 114;
-pub const EVENT_VIMLEAVE: c_int = 115;
-pub const EVENT_VIMLEAVEPRE: c_int = 116;
-pub const EVENT_VIMRESIZED: c_int = 117;
-pub const EVENT_VIMRESUME: c_int = 118;
-pub const EVENT_VIMSUSPEND: c_int = 119;
-pub const EVENT_WINCLOSED: c_int = 120;
-pub const EVENT_WINENTER: c_int = 121;
-pub const EVENT_WINLEAVE: c_int = 122;
-pub const EVENT_WINNEW: c_int = 123;
-pub const EVENT_WINRESIZED: c_int = 124;
-pub const EVENT_WINSCROLLED: c_int = 125;
-pub const NUM_EVENTS: c_int = 126;
+pub const EVENT_LSPREQUEST: c_int = 72;
+pub const EVENT_LSPTOKENUPDATE: c_int = 73;
+pub const EVENT_MENUPOPUP: c_int = 74;
+pub const EVENT_MODECHANGED: c_int = 75;
+pub const EVENT_OPTIONSET: c_int = 76;
+pub const EVENT_QUICKFIXCMDPOST: c_int = 77;
+pub const EVENT_QUICKFIXCMDPRE: c_int = 78;
+pub const EVENT_QUITPRE: c_int = 79;
+pub const EVENT_RECORDINGENTER: c_int = 80;
+pub const EVENT_RECORDINGLEAVE: c_int = 81;
+pub const EVENT_REMOTEREPLY: c_int = 82;
+pub const EVENT_SEARCHWRAPPED: c_int = 83;
+pub const EVENT_SESSIONLOADPOST: c_int = 84;
+pub const EVENT_SHELLCMDPOST: c_int = 85;
+pub const EVENT_SHELLFILTERPOST: c_int = 86;
+pub const EVENT_SIGNAL: c_int = 87;
+pub const EVENT_SOURCECMD: c_int = 88;
+pub const EVENT_SOURCEPOST: c_int = 89;
+pub const EVENT_SOURCEPRE: c_int = 90;
+pub const EVENT_SPELLFILEMISSING: c_int = 91;
+pub const EVENT_STDINREADPOST: c_int = 92;
+pub const EVENT_STDINREADPRE: c_int = 93;
+pub const EVENT_SWAPEXISTS: c_int = 94;
+pub const EVENT_SYNTAX: c_int = 95;
+pub const EVENT_TABCLOSED: c_int = 96;
+pub const EVENT_TABENTER: c_int = 97;
+pub const EVENT_TABLEAVE: c_int = 98;
+pub const EVENT_TABNEW: c_int = 99;
+pub const EVENT_TABNEWENTERED: c_int = 100;
+pub const EVENT_TERMCHANGED: c_int = 101;
+pub const EVENT_TERMCLOSE: c_int = 102;
+pub const EVENT_TERMENTER: c_int = 103;
+pub const EVENT_TERMLEAVE: c_int = 104;
+pub const EVENT_TERMOPEN: c_int = 105;
+pub const EVENT_TERMRESPONSE: c_int = 106;
+pub const EVENT_TEXTCHANGED: c_int = 107;
+pub const EVENT_TEXTCHANGEDI: c_int = 108;
+pub const EVENT_TEXTCHANGEDP: c_int = 109;
+pub const EVENT_TEXTCHANGEDT: c_int = 110;
+pub const EVENT_TEXTYANKPOST: c_int = 111;
+pub const EVENT_UIENTER: c_int = 112;
+pub const EVENT_UILEAVE: c_int = 113;
+pub const EVENT_USER: c_int = 114;
+pub const EVENT_VIMENTER: c_int = 115;
+pub const EVENT_VIMLEAVE: c_int = 116;
+pub const EVENT_VIMLEAVEPRE: c_int = 117;
+pub const EVENT_VIMRESIZED: c_int = 118;
+pub const EVENT_VIMRESUME: c_int = 119;
+pub const EVENT_VIMSUSPEND: c_int = 120;
+pub const EVENT_WINCLOSED: c_int = 121;
+pub const EVENT_WINENTER: c_int = 122;
+pub const EVENT_WINLEAVE: c_int = 123;
+pub const EVENT_WINNEW: c_int = 124;
+pub const EVENT_WINRESIZED: c_int = 125;
+pub const EVENT_WINSCROLLED: c_int = 126;
+pub const NUM_EVENTS: c_int = 127;
 pub const enum_auto_event = c_uint;
 pub const event_T = enum_auto_event;
 pub const AutoPatCmd = struct_AutoPatCmd_S;
@@ -9117,7 +9538,7 @@ pub const ETYPE_ENV: c_int = 7;
 pub const ETYPE_INTERNAL: c_int = 8;
 pub const ETYPE_SPELL: c_int = 9;
 pub const etype_T = c_uint;
-const union_unnamed_122 = extern union {
+const union_unnamed_129 = extern union {
     sctx: [*c]sctx_T,
     ufunc: [*c]ufunc_T,
     aucmd: [*c]AutoPatCmd,
@@ -9127,7 +9548,7 @@ pub const estack_T = extern struct {
     es_lnum: linenr_T,
     es_name: [*c]u8,
     es_type: etype_T,
-    es_info: union_unnamed_122,
+    es_info: union_unnamed_129,
 };
 pub extern var exestack: garray_T;
 pub const ESTACK_NONE: c_int = 0;
@@ -9325,6 +9746,7 @@ pub const struct_caller_scope = extern struct {
     es_entry: estack_T,
     autocmd_fname: [*c]u8,
     autocmd_match: [*c]u8,
+    autocmd_fname_full: bool,
     autocmd_bufnr: c_int,
     funccalp: ?*anyopaque,
 };
@@ -9368,12 +9790,12 @@ pub const aucmdwin_T = extern struct {
     auc_win: [*c]win_T,
     auc_win_used: bool,
 };
-const struct_unnamed_123 = extern struct {
+const struct_unnamed_130 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]aucmdwin_T,
 };
-pub extern var aucmd_win_vec: struct_unnamed_123;
+pub extern var aucmd_win_vec: struct_unnamed_130;
 pub extern var topframe: [*c]frame_T;
 pub extern var first_tabpage: [*c]tabpage_T;
 pub extern var curtab: [*c]tabpage_T;
@@ -9499,6 +9921,7 @@ pub extern var last_cmdline: [*c]u8;
 pub extern var repeat_cmdline: [*c]u8;
 pub extern var new_last_cmdline: [*c]u8;
 pub extern var autocmd_fname: [*c]u8;
+pub extern var autocmd_fname_full: bool;
 pub extern var autocmd_bufnr: c_int;
 pub extern var autocmd_match: [*c]u8;
 pub extern var did_cursorhold: bool;
@@ -9523,7 +9946,10 @@ pub extern var wild_menu_showing: c_int;
 pub const WM_SHOWN: c_int = 1;
 pub const WM_SCROLLED: c_int = 2;
 pub const WM_LIST: c_int = 3;
-const enum_unnamed_124 = c_uint;
+const enum_unnamed_131 = c_uint;
+pub extern var default_vim_dir: [*c]u8;
+pub extern var default_vimruntime_dir: [*c]u8;
+pub extern var default_lib_dir: [*c]u8;
 pub extern var globaldir: [*c]u8;
 pub extern var last_chdir_reason: [*c]u8;
 pub extern var km_stopsel: bool;
@@ -9984,6 +10410,9 @@ pub const e_undobang_cannot_redo_or_move_branch: [*c]const u8 = @extern([*c]cons
 pub const e_trustfile: [*c]const u8 = @extern([*c]const u8, .{
     .name = "e_trustfile",
 });
+pub const e_unknown_option2: [*c]const u8 = @extern([*c]const u8, .{
+    .name = "e_unknown_option2",
+});
 pub const top_bot_msg: [*c]const u8 = @extern([*c]const u8, .{
     .name = "top_bot_msg",
 });
@@ -10016,6 +10445,240 @@ pub extern var magic_overruled: optmagic_T;
 pub extern var skip_win_fix_cursor: bool;
 pub extern var skip_win_fix_scroll: bool;
 pub extern var skip_update_topline: bool;
+pub const REMAP_YES: c_int = 0;
+pub const REMAP_NONE: c_int = -1;
+pub const REMAP_SCRIPT: c_int = -2;
+pub const REMAP_SKIP: c_int = -3;
+pub const enum_RemapValues = c_int;
+pub const FLUSH_MINIMAL: c_int = 0;
+pub const FLUSH_TYPEAHEAD: c_int = 1;
+pub const FLUSH_INPUT: c_int = 2;
+pub const flush_buffers_T = c_uint;
+pub const NSCRIPT: c_int = 15;
+const enum_unnamed_132 = c_uint;
+pub extern var scriptin: [15][*c]FileDescriptor;
+pub extern fn free_buff(buf: [*c]buffheader_T) void;
+pub extern fn get_recorded() [*c]u8;
+pub extern fn get_inserted() [*c]u8;
+pub extern fn stuff_empty() c_int;
+pub extern fn readbuf1_empty() c_int;
+pub extern fn typeahead_noflush(c: c_int) void;
+pub extern fn flush_buffers(flush_typeahead: flush_buffers_T) void;
+pub extern fn beep_flush() void;
+pub extern fn ResetRedobuff() void;
+pub extern fn CancelRedo() void;
+pub extern fn saveRedobuff(save_redo: [*c]save_redo_T) void;
+pub extern fn restoreRedobuff(save_redo: [*c]save_redo_T) void;
+pub extern fn AppendToRedobuff(s: [*c]const u8) void;
+pub extern fn AppendToRedobuffLit(str: [*c]const u8, len: c_int) void;
+pub extern fn AppendToRedobuffSpec(s: [*c]const u8) void;
+pub extern fn AppendCharToRedobuff(c: c_int) void;
+pub extern fn AppendNumberToRedobuff(n: c_long) void;
+pub extern fn stuffReadbuff(s: [*c]const u8) void;
+pub extern fn stuffRedoReadbuff(s: [*c]const u8) void;
+pub extern fn stuffReadbuffLen(s: [*c]const u8, len: ptrdiff_t) void;
+pub extern fn stuffReadbuffSpec(s: [*c]const u8) void;
+pub extern fn stuffcharReadbuff(c: c_int) void;
+pub extern fn stuffnumReadbuff(n: c_long) void;
+pub extern fn stuffescaped(arg: [*c]const u8, literally: bool) void;
+pub extern fn start_redo(count: c_long, old_redo: bool) c_int;
+pub extern fn start_redo_ins() c_int;
+pub extern fn stop_redo_ins() void;
+pub extern fn noremap_keys() bool;
+pub extern fn ins_typebuf(str: [*c]u8, noremap: c_int, offset: c_int, nottyped: bool, silent: bool) c_int;
+pub extern fn ins_char_typebuf(c: c_int, modifiers: c_int) c_int;
+pub extern fn typebuf_changed(tb_change_cnt: c_int) bool;
+pub extern fn typebuf_typed() c_int;
+pub extern fn typebuf_maplen() c_int;
+pub extern fn del_typebuf(len: c_int, offset: c_int) void;
+pub extern fn ungetchars(len: c_int) void;
+pub extern fn may_sync_undo() void;
+pub extern fn alloc_typebuf() void;
+pub extern fn free_typebuf() void;
+pub extern fn save_typebuf() void;
+pub extern fn save_typeahead(tp: [*c]tasave_T) void;
+pub extern fn restore_typeahead(tp: [*c]tasave_T) void;
+pub extern fn openscript(name: [*c]u8, directly: bool) void;
+pub extern fn using_script() c_int;
+pub extern fn before_blocking() void;
+pub extern fn merge_modifiers(c_arg: c_int, modifiers: [*c]c_int) c_int;
+pub extern fn vgetc() c_int;
+pub extern fn safe_vgetc() c_int;
+pub extern fn plain_vgetc() c_int;
+pub extern fn vpeekc() c_int;
+pub extern fn vpeekc_any() c_int;
+pub extern fn char_avail() c_int;
+pub extern fn f_getchar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getcharstr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn f_getcharmod(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
+pub extern fn vungetc(c: c_int) void;
+pub extern fn check_end_reg_executing(advance: bool) void;
+pub extern fn inchar(buf: [*c]u8, maxlen: c_int, wait_time: c_long) c_int;
+pub extern fn fix_input_buffer(buf: [*c]u8, len: c_int) c_int;
+pub extern fn getcmdkeycmd(promptc: c_int, cookie: ?*anyopaque, indent: c_int, do_concat: bool) [*c]u8;
+pub extern fn map_execute_lua(may_repeat: bool) bool;
+pub extern var buffer_handles: Map_int_ptr_t;
+pub extern var window_handles: Map_int_ptr_t;
+pub extern var tabpage_handles: Map_int_ptr_t;
+pub const TryState = extern struct {
+    current_exception: [*c]except_T,
+    private_msg_list: [*c]msglist_T,
+    msg_list: [*c]const [*c]const msglist_T,
+    trylevel: c_int,
+    got_int: c_int,
+    did_throw: bool,
+    need_rethrow: c_int,
+    did_emsg: c_int,
+};
+pub extern fn try_enter(tstate: [*c]TryState) void;
+pub extern fn try_leave(tstate: [*c]const TryState, err: [*c]Error) bool;
+pub extern fn try_start() void;
+pub extern fn try_end(err: [*c]Error) bool;
+pub extern fn dict_get_value(dict: [*c]dict_T, key: String, err: [*c]Error) Object;
+pub extern fn dict_check_writable(dict: [*c]dict_T, key: String, del: bool, err: [*c]Error) [*c]dictitem_T;
+pub extern fn dict_set_var(dict: [*c]dict_T, key: String, value: Object, del: bool, retval: bool, err: [*c]Error) Object;
+pub extern fn find_buffer_by_handle(buffer: Buffer, err: [*c]Error) [*c]buf_T;
+pub extern fn find_window_by_handle(window: Window, err: [*c]Error) [*c]win_T;
+pub extern fn find_tab_by_handle(tabpage: Tabpage, err: [*c]Error) [*c]tabpage_T;
+pub extern fn cchar_to_string(c: u8) String;
+pub extern fn cstr_to_string(str: [*c]const u8) String;
+pub extern fn string_to_cstr(str: String) [*c]u8;
+pub extern fn cbuf_to_string(buf: [*c]const u8, size: usize) String;
+pub extern fn cstrn_to_string(str: [*c]const u8, maxsize: usize) String;
+pub extern fn cstrn_as_string(str: [*c]u8, maxsize: usize) String;
+pub extern fn cstr_as_string(str: [*c]u8) String;
+pub extern fn ga_take_string(ga: [*c]garray_T) String;
+pub extern fn string_to_array(input: String, crlf: bool) Array;
+pub extern fn buf_get_text(buf: [*c]buf_T, lnum: i64, start_col: i64, end_col: i64, err: [*c]Error) String;
+pub extern fn api_free_string(value: String) void;
+pub extern fn arena_array(arena: [*c]Arena, max_size: usize) Array;
+pub extern fn arena_dict(arena: [*c]Arena, max_size: usize) Dictionary;
+pub extern fn arena_string(arena: [*c]Arena, str: String) String;
+pub extern fn api_free_object(value: Object) void;
+pub extern fn api_free_array(value: Array) void;
+pub extern fn api_free_dictionary(value: Dictionary) void;
+pub extern fn api_clear_error(value: [*c]Error) void;
+pub extern fn api_metadata() Dictionary;
+pub extern fn copy_string(str: String, arena: [*c]Arena) String;
+pub extern fn copy_array(array: Array, arena: [*c]Arena) Array;
+pub extern fn copy_dictionary(dict: Dictionary, arena: [*c]Arena) Dictionary;
+pub extern fn copy_object(obj: Object, arena: [*c]Arena) Object;
+pub extern fn api_set_error(err: [*c]Error, errType: ErrorType, format: [*c]const u8, ...) void;
+pub extern fn api_object_to_bool(obj: Object, what: [*c]const u8, nil_value: bool, err: [*c]Error) bool;
+pub extern fn object_to_hl_id(obj: Object, what: [*c]const u8, err: [*c]Error) c_int;
+pub extern fn api_typename(t: ObjectType) [*c]u8;
+pub extern fn parse_hl_msg(chunks: Array, err: [*c]Error) HlMessage;
+pub extern fn api_dict_to_keydict(rv: ?*anyopaque, hashy: field_hash, dict: Dictionary, err: [*c]Error) bool;
+pub extern fn api_free_keydict(dict: ?*anyopaque, table: [*c]KeySetLink) void;
+pub extern fn set_mark(buf: [*c]buf_T, name: String, line: Integer, col: Integer, err: [*c]Error) bool;
+pub extern fn get_default_stl_hl(wp: [*c]win_T, use_winbar: bool, stc_hl_id: c_int) [*c]const u8;
+pub extern fn find_sid(channel_id: u64) c_int;
+pub extern fn api_set_sctx(channel_id: u64) sctx_T;
+pub extern fn set_init_tablocal() void;
+pub extern fn set_init_1(clean_arg: bool) void;
+pub extern fn set_number_default(name: [*c]u8, val: c_long) void;
+pub extern fn set_init_2(headless: bool) void;
+pub extern fn set_init_3() void;
+pub extern fn set_helplang_default(lang: [*c]const u8) void;
+pub extern fn set_title_defaults() void;
+pub extern fn ex_set(eap: [*c]exarg_T) void;
+pub extern fn do_set(arg: [*c]u8, opt_flags: c_int) c_int;
+pub extern fn did_set_option(opt_idx: c_int, opt_flags: c_int, new_value: c_int, value_checked: c_int) void;
+pub extern fn string_to_key(arg: [*c]u8) c_int;
+pub extern fn did_set_title() void;
+pub extern fn set_options_bin(oldval: c_int, newval: c_int, opt_flags: c_int) void;
+pub extern fn get_shada_parameter(@"type": c_int) c_int;
+pub extern fn find_shada_parameter(@"type": c_int) [*c]u8;
+pub extern fn check_options() void;
+pub extern fn was_set_insecurely(wp: [*c]win_T, opt: [*c]u8, opt_flags: c_int) c_int;
+pub extern fn redraw_titles() void;
+pub extern fn valid_name(val: [*c]const u8, allowed: [*c]const u8) bool;
+pub extern fn check_blending(wp: [*c]win_T) void;
+pub extern fn parse_winhl_opt(wp: [*c]win_T) bool;
+pub extern fn get_option_sctx(name: [*c]const u8) [*c]sctx_T;
+pub extern fn set_option_sctx_idx(opt_idx: c_int, opt_flags: c_int, script_ctx: sctx_T) void;
+pub extern fn did_set_global_undolevels(value: c_long, old_value: c_long) [*c]const u8;
+pub extern fn did_set_buflocal_undolevels(buf: [*c]buf_T, value: c_long, old_value: c_long) [*c]const u8;
+pub extern fn check_redraw_for(buf: [*c]buf_T, win: [*c]win_T, flags: u32) void;
+pub extern fn check_redraw(flags: u32) void;
+pub extern fn findoption_len(arg: [*c]const u8, len: usize) c_int;
+pub extern fn is_tty_option(name: [*c]const u8) bool;
+pub extern fn get_tty_option(name: [*c]const u8, value: [*c][*c]u8) bool;
+pub extern fn set_tty_option(name: [*c]const u8, value: [*c]u8) bool;
+pub extern fn set_tty_background(value: [*c]const u8) void;
+pub extern fn findoption(arg: [*c]const u8) c_int;
+pub extern fn optval_free(o: OptVal) void;
+pub extern fn optval_copy(o: OptVal) OptVal;
+pub extern fn get_option_value(name: [*c]const u8, flagsp: [*c]u32, scope: c_int, hidden: [*c]bool) OptVal;
+pub extern fn get_option_value_strict(name: [*c]u8, numval: [*c]i64, stringval: [*c][*c]u8, opt_type: c_int, from: ?*anyopaque) c_int;
+pub extern fn get_option(opt_idx: c_int) [*c]vimoption_T;
+pub extern fn set_option_value(name: [*c]const u8, value: OptVal, opt_flags: c_int) [*c]const u8;
+pub extern fn set_option_value_give_err(name: [*c]const u8, value: OptVal, opt_flags: c_int) void;
+pub extern fn is_option_allocated(name: [*c]const u8) bool;
+pub extern fn is_string_option(name: [*c]const u8) bool;
+pub extern fn find_key_option_len(arg_arg: [*c]const u8, len: usize, has_lt: bool) c_int;
+pub extern fn ui_refresh_options() void;
+pub extern fn makeset(fd: [*c]FILE, opt_flags: c_int, local_only: c_int) c_int;
+pub extern fn makefoldset(fd: [*c]FILE) c_int;
+pub extern fn unset_global_local_option(name: [*c]u8, from: ?*anyopaque) void;
+pub extern fn get_varp_scope_from(p: [*c]vimoption_T, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
+pub extern fn get_varp_scope(p: [*c]vimoption_T, scope: c_int) [*c]u8;
+pub extern fn get_option_varp_scope_from(opt_idx: c_int, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
+pub extern fn get_option_did_set_cb(opt_idx: c_int) opt_did_set_cb_T;
+pub extern fn get_equalprg() [*c]u8;
+pub extern fn win_copy_options(wp_from: [*c]win_T, wp_to: [*c]win_T) void;
+pub extern fn copy_winopt(from: [*c]winopt_T, to: [*c]winopt_T) void;
+pub extern fn check_win_options(win: [*c]win_T) void;
+pub extern fn clear_winopt(wop: [*c]winopt_T) void;
+pub extern fn didset_window_options(wp: [*c]win_T, valid_cursor: bool) void;
+pub extern fn buf_copy_options(buf: [*c]buf_T, flags: c_int) void;
+pub extern fn reset_modifiable() void;
+pub extern fn set_iminsert_global(buf: [*c]buf_T) void;
+pub extern fn set_imsearch_global(buf: [*c]buf_T) void;
+pub extern fn set_context_in_set_cmd(xp: [*c]expand_T, arg: [*c]u8, opt_flags: c_int) void;
+pub extern fn ExpandSettings(xp: [*c]expand_T, regmatch: [*c]regmatch_T, fuzzystr: [*c]u8, numMatches: [*c]c_int, matches: [*c][*c][*c]u8, can_fuzzy: bool) c_int;
+pub extern fn ExpandOldSetting(numMatches: [*c]c_int, matches: [*c][*c][*c]u8) void;
+pub extern fn shortmess(x: c_int) bool;
+pub extern fn vimrc_found(fname: [*c]u8, envname: [*c]u8) void;
+pub extern fn option_was_set(name: [*c]const u8) bool;
+pub extern fn reset_option_was_set(name: [*c]const u8) void;
+pub extern fn fill_culopt_flags(val: [*c]u8, wp: [*c]win_T) c_int;
+pub extern fn magic_isset() bool;
+pub extern fn option_set_callback_func(optval: [*c]u8, optcb: [*c]Callback) c_int;
+pub extern fn can_bs(what: c_int) bool;
+pub extern fn get_bkc_value(buf: [*c]buf_T) c_uint;
+pub extern fn get_flp_value(buf: [*c]buf_T) [*c]u8;
+pub extern fn get_ve_flags() c_uint;
+pub extern fn get_showbreak_value(win: [*c]win_T) [*c]u8;
+pub extern fn get_fileformat(buf: [*c]const buf_T) c_int;
+pub extern fn get_fileformat_force(buf: [*c]const buf_T, eap: [*c]const exarg_T) c_int;
+pub extern fn default_fileformat() c_int;
+pub extern fn set_fileformat(eol_style: c_int, opt_flags: c_int) void;
+pub extern fn skip_to_option_part(p: [*c]const u8) [*c]u8;
+pub extern fn copy_option_part(option: [*c][*c]u8, buf: [*c]u8, maxlen: usize, sep_chars: [*c]u8) usize;
+pub extern fn csh_like_shell() c_int;
+pub extern fn fish_like_shell() bool;
+pub extern fn win_signcol_count(wp: [*c]win_T) c_int;
+pub extern fn win_no_signcol(wp: [*c]win_T) bool;
+pub extern fn win_signcol_configured(wp: [*c]win_T, is_fixed: [*c]c_int) c_int;
+pub extern fn get_winbuf_options(bufopt: c_int) [*c]dict_T;
+pub extern fn get_scrolloff_value(wp: [*c]win_T) c_long;
+pub extern fn get_sidescrolloff_value(wp: [*c]win_T) c_long;
+pub extern fn get_vimoption(name: String, scope: c_int, buf: [*c]buf_T, win: [*c]win_T, err: [*c]Error) Dictionary;
+pub extern fn get_all_vimoptions() Dictionary;
+pub extern fn nvim_get_option_value(name: String, opts: [*c]KeyDict_option, err: [*c]Error) Object;
+pub extern fn nvim_set_option_value(channel_id: u64, name: String, value: Object, opts: [*c]KeyDict_option, err: [*c]Error) void;
+pub extern fn nvim_get_all_options_info(err: [*c]Error) Dictionary;
+pub extern fn nvim_get_option_info2(name: String, opts: [*c]KeyDict_option, err: [*c]Error) Dictionary;
+pub extern fn get_option_value_for(name: [*c]const u8, flagsp: [*c]u32, scope: c_int, hidden: [*c]bool, opt_type: c_int, from: ?*anyopaque, err: [*c]Error) OptVal;
+pub extern fn set_option_value_for(name: [*c]const u8, value: OptVal, opt_flags: c_int, opt_type: c_int, from: ?*anyopaque, err: [*c]Error) void;
+pub extern fn nvim_tabpage_list_wins(tabpage: Tabpage, err: [*c]Error) Array;
+pub extern fn nvim_tabpage_get_var(tabpage: Tabpage, name: String, err: [*c]Error) Object;
+pub extern fn nvim_tabpage_set_var(tabpage: Tabpage, name: String, value: Object, err: [*c]Error) void;
+pub extern fn nvim_tabpage_del_var(tabpage: Tabpage, name: String, err: [*c]Error) void;
+pub extern fn nvim_tabpage_get_win(tabpage: Tabpage, err: [*c]Error) Window;
+pub extern fn nvim_tabpage_get_number(tabpage: Tabpage, err: [*c]Error) Integer;
+pub extern fn nvim_tabpage_is_valid(tabpage: Tabpage) Boolean;
 pub const struct_ui_t = extern struct {
     rgb: bool,
     override: bool,
@@ -10054,7 +10717,7 @@ pub const ui_ext_names: [*c][*c]const u8 = @extern([*c][*c]const u8, .{
 pub const UI = struct_ui_t;
 pub const kLineFlagWrap: c_int = 1;
 pub const kLineFlagInvalid: c_int = 2;
-const enum_unnamed_125 = c_uint;
+const enum_unnamed_133 = c_uint;
 pub const LineFlags = c_int;
 pub const UIData = extern struct {
     channel_id: u64,
@@ -10367,147 +11030,6 @@ pub extern fn f_argc(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncD
 pub extern fn f_argidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn f_arglistid(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn f_argv(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn gettext(__msgid: [*c]const u8) [*c]u8;
-pub extern fn dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
-pub extern fn __dgettext(__domainname: [*c]const u8, __msgid: [*c]const u8) [*c]u8;
-pub extern fn dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
-pub extern fn __dcgettext(__domainname: [*c]const u8, __msgid: [*c]const u8, __category: c_int) [*c]u8;
-pub extern fn ngettext(__msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
-pub extern fn dngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong) [*c]u8;
-pub extern fn dcngettext(__domainname: [*c]const u8, __msgid1: [*c]const u8, __msgid2: [*c]const u8, __n: c_ulong, __category: c_int) [*c]u8;
-pub extern fn textdomain(__domainname: [*c]const u8) [*c]u8;
-pub extern fn bindtextdomain(__domainname: [*c]const u8, __dirname: [*c]const u8) [*c]u8;
-pub extern fn bind_textdomain_codeset(__domainname: [*c]const u8, __codeset: [*c]const u8) [*c]u8;
-pub const HlMessageChunk = extern struct {
-    text: String,
-    attr: c_int,
-};
-pub const HlMessage = extern struct {
-    size: usize,
-    capacity: usize,
-    items: [*c]HlMessageChunk,
-};
-pub const struct_msg_hist = extern struct {
-    next: [*c]struct_msg_hist,
-    msg: [*c]u8,
-    kind: [*c]const u8,
-    attr: c_int,
-    multiline: bool,
-    multiattr: HlMessage,
-};
-pub const MessageHistoryEntry = struct_msg_hist;
-pub extern var first_msg_hist: [*c]MessageHistoryEntry;
-pub extern var last_msg_hist: [*c]MessageHistoryEntry;
-pub extern var msg_ext_need_clear: bool;
-pub extern var msg_grid: ScreenGrid;
-pub extern var msg_grid_pos: c_int;
-pub extern var msg_grid_adj: ScreenGrid;
-pub extern var msg_scrolled_at_flush: c_int;
-pub extern var msg_grid_scroll_discount: c_int;
-pub extern fn msg_grid_set_pos(row: c_int, scrolled: bool) void;
-pub extern fn msg_use_grid() bool;
-pub extern fn msg_grid_validate() void;
-pub extern fn msg(s: [*c]const u8) c_int;
-pub extern fn verb_msg(s: [*c]const u8) c_int;
-pub extern fn msg_attr(s: [*c]const u8, attr: c_int) c_int;
-pub extern fn msg_multiline_attr(s: [*c]const u8, attr: c_int, check_int: bool, need_clear: [*c]bool) void;
-pub extern fn msg_multiattr(hl_msg: HlMessage, kind: [*c]const u8, history: bool) void;
-pub extern fn msg_attr_keep(s: [*c]const u8, attr: c_int, keep: bool, multiline: bool) bool;
-pub extern fn msg_strtrunc(s: [*c]const u8, force: c_int) [*c]u8;
-pub extern fn trunc_string(s: [*c]const u8, buf: [*c]u8, room_in: c_int, buflen: c_int) void;
-pub extern fn smsg(s: [*c]const u8, ...) c_int;
-pub extern fn smsg_attr(attr: c_int, s: [*c]const u8, ...) c_int;
-pub extern fn smsg_attr_keep(attr: c_int, s: [*c]const u8, ...) c_int;
-pub extern fn reset_last_sourcing() void;
-pub extern fn msg_source(attr: c_int) void;
-pub extern fn emsg_not_now() c_int;
-pub extern fn emsg(s: [*c]const u8) bool;
-pub extern fn emsg_invreg(name: c_int) void;
-pub extern fn semsg(fmt: [*c]const u8, ...) bool;
-pub extern fn semsg_multiline(fmt: [*c]const u8, ...) bool;
-pub extern fn iemsg(s: [*c]const u8) void;
-pub extern fn siemsg(s: [*c]const u8, ...) void;
-pub extern fn internal_error(where: [*c]const u8) void;
-pub extern fn msg_schedule_semsg(fmt: [*c]const u8, ...) void;
-pub extern fn msg_trunc_attr(s: [*c]u8, force: bool, attr: c_int) [*c]u8;
-pub extern fn msg_may_trunc(force: bool, s: [*c]u8) [*c]u8;
-pub extern fn hl_msg_free(hl_msg: HlMessage) void;
-pub extern fn delete_first_msg() c_int;
-pub extern fn ex_messages(eap_p: ?*anyopaque) void;
-pub extern fn msg_end_prompt() void;
-pub extern fn wait_return(redraw: c_int) void;
-pub extern fn set_keep_msg(s: [*c]const u8, attr: c_int) void;
-pub extern fn messaging() bool;
-pub extern fn msgmore(n: c_long) void;
-pub extern fn msg_ext_set_kind(msg_kind: [*c]const u8) void;
-pub extern fn msg_start() void;
-pub extern fn msg_starthere() void;
-pub extern fn msg_putchar(c: c_int) void;
-pub extern fn msg_putchar_attr(c: c_int, attr: c_int) void;
-pub extern fn msg_outnum(n: c_long) void;
-pub extern fn msg_home_replace(fname: [*c]const u8) void;
-pub extern fn msg_home_replace_hl(fname: [*c]const u8) void;
-pub extern fn msg_outtrans(str: [*c]const u8) c_int;
-pub extern fn msg_outtrans_attr(str: [*c]const u8, attr: c_int) c_int;
-pub extern fn msg_outtrans_len(str: [*c]const u8, len: c_int) c_int;
-pub extern fn msg_outtrans_one(p: [*c]const u8, attr: c_int) [*c]const u8;
-pub extern fn msg_outtrans_len_attr(msgstr: [*c]const u8, len: c_int, attr: c_int) c_int;
-pub extern fn msg_make(arg: [*c]const u8) void;
-pub extern fn msg_outtrans_special(strstart: [*c]const u8, from: bool, maxlen: c_int) c_int;
-pub extern fn str2special_save(str: [*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]u8;
-pub extern fn str2special(sp: [*c][*c]const u8, replace_spaces: bool, replace_lt: bool) [*c]const u8;
-pub extern fn str2specialbuf(sp: [*c]const u8, buf: [*c]u8, len: usize) void;
-pub extern fn msg_prt_line(s: [*c]const u8, list: c_int) void;
-pub extern fn msg_puts(s: [*c]const u8) void;
-pub extern fn msg_puts_title(s: [*c]const u8) void;
-pub extern fn msg_outtrans_long_attr(longstr: [*c]const u8, attr: c_int) void;
-pub extern fn msg_outtrans_long_len_attr(longstr: [*c]const u8, len: c_int, attr: c_int) void;
-pub extern fn msg_puts_attr(s: [*c]const u8, attr: c_int) void;
-pub extern fn msg_puts_attr_len(str: [*c]const u8, len: ptrdiff_t, attr: c_int) void;
-pub extern fn msg_printf_attr(attr: c_int, fmt: [*c]const u8, ...) void;
-pub extern fn message_filtered(msg: [*c]const u8) bool;
-pub extern fn msg_scrollsize() c_int;
-pub extern fn msg_do_throttle() bool;
-pub extern fn msg_scroll_up(may_throttle: bool, zerocmd: bool) void;
-pub extern fn msg_scroll_flush() void;
-pub extern fn msg_reset_scroll() void;
-pub extern fn may_clear_sb_text() void;
-pub extern fn sb_text_start_cmdline() void;
-pub extern fn sb_text_restart_cmdline() void;
-pub extern fn sb_text_end_cmdline() void;
-pub extern fn clear_sb_text(all: c_int) void;
-pub extern fn show_sb_text() void;
-pub extern fn msg_sb_eol() void;
-pub extern fn msg_use_printf() c_int;
-pub extern fn msg_moremsg(full: c_int) void;
-pub extern fn repeat_message() void;
-pub extern fn msg_clr_eos() void;
-pub extern fn msg_clr_eos_force() void;
-pub extern fn msg_clr_cmdline() void;
-pub extern fn msg_end() c_int;
-pub extern fn msg_ext_ui_flush() void;
-pub extern fn msg_ext_flush_showmode() void;
-pub extern fn msg_ext_clear(force: bool) void;
-pub extern fn msg_ext_clear_later() void;
-pub extern fn msg_ext_check_clear() void;
-pub extern fn msg_ext_is_visible() bool;
-pub extern fn msg_check() void;
-pub extern fn redirecting() c_int;
-pub extern fn verbose_enter() void;
-pub extern fn verbose_leave() void;
-pub extern fn verbose_enter_scroll() void;
-pub extern fn verbose_leave_scroll() void;
-pub extern fn verbose_stop() void;
-pub extern fn verbose_open() c_int;
-pub extern fn give_warning(message: [*c]const u8, hl: bool) void;
-pub extern fn give_warning2(message: [*c]const u8, a1: [*c]const u8, hl: bool) void;
-pub extern fn msg_advance(col: c_int) void;
-pub extern fn do_dialog(@"type": c_int, title: [*c]u8, message: [*c]u8, buttons: [*c]u8, dfltbutton: c_int, textfield: [*c]u8, ex_cmd: c_int) c_int;
-pub extern fn display_confirm_msg() void;
-pub extern fn vim_dialog_yesno(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
-pub extern fn vim_dialog_yesnocancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
-pub extern fn vim_dialog_yesnoallcancel(@"type": c_int, title: [*c]u8, message: [*c]u8, dflt: c_int) c_int;
-pub extern fn msg_check_for_delay(check_msg_scroll: bool) void;
 pub inline fn tv_list_ref(l: [*c]list_T) void {
     if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
         return;
@@ -10531,7 +11053,7 @@ pub fn tv_list_set_lock(l: [*c]list_T, lock: VarLockStatus) callconv(.C) void {
             _ = @sizeOf(c_int);
             break :blk blk_1: {
                 break :blk_1 if (lock == @bitCast(c_uint, VAR_FIXED)) {} else {
-                    __assert_fail("lock == VAR_FIXED", "_nvim/src/nvim/eval/typval.h", @bitCast(c_uint, @as(c_int, 151)), "void tv_list_set_lock(list_T *const, const VarLockStatus)");
+                    __assert_fail("lock == VAR_FIXED", "_nvim/src/nvim/eval/typval.h", @bitCast(c_uint, @as(c_int, 83)), "void tv_list_set_lock(list_T *const, const VarLockStatus)");
                 };
             };
         };
@@ -11116,39 +11638,7 @@ pub extern fn truncate_line(fixpos: c_int) void;
 pub extern fn del_lines(nlines: c_long, undo: bool) void;
 pub extern fn get_leader_len(line: [*c]u8, flags: [*c][*c]u8, backward: bool, include_space: bool) c_int;
 pub extern fn get_last_leader_offset(line: [*c]u8, flags: [*c][*c]u8) c_int;
-pub const RBuffer = struct_rbuffer;
-pub const rbuffer_callback = ?*const fn ([*c]RBuffer, ?*anyopaque) callconv(.C) void;
-pub const struct_rbuffer = extern struct {
-    full_cb: rbuffer_callback align(8),
-    nonfull_cb: rbuffer_callback,
-    data: ?*anyopaque,
-    size: usize,
-    temp: [*c]u8,
-    end_ptr: [*c]u8,
-    read_ptr: [*c]u8,
-    write_ptr: [*c]u8,
-    pub fn start_ptr(self: anytype) @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8) {
-        const Intermediate = @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8);
-        const ReturnType = @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8);
-        return @ptrCast(ReturnType, @alignCast(@alignOf(u8), @ptrCast(Intermediate, self) + 64));
-    }
-};
-pub extern fn rbuffer_new(capacity: usize) [*c]RBuffer;
-pub extern fn rbuffer_free(buf: [*c]RBuffer) void;
-pub extern fn rbuffer_size(buf: [*c]RBuffer) usize;
-pub extern fn rbuffer_capacity(buf: [*c]RBuffer) usize;
-pub extern fn rbuffer_space(buf: [*c]RBuffer) usize;
-pub extern fn rbuffer_write_ptr(buf: [*c]RBuffer, write_count: [*c]usize) [*c]u8;
-pub extern fn rbuffer_reset(buf: [*c]RBuffer) void;
-pub extern fn rbuffer_produced(buf: [*c]RBuffer, count: usize) void;
-pub extern fn rbuffer_read_ptr(buf: [*c]RBuffer, read_count: [*c]usize) [*c]u8;
-pub extern fn rbuffer_consumed(buf: [*c]RBuffer, count: usize) void;
-pub extern fn rbuffer_consumed_compact(buf: [*c]RBuffer, count: usize) void;
-pub extern fn rbuffer_write(buf: [*c]RBuffer, src: [*c]const u8, src_size: usize) usize;
-pub extern fn rbuffer_read(buf: [*c]RBuffer, dst: [*c]u8, dst_size: usize) usize;
-pub extern fn rbuffer_get(buf: [*c]RBuffer, index: usize) [*c]u8;
-pub extern fn rbuffer_cmp(buf: [*c]RBuffer, str: [*c]const u8, count: usize) c_int;
-const union_unnamed_126 = extern union {
+const union_unnamed_134 = extern union {
     pipe: uv_pipe_t,
     tcp: uv_tcp_t,
     idle: uv_idle_t,
@@ -11160,7 +11650,7 @@ pub const stream_close_cb = ?*const fn ([*c]Stream, ?*anyopaque) callconv(.C) vo
 pub const struct_stream = extern struct {
     closed: bool,
     did_eof: bool,
-    uv: union_unnamed_126,
+    uv: union_unnamed_134,
     uvstream: [*c]uv_stream_t,
     uvbuf: uv_buf_t,
     buffer: [*c]RBuffer,
@@ -11253,7 +11743,7 @@ pub fn process_init(arg_loop_1: [*c]Loop, arg_type: ProcessType, arg_data: ?*any
         .in = Stream{
             .closed = @as(c_int, 0) != 0,
             .did_eof = false,
-            .uv = @import("std").mem.zeroes(union_unnamed_126),
+            .uv = @import("std").mem.zeroes(union_unnamed_134),
             .uvstream = null,
             .uvbuf = @import("std").mem.zeroes(uv_buf_t),
             .buffer = null,
@@ -11275,7 +11765,7 @@ pub fn process_init(arg_loop_1: [*c]Loop, arg_type: ProcessType, arg_data: ?*any
         .out = Stream{
             .closed = @as(c_int, 0) != 0,
             .did_eof = false,
-            .uv = @import("std").mem.zeroes(union_unnamed_126),
+            .uv = @import("std").mem.zeroes(union_unnamed_134),
             .uvstream = null,
             .uvbuf = @import("std").mem.zeroes(uv_buf_t),
             .buffer = null,
@@ -11297,7 +11787,7 @@ pub fn process_init(arg_loop_1: [*c]Loop, arg_type: ProcessType, arg_data: ?*any
         .err = Stream{
             .closed = @as(c_int, 0) != 0,
             .did_eof = false,
-            .uv = @import("std").mem.zeroes(union_unnamed_126),
+            .uv = @import("std").mem.zeroes(union_unnamed_134),
             .uvstream = null,
             .uvbuf = @import("std").mem.zeroes(uv_buf_t),
             .buffer = null,
@@ -11358,23 +11848,23 @@ pub fn libuv_process_init(arg_loop_1: [*c]Loop, arg_data: ?*anyopaque) callconv(
 }
 pub extern fn libuv_process_spawn(uvproc: [*c]LibuvProcess) c_int;
 pub extern fn libuv_process_close(uvproc: [*c]LibuvProcess) void;
-const struct_unnamed_128 = extern struct {
+const struct_unnamed_136 = extern struct {
     handle: uv_tcp_t,
     addrinfo: [*c]struct_addrinfo,
 };
-const struct_unnamed_129 = extern struct {
+const struct_unnamed_137 = extern struct {
     handle: uv_pipe_t,
 };
-const union_unnamed_127 = extern union {
-    tcp: struct_unnamed_128,
-    pipe: struct_unnamed_129,
+const union_unnamed_135 = extern union {
+    tcp: struct_unnamed_136,
+    pipe: struct_unnamed_137,
 };
 pub const SocketWatcher = struct_socket_watcher;
 pub const socket_cb = ?*const fn ([*c]SocketWatcher, c_int, ?*anyopaque) callconv(.C) void;
 pub const socket_close_cb = ?*const fn ([*c]SocketWatcher, ?*anyopaque) callconv(.C) void;
 pub const struct_socket_watcher = extern struct {
     addr: [256]u8,
-    uv: union_unnamed_127,
+    uv: union_unnamed_135,
     stream: [*c]uv_stream_t,
     data: ?*anyopaque,
     cb: socket_cb,
@@ -12587,12 +13077,12 @@ pub fn msgpack_pack_float(arg_x: [*c]msgpack_packer, arg_d: f32) callconv(.C) c_
     var x = arg_x;
     var d = arg_d;
     var buf: [5]u8 = undefined;
-    const union_unnamed_130 = extern union {
+    const union_unnamed_138 = extern union {
         f: f32,
         i: u32,
     };
-    _ = @TypeOf(union_unnamed_130);
-    var mem: union_unnamed_130 = undefined;
+    _ = @TypeOf(union_unnamed_138);
+    var mem: union_unnamed_138 = undefined;
     mem.f = d;
     buf[@intCast(c_uint, @as(c_int, 0))] = 202;
     while (true) {
@@ -12606,12 +13096,12 @@ pub fn msgpack_pack_double(arg_x: [*c]msgpack_packer, arg_d: f64) callconv(.C) c
     var x = arg_x;
     var d = arg_d;
     var buf: [9]u8 = undefined;
-    const union_unnamed_131 = extern union {
+    const union_unnamed_139 = extern union {
         f: f64,
         i: u64,
     };
-    _ = @TypeOf(union_unnamed_131);
-    var mem: union_unnamed_131 = undefined;
+    _ = @TypeOf(union_unnamed_139);
+    var mem: union_unnamed_139 = undefined;
     mem.f = d;
     buf[@intCast(c_uint, @as(c_int, 0))] = 203;
     while (true) {
@@ -13534,303 +14024,6 @@ pub const echo_opts_table: [*c]KeySetLink = @extern([*c]KeySetLink, .{
 pub const exec_opts_table: [*c]KeySetLink = @extern([*c]KeySetLink, .{
     .name = "exec_opts_table",
 });
-pub const NUMBUFLEN: c_int = 65;
-const enum_unnamed_132 = c_uint;
-pub fn strappend(dst: [*c]u8, src: [*c]const u8) callconv(.C) [*c]u8 {
-    const src_len: usize = strlen(src);
-    return @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), memmove(@ptrCast(?*anyopaque, dst), @ptrCast(?*const anyopaque, src), src_len))) + src_len;
-}
-pub const StringBuilder = extern struct {
-    size: usize,
-    capacity: usize,
-    items: [*c]u8,
-};
-pub extern fn xstrnsave(string: [*c]const u8, len: usize) [*c]u8;
-pub extern fn vim_strsave_escaped(string: [*c]const u8, esc_chars: [*c]const u8) [*c]u8;
-pub extern fn vim_strsave_escaped_ext(string: [*c]const u8, esc_chars: [*c]const u8, cc: u8, bsl: bool) [*c]u8;
-pub extern fn vim_strnsave_unquoted(string: [*c]const u8, length: usize) [*c]u8;
-pub extern fn vim_strsave_shellescape(string: [*c]const u8, do_special: bool, do_newline: bool) [*c]u8;
-pub extern fn vim_strsave_up(string: [*c]const u8) [*c]u8;
-pub extern fn vim_strnsave_up(string: [*c]const u8, len: usize) [*c]u8;
-pub extern fn vim_strup(p: [*c]u8) void;
-pub extern fn strcase_save(orig: [*c]const u8, upper: bool) [*c]u8;
-pub extern fn del_trailing_spaces(ptr: [*c]u8) void;
-pub extern fn vim_strchr(string: [*c]const u8, c: c_int) [*c]u8;
-pub extern fn sort_strings(files: [*c][*c]u8, count: c_int) void;
-pub extern fn has_non_ascii(s: [*c]const u8) bool;
-pub extern fn has_non_ascii_len(s: [*c]const u8, len: usize) bool;
-pub extern fn concat_str(noalias str1: [*c]const u8, noalias str2: [*c]const u8) [*c]u8;
-pub extern fn vim_snprintf_add(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ...) c_int;
-pub extern fn vim_snprintf(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ...) c_int;
-pub extern fn vim_vsnprintf(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ap: [*c]struct___va_list_tag) c_int;
-pub extern fn vim_vsnprintf_typval(str: [*c]u8, str_m: usize, fmt: [*c]const u8, ap: [*c]struct___va_list_tag, tvs: [*c]typval_T) c_int;
-pub extern fn kv_do_printf(str: [*c]StringBuilder, fmt: [*c]const u8, ...) c_int;
-pub extern fn reverse_text(s: [*c]u8) [*c]u8;
-pub extern fn strrep(src: [*c]const u8, what: [*c]const u8, rep: [*c]const u8) [*c]u8;
-pub extern fn f_byteidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_byteidxcomp(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_charidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_str2list(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_str2nr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strgetchar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_stridx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_string(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strlen(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strcharlen(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strchars(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strutf16len(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strdisplaywidth(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strwidth(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strcharpart(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strpart(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strridx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_strtrans(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_utf16idx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_tolower(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_toupper(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_tr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_trim(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub const KE_S_UP: c_int = 4;
-pub const KE_S_DOWN: c_int = 5;
-pub const KE_S_F1: c_int = 6;
-pub const KE_S_F2: c_int = 7;
-pub const KE_S_F3: c_int = 8;
-pub const KE_S_F4: c_int = 9;
-pub const KE_S_F5: c_int = 10;
-pub const KE_S_F6: c_int = 11;
-pub const KE_S_F7: c_int = 12;
-pub const KE_S_F8: c_int = 13;
-pub const KE_S_F9: c_int = 14;
-pub const KE_S_F10: c_int = 15;
-pub const KE_S_F11: c_int = 16;
-pub const KE_S_F12: c_int = 17;
-pub const KE_S_F13: c_int = 18;
-pub const KE_S_F14: c_int = 19;
-pub const KE_S_F15: c_int = 20;
-pub const KE_S_F16: c_int = 21;
-pub const KE_S_F17: c_int = 22;
-pub const KE_S_F18: c_int = 23;
-pub const KE_S_F19: c_int = 24;
-pub const KE_S_F20: c_int = 25;
-pub const KE_S_F21: c_int = 26;
-pub const KE_S_F22: c_int = 27;
-pub const KE_S_F23: c_int = 28;
-pub const KE_S_F24: c_int = 29;
-pub const KE_S_F25: c_int = 30;
-pub const KE_S_F26: c_int = 31;
-pub const KE_S_F27: c_int = 32;
-pub const KE_S_F28: c_int = 33;
-pub const KE_S_F29: c_int = 34;
-pub const KE_S_F30: c_int = 35;
-pub const KE_S_F31: c_int = 36;
-pub const KE_S_F32: c_int = 37;
-pub const KE_S_F33: c_int = 38;
-pub const KE_S_F34: c_int = 39;
-pub const KE_S_F35: c_int = 40;
-pub const KE_S_F36: c_int = 41;
-pub const KE_S_F37: c_int = 42;
-pub const KE_MOUSE: c_int = 43;
-pub const KE_LEFTMOUSE: c_int = 44;
-pub const KE_LEFTDRAG: c_int = 45;
-pub const KE_LEFTRELEASE: c_int = 46;
-pub const KE_MIDDLEMOUSE: c_int = 47;
-pub const KE_MIDDLEDRAG: c_int = 48;
-pub const KE_MIDDLERELEASE: c_int = 49;
-pub const KE_RIGHTMOUSE: c_int = 50;
-pub const KE_RIGHTDRAG: c_int = 51;
-pub const KE_RIGHTRELEASE: c_int = 52;
-pub const KE_IGNORE: c_int = 53;
-pub const KE_TAB: c_int = 54;
-pub const KE_S_TAB_OLD: c_int = 55;
-pub const KE_XF1: c_int = 57;
-pub const KE_XF2: c_int = 58;
-pub const KE_XF3: c_int = 59;
-pub const KE_XF4: c_int = 60;
-pub const KE_XEND: c_int = 61;
-pub const KE_ZEND: c_int = 62;
-pub const KE_XHOME: c_int = 63;
-pub const KE_ZHOME: c_int = 64;
-pub const KE_XUP: c_int = 65;
-pub const KE_XDOWN: c_int = 66;
-pub const KE_XLEFT: c_int = 67;
-pub const KE_XRIGHT: c_int = 68;
-pub const KE_LEFTMOUSE_NM: c_int = 69;
-pub const KE_LEFTRELEASE_NM: c_int = 70;
-pub const KE_S_XF1: c_int = 71;
-pub const KE_S_XF2: c_int = 72;
-pub const KE_S_XF3: c_int = 73;
-pub const KE_S_XF4: c_int = 74;
-pub const KE_MOUSEDOWN: c_int = 75;
-pub const KE_MOUSEUP: c_int = 76;
-pub const KE_MOUSELEFT: c_int = 77;
-pub const KE_MOUSERIGHT: c_int = 78;
-pub const KE_KINS: c_int = 79;
-pub const KE_KDEL: c_int = 80;
-pub const KE_SNR: c_int = 82;
-pub const KE_PLUG: c_int = 83;
-pub const KE_CMDWIN: c_int = 84;
-pub const KE_C_LEFT: c_int = 85;
-pub const KE_C_RIGHT: c_int = 86;
-pub const KE_C_HOME: c_int = 87;
-pub const KE_C_END: c_int = 88;
-pub const KE_X1MOUSE: c_int = 89;
-pub const KE_X1DRAG: c_int = 90;
-pub const KE_X1RELEASE: c_int = 91;
-pub const KE_X2MOUSE: c_int = 92;
-pub const KE_X2DRAG: c_int = 93;
-pub const KE_X2RELEASE: c_int = 94;
-pub const KE_DROP: c_int = 95;
-pub const KE_NOP: c_int = 97;
-pub const KE_MOUSEMOVE: c_int = 100;
-pub const KE_EVENT: c_int = 102;
-pub const KE_LUA: c_int = 103;
-pub const KE_COMMAND: c_int = 104;
-pub const enum_key_extra = c_uint;
-pub const REPTERM_FROM_PART: c_int = 1;
-pub const REPTERM_DO_LT: c_int = 2;
-pub const REPTERM_NO_SPECIAL: c_int = 4;
-pub const REPTERM_NO_SIMPLIFY: c_int = 8;
-const enum_unnamed_133 = c_uint;
-pub const FSK_KEYCODE: c_int = 1;
-pub const FSK_KEEP_X_KEY: c_int = 2;
-pub const FSK_IN_STRING: c_int = 4;
-pub const FSK_SIMPLIFY: c_int = 8;
-const enum_unnamed_134 = c_uint;
-pub extern fn name_to_mod_mask(c: c_int) c_int;
-pub extern fn simplify_key(key: c_int, modifiers: [*c]c_int) c_int;
-pub extern fn handle_x_keys(key: c_int) c_int;
-pub extern fn get_special_key_name(c: c_int, modifiers: c_int) [*c]u8;
-pub extern fn trans_special(srcp: [*c][*c]const u8, src_len: usize, dst: [*c]u8, flags: c_int, escape_ks: bool, did_simplify: [*c]bool) c_uint;
-pub extern fn special_to_buf(key: c_int, modifiers: c_int, escape_ks: bool, dst: [*c]u8) c_uint;
-pub extern fn find_special_key(srcp: [*c][*c]const u8, src_len: usize, modp: [*c]c_int, flags: c_int, did_simplify: [*c]bool) c_int;
-pub extern fn find_special_key_in_table(c: c_int) c_int;
-pub extern fn get_special_key_code(name: [*c]const u8) c_int;
-pub extern fn get_mouse_button(code: c_int, is_click: [*c]bool, is_drag: [*c]bool) c_int;
-pub extern fn replace_termcodes(from: [*c]const u8, from_len: usize, bufp: [*c][*c]u8, flags: c_int, did_simplify: [*c]bool, cpo_flags: c_int) [*c]u8;
-pub extern fn add_char2buf(c: c_int, s: [*c]u8) [*c]u8;
-pub extern fn vim_strsave_escape_ks(p: [*c]u8) [*c]u8;
-pub extern fn vim_unescape_ks(p: [*c]u8) void;
-pub const kDirectionNotSet: c_int = 0;
-pub const FORWARD: c_int = 1;
-pub const BACKWARD: c_int = -1;
-pub const FORWARD_FILE: c_int = 3;
-pub const BACKWARD_FILE: c_int = -3;
-pub const Direction = c_int;
-pub const EXPAND_UNSUCCESSFUL: c_int = -2;
-pub const EXPAND_OK: c_int = -1;
-pub const EXPAND_NOTHING: c_int = 0;
-pub const EXPAND_COMMANDS: c_int = 1;
-pub const EXPAND_FILES: c_int = 2;
-pub const EXPAND_DIRECTORIES: c_int = 3;
-pub const EXPAND_SETTINGS: c_int = 4;
-pub const EXPAND_BOOL_SETTINGS: c_int = 5;
-pub const EXPAND_TAGS: c_int = 6;
-pub const EXPAND_OLD_SETTING: c_int = 7;
-pub const EXPAND_HELP: c_int = 8;
-pub const EXPAND_BUFFERS: c_int = 9;
-pub const EXPAND_EVENTS: c_int = 10;
-pub const EXPAND_MENUS: c_int = 11;
-pub const EXPAND_SYNTAX: c_int = 12;
-pub const EXPAND_HIGHLIGHT: c_int = 13;
-pub const EXPAND_AUGROUP: c_int = 14;
-pub const EXPAND_USER_VARS: c_int = 15;
-pub const EXPAND_MAPPINGS: c_int = 16;
-pub const EXPAND_TAGS_LISTFILES: c_int = 17;
-pub const EXPAND_FUNCTIONS: c_int = 18;
-pub const EXPAND_USER_FUNC: c_int = 19;
-pub const EXPAND_EXPRESSION: c_int = 20;
-pub const EXPAND_MENUNAMES: c_int = 21;
-pub const EXPAND_USER_COMMANDS: c_int = 22;
-pub const EXPAND_USER_CMD_FLAGS: c_int = 23;
-pub const EXPAND_USER_NARGS: c_int = 24;
-pub const EXPAND_USER_COMPLETE: c_int = 25;
-pub const EXPAND_ENV_VARS: c_int = 26;
-pub const EXPAND_LANGUAGE: c_int = 27;
-pub const EXPAND_COLORS: c_int = 28;
-pub const EXPAND_COMPILER: c_int = 29;
-pub const EXPAND_USER_DEFINED: c_int = 30;
-pub const EXPAND_USER_LIST: c_int = 31;
-pub const EXPAND_USER_LUA: c_int = 32;
-pub const EXPAND_SHELLCMD: c_int = 33;
-pub const EXPAND_SIGN: c_int = 34;
-pub const EXPAND_PROFILE: c_int = 35;
-pub const EXPAND_FILETYPE: c_int = 36;
-pub const EXPAND_FILES_IN_PATH: c_int = 37;
-pub const EXPAND_OWNSYNTAX: c_int = 38;
-pub const EXPAND_LOCALES: c_int = 39;
-pub const EXPAND_HISTORY: c_int = 40;
-pub const EXPAND_USER: c_int = 41;
-pub const EXPAND_SYNTIME: c_int = 42;
-pub const EXPAND_USER_ADDR_TYPE: c_int = 43;
-pub const EXPAND_PACKADD: c_int = 44;
-pub const EXPAND_MESSAGES: c_int = 45;
-pub const EXPAND_MAPCLEAR: c_int = 46;
-pub const EXPAND_ARGLIST: c_int = 47;
-pub const EXPAND_DIFF_BUFFERS: c_int = 48;
-pub const EXPAND_BREAKPOINT: c_int = 49;
-pub const EXPAND_SCRIPTNAMES: c_int = 50;
-pub const EXPAND_RUNTIME: c_int = 51;
-pub const EXPAND_CHECKHEALTH: c_int = 52;
-pub const EXPAND_LUA: c_int = 53;
-const enum_unnamed_135 = c_int;
-pub const FOLD_TEXT_LEN: c_int = 51;
-const enum_unnamed_136 = c_uint;
-pub const kEqualFiles: c_int = 1;
-pub const kDifferentFiles: c_int = 2;
-pub const kBothFilesMissing: c_int = 4;
-pub const kOneFileMissing: c_int = 6;
-pub const kEqualFileNames: c_int = 7;
-pub const enum_file_comparison = c_uint;
-pub const FileComparison = enum_file_comparison;
-pub extern fn path_full_compare(s1: [*c]u8, s2: [*c]u8, checkname: bool, expandenv: bool) FileComparison;
-pub extern fn path_tail(fname: [*c]const u8) [*c]u8;
-pub extern fn path_tail_with_sep(fname: [*c]u8) [*c]u8;
-pub extern fn invocation_path_tail(invocation: [*c]const u8, len: [*c]usize) [*c]const u8;
-pub extern fn path_next_component(fname: [*c]const u8) [*c]const u8;
-pub extern fn path_head_length() c_int;
-pub extern fn is_path_head(path: [*c]const u8) bool;
-pub extern fn get_past_head(path: [*c]const u8) [*c]u8;
-pub extern fn vim_ispathsep(c: c_int) c_int;
-pub extern fn vim_ispathsep_nocolon(c: c_int) c_int;
-pub extern fn vim_ispathlistsep(c: c_int) c_int;
-pub extern fn shorten_dir_len(str: [*c]u8, trim_len: c_int) void;
-pub extern fn shorten_dir(str: [*c]u8) void;
-pub extern fn dir_of_file_exists(fname: [*c]u8) bool;
-pub extern fn path_fnamecmp(fname1: [*c]const u8, fname2: [*c]const u8) c_int;
-pub extern fn path_fnamencmp(fname1: [*c]const u8, fname2: [*c]const u8, len: usize) c_int;
-pub extern fn concat_fnames(fname1: [*c]const u8, fname2: [*c]const u8, sep: bool) [*c]u8;
-pub extern fn concat_fnames_realloc(fname1: [*c]u8, fname2: [*c]const u8, sep: bool) [*c]u8;
-pub extern fn add_pathsep(p: [*c]u8) bool;
-pub extern fn FullName_save(fname: [*c]const u8, force: bool) [*c]u8;
-pub extern fn save_abs_path(name: [*c]const u8) [*c]u8;
-pub extern fn path_has_wildcard(p: [*c]const u8) bool;
-pub extern fn path_has_exp_wildcard(p: [*c]const u8) bool;
-pub extern fn gettail_dir(fname: [*c]const u8) [*c]const u8;
-pub extern fn gen_expand_wildcards(num_pat: c_int, pat: [*c][*c]u8, num_file: [*c]c_int, file: [*c][*c][*c]u8, flags: c_int) c_int;
-pub extern fn FreeWild(count: c_int, files: [*c][*c]u8) void;
-pub extern fn addfile(gap: [*c]garray_T, f: [*c]u8, flags: c_int) void;
-pub extern fn simplify_filename(filename: [*c]u8) void;
-pub extern fn find_file_name_in_path(ptr: [*c]u8, len: usize, options: c_int, count: c_long, rel_fname: [*c]u8) [*c]u8;
-pub extern fn path_has_drive_letter(p: [*c]const u8) bool;
-pub extern fn path_is_url(p: [*c]const u8) c_int;
-pub extern fn path_with_url(fname: [*c]const u8) c_int;
-pub extern fn path_with_extension(path: [*c]const u8, extension: [*c]const u8) bool;
-pub extern fn vim_isAbsName(name: [*c]u8) bool;
-pub extern fn vim_FullName(fname: [*c]const u8, buf: [*c]u8, len: usize, force: bool) c_int;
-pub extern fn fix_fname(fname: [*c]const u8) [*c]u8;
-pub extern fn path_fix_case(name: [*c]u8) void;
-pub extern fn after_pathsep(b: [*c]const u8, p: [*c]const u8) c_int;
-pub extern fn same_directory(f1: [*c]u8, f2: [*c]u8) bool;
-pub extern fn pathcmp(p: [*c]const u8, q: [*c]const u8, maxlen: c_int) c_int;
-pub extern fn path_try_shorten_fname(full_path: [*c]u8) [*c]u8;
-pub extern fn path_shorten_fname(full_path: [*c]u8, dir_name: [*c]u8) [*c]u8;
-pub extern fn expand_wildcards_eval(pat: [*c][*c]u8, num_file: [*c]c_int, file: [*c][*c][*c]u8, flags: c_int) c_int;
-pub extern fn expand_wildcards(num_pat: c_int, pat: [*c][*c]u8, num_files: [*c]c_int, files: [*c][*c][*c]u8, flags: c_int) c_int;
-pub extern fn match_suffix(fname: [*c]u8) c_int;
-pub extern fn path_full_dir_name(directory: [*c]u8, buffer: [*c]u8, len: usize) c_int;
-pub extern fn append_path(path: [*c]u8, to_append: [*c]const u8, max_len: usize) c_int;
-pub extern fn path_is_absolute(fname: [*c]const u8) c_int;
-pub extern fn path_guess_exepath(argv0: [*c]const u8, buf: [*c]u8, bufsize: usize) void;
 pub const struct_winsize = extern struct {
     ws_row: c_ushort,
     ws_col: c_ushort,
@@ -13845,7 +14038,7 @@ pub const struct_pty_process = extern struct {
     tty_fd: c_int,
 };
 pub const PtyProcess = struct_pty_process;
-const union_unnamed_137 = extern union {
+const union_unnamed_140 = extern union {
     proc: Process,
     uv: LibuvProcess,
     pty: PtyProcess,
@@ -13859,7 +14052,7 @@ pub const struct_Channel = extern struct {
     refcount: usize,
     events: ?*MultiQueue,
     streamtype: ChannelStreamType,
-    stream: union_unnamed_137,
+    stream: union_unnamed_140,
     is_rpc: bool,
     rpc: RpcState,
     term: ?*Terminal,
@@ -13877,7 +14070,7 @@ pub const struct_mpack_value_s = extern struct {
     hi: mpack_uint32_t,
 };
 pub const mpack_value_t = struct_mpack_value_s;
-const union_unnamed_138 = extern union {
+const union_unnamed_141 = extern union {
     value: mpack_value_t,
     chunk_ptr: [*c]const u8,
     ext_type: c_int,
@@ -13885,7 +14078,7 @@ const union_unnamed_138 = extern union {
 pub const struct_mpack_token_s = extern struct {
     type: mpack_token_type_t,
     length: mpack_uint32_t,
-    data: union_unnamed_138,
+    data: union_unnamed_141,
 };
 pub const mpack_token_t = struct_mpack_token_s;
 pub const struct_mpack_tokbuf_s = extern struct {
@@ -13932,7 +14125,7 @@ pub const RequestEvent = extern struct {
     request_id: u32,
     used_mem: Arena,
 };
-const struct_unnamed_139 = extern struct {
+const struct_unnamed_142 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c][*c]ChannelCallFrame,
@@ -13942,7 +14135,7 @@ pub const RpcState = extern struct {
     closed: bool,
     unpacker: [*c]Unpacker,
     next_request_id: u32,
-    call_stack: struct_unnamed_139,
+    call_stack: struct_unnamed_142,
     info: Dictionary,
 };
 pub const struct_termio = extern struct {
@@ -14193,7 +14386,7 @@ pub const CmdRedraw = c_uint;
 pub const VSE_NONE: c_int = 0;
 pub const VSE_SHELL: c_int = 1;
 pub const VSE_BUFFER: c_int = 2;
-const enum_unnamed_140 = c_uint;
+const enum_unnamed_143 = c_uint;
 pub extern fn cmdpreview_get_bufnr() handle_T;
 pub extern fn cmdpreview_get_ns() c_long;
 pub extern fn getcmdline(firstc: c_int, count: c_long, indent: c_int, do_concat: bool) [*c]u8;
@@ -14254,7 +14447,7 @@ pub const WILD_APPLY: c_int = 10;
 pub const WILD_PAGEUP: c_int = 11;
 pub const WILD_PAGEDOWN: c_int = 12;
 pub const WILD_PUM_WANT: c_int = 13;
-const enum_unnamed_141 = c_uint;
+const enum_unnamed_144 = c_uint;
 pub const WILD_LIST_NOTFOUND: c_int = 1;
 pub const WILD_HOME_REPLACE: c_int = 2;
 pub const WILD_USE_NL: c_int = 4;
@@ -14269,7 +14462,7 @@ pub const WILD_IGNORE_COMPLETESLASH: c_int = 1024;
 pub const WILD_NOERROR: c_int = 2048;
 pub const WILD_BUFLASTUSED: c_int = 4096;
 pub const BUF_DIFF_FILTER: c_int = 8192;
-const enum_unnamed_142 = c_uint;
+const enum_unnamed_145 = c_uint;
 pub extern fn cmdline_fuzzy_complete(fuzzystr: [*c]const u8) bool;
 pub extern fn nextwild(xp: [*c]expand_T, @"type": c_int, options: c_int, escape: bool) c_int;
 pub extern fn cmdline_pum_display(changed_array: bool) void;
@@ -14556,16 +14749,24 @@ pub const WinExtmark = extern struct {
     win_row: c_int,
     win_col: c_int,
 };
-const struct_unnamed_143 = extern struct {
+const struct_unnamed_146 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]WinExtmark,
 };
-pub extern var win_extmark_arr: struct_unnamed_143;
+pub extern var win_extmark_arr: struct_unnamed_146;
 pub extern var conceal_cursor_used: bool;
+pub const spellvars_T = extern struct {
+    spv_has_spell: bool,
+    spv_unchanged: bool,
+    spv_checked_col: c_int,
+    spv_checked_lnum: linenr_T,
+    spv_cap_col: c_int,
+    spv_capcol_lnum: linenr_T,
+};
 pub extern fn fill_foldcolumn(p: [*c]u8, wp: [*c]win_T, foldinfo: foldinfo_T, lnum: linenr_T) usize;
 pub extern fn win_signcol_width(wp: [*c]win_T) c_int;
-pub extern fn win_line(wp: [*c]win_T, lnum: linenr_T, startrow: c_int, endrow: c_int, nochange: bool, number_only: bool, foldinfo: foldinfo_T, providers: [*c]DecorProviders, provider_err: [*c][*c]u8) c_int;
+pub extern fn win_line(wp: [*c]win_T, lnum: linenr_T, startrow: c_int, endrow: c_int, number_only: bool, spv: [*c]spellvars_T, foldinfo: foldinfo_T, providers: [*c]DecorProviders, provider_err: [*c][*c]u8) c_int;
 pub const UPD_VALID: c_int = 10;
 pub const UPD_INVERTED: c_int = 20;
 pub const UPD_INVERTED_ALL: c_int = 25;
@@ -14573,7 +14774,7 @@ pub const UPD_REDRAW_TOP: c_int = 30;
 pub const UPD_SOME_VALID: c_int = 35;
 pub const UPD_NOT_VALID: c_int = 40;
 pub const UPD_CLEAR: c_int = 50;
-const enum_unnamed_144 = c_uint;
+const enum_unnamed_147 = c_uint;
 pub extern var updating_screen: bool;
 pub extern var screen_search_hl: match_T;
 pub extern fn conceal_check_cursor_line() void;
@@ -14635,9 +14836,9 @@ pub extern fn set_last_insert(c: c_int) void;
 pub extern fn beginline(flags: c_int) void;
 pub extern fn oneright() c_int;
 pub extern fn oneleft() c_int;
-pub extern fn cursor_up_inner(wp: [*c]win_T, n: c_long) linenr_T;
+pub extern fn cursor_up_inner(wp: [*c]win_T, n: c_long) void;
 pub extern fn cursor_up(n: c_long, upd_topline: c_int) c_int;
-pub extern fn cursor_down_inner(wp: [*c]win_T, n: c_long) linenr_T;
+pub extern fn cursor_down_inner(wp: [*c]win_T, n: c_long) void;
 pub extern fn cursor_down(n: c_long, upd_topline: c_int) c_int;
 pub extern fn stuff_inserted(c: c_int, count: c_long, no_esc: c_int) c_int;
 pub extern fn get_last_insert() [*c]u8;
@@ -14692,46 +14893,6 @@ pub extern fn time_watcher_init(loop: [*c]Loop, watcher: [*c]TimeWatcher, data: 
 pub extern fn time_watcher_start(watcher: [*c]TimeWatcher, cb: time_cb, timeout: u64, repeat: u64) void;
 pub extern fn time_watcher_stop(watcher: [*c]TimeWatcher) void;
 pub extern fn time_watcher_close(watcher: [*c]TimeWatcher, cb: time_cb) void;
-pub const FileDescriptor = extern struct {
-    fd: c_int,
-    _error: c_int,
-    rv: [*c]RBuffer,
-    wr: bool,
-    eof: bool,
-    non_blocking: bool,
-};
-pub const kFileReadOnly: c_int = 1;
-pub const kFileCreate: c_int = 2;
-pub const kFileWriteOnly: c_int = 4;
-pub const kFileNoSymlink: c_int = 8;
-pub const kFileCreateOnly: c_int = 16;
-pub const kFileTruncate: c_int = 32;
-pub const kFileAppend: c_int = 64;
-pub const kFileNonBlocking: c_int = 128;
-pub const kFileMkDir: c_int = 256;
-pub const FileOpenFlags = c_uint;
-pub fn file_eof(fp: [*c]const FileDescriptor) callconv(.C) bool {
-    return (@as(c_int, @boolToInt(fp.*.eof)) != 0) and (rbuffer_size(fp.*.rv) == @bitCast(usize, @as(c_long, @as(c_int, 0))));
-}
-pub fn file_fd(fp: [*c]const FileDescriptor) callconv(.C) c_int {
-    return fp.*.fd;
-}
-pub const kRWBufferSize: c_int = 1024;
-const enum_unnamed_145 = c_uint;
-pub extern fn file_open(ret_fp: [*c]FileDescriptor, fname: [*c]const u8, flags: c_int, mode: c_int) c_int;
-pub extern fn file_open_fd(ret_fp: [*c]FileDescriptor, fd: c_int, flags: c_int) c_int;
-pub extern fn file_open_new(@"error": [*c]c_int, fname: [*c]const u8, flags: c_int, mode: c_int) [*c]FileDescriptor;
-pub extern fn file_open_fd_new(@"error": [*c]c_int, fd: c_int, flags: c_int) [*c]FileDescriptor;
-pub extern fn file_open_stdin() [*c]FileDescriptor;
-pub extern fn file_close(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
-pub extern fn file_free(fp: [*c]FileDescriptor, do_fsync: bool) c_int;
-pub extern fn file_flush(fp: [*c]FileDescriptor) c_int;
-pub extern fn file_fsync(fp: [*c]FileDescriptor) c_int;
-pub extern fn file_read(fp: [*c]FileDescriptor, ret_buf: [*c]u8, size: usize) ptrdiff_t;
-pub extern fn file_write(fp: [*c]FileDescriptor, buf: [*c]const u8, size: usize) ptrdiff_t;
-pub extern fn file_skip(fp: [*c]FileDescriptor, size: usize) ptrdiff_t;
-pub extern fn msgpack_file_write(data: ?*anyopaque, buf: [*c]const u8, len: usize) c_int;
-pub extern fn msgpack_file_write_error(@"error": c_int) c_int;
 pub const kXDGNone: c_int = -1;
 pub const kXDGConfigHome: c_int = 0;
 pub const kXDGDataHome: c_int = 1;
@@ -14923,7 +15084,7 @@ pub const evalarg_T = extern struct {
     eval_tofree: [*c]u8,
 };
 pub const EVAL_EVALUATE: c_int = 1;
-const enum_unnamed_146 = c_uint;
+const enum_unnamed_148 = c_uint;
 pub extern var EVALARG_EVALUATE: evalarg_T;
 pub extern fn get_v_event(sve: [*c]save_v_event_T) [*c]dict_T;
 pub extern fn restore_v_event(v_event: [*c]dict_T, sve: [*c]save_v_event_T) void;
@@ -15144,36 +15305,36 @@ pub const kMPConvPartialArgs: c_int = 0;
 pub const kMPConvPartialSelf: c_int = 1;
 pub const kMPConvPartialEnd: c_int = 2;
 pub const MPConvPartialStage = c_uint;
-const struct_unnamed_148 = extern struct {
+const struct_unnamed_150 = extern struct {
     dict: [*c]dict_T,
     dictp: [*c][*c]dict_T,
     hi: [*c]hashitem_T,
     todo: usize,
 };
-const struct_unnamed_149 = extern struct {
+const struct_unnamed_151 = extern struct {
     list: [*c]list_T,
     li: [*c]listitem_T,
 };
-const struct_unnamed_150 = extern struct {
+const struct_unnamed_152 = extern struct {
     stage: MPConvPartialStage,
     pt: [*c]partial_T,
 };
-const struct_unnamed_151 = extern struct {
+const struct_unnamed_153 = extern struct {
     arg: [*c]typval_T,
     argv: [*c]typval_T,
     todo: usize,
 };
-const union_unnamed_147 = extern union {
-    d: struct_unnamed_148,
-    l: struct_unnamed_149,
-    p: struct_unnamed_150,
-    a: struct_unnamed_151,
+const union_unnamed_149 = extern union {
+    d: struct_unnamed_150,
+    l: struct_unnamed_151,
+    p: struct_unnamed_152,
+    a: struct_unnamed_153,
 };
 pub const MPConvStackVal = extern struct {
     type: MPConvStackValType,
     tv: [*c]typval_T,
     saved_copyID: c_int,
-    data: union_unnamed_147,
+    data: union_unnamed_149,
 };
 pub const MPConvStack = extern struct {
     size: usize,
@@ -15478,6 +15639,7 @@ pub extern fn os_fileid_equal_fileinfo(file_id: [*c]const FileID, file_info: [*c
 pub extern fn os_realpath(name: [*c]const u8, buf: [*c]u8) [*c]u8;
 pub extern fn os_get_total_mem_kib() u64;
 pub extern fn get_appname() [*c]const u8;
+pub extern fn appname_is_valid() bool;
 pub extern fn stdpaths_get_xdg_var(idx: XDGVarType) [*c]u8;
 pub extern fn get_xdg_home(idx: XDGVarType) [*c]u8;
 pub extern fn stdpaths_user_cache_subpath(fname: [*c]const u8) [*c]u8;
@@ -15823,7 +15985,7 @@ pub const FIO_ENDIAN_L: c_int = 128;
 pub const FIO_NOCONVERT: c_int = 8192;
 pub const FIO_UCSBOM: c_int = 16384;
 pub const FIO_ALL: c_int = -1;
-const enum_unnamed_152 = c_int;
+const enum_unnamed_154 = c_int;
 pub extern fn filemess(buf: [*c]buf_T, name: [*c]u8, s: [*c]u8, attr: c_int) void;
 pub extern fn readfile(fname: [*c]u8, sfname: [*c]u8, from: linenr_T, lines_to_skip: linenr_T, lines_to_read: linenr_T, eap: [*c]exarg_T, flags: c_int, silent: bool) c_int;
 pub extern fn prep_exarg(eap: [*c]exarg_T, buf: [*c]const buf_T) void;
@@ -15865,78 +16027,6 @@ pub extern fn match_file_list(list: [*c]u8, sfname: [*c]u8, ffname: [*c]u8) bool
 pub extern fn file_pat_to_reg_pat(pat: [*c]const u8, pat_end: [*c]const u8, allow_dirs: [*c]u8, no_bslash: c_int) [*c]u8;
 pub extern fn read_eintr(fd: c_int, buf: ?*anyopaque, bufsize: usize) c_long;
 pub extern fn write_eintr(fd: c_int, buf: ?*anyopaque, bufsize: usize) c_long;
-pub const REMAP_YES: c_int = 0;
-pub const REMAP_NONE: c_int = -1;
-pub const REMAP_SCRIPT: c_int = -2;
-pub const REMAP_SKIP: c_int = -3;
-pub const enum_RemapValues = c_int;
-pub const FLUSH_MINIMAL: c_int = 0;
-pub const FLUSH_TYPEAHEAD: c_int = 1;
-pub const FLUSH_INPUT: c_int = 2;
-pub const flush_buffers_T = c_uint;
-pub const NSCRIPT: c_int = 15;
-const enum_unnamed_153 = c_uint;
-pub extern var scriptin: [15][*c]FileDescriptor;
-pub extern fn free_buff(buf: [*c]buffheader_T) void;
-pub extern fn get_recorded() [*c]u8;
-pub extern fn get_inserted() [*c]u8;
-pub extern fn stuff_empty() c_int;
-pub extern fn readbuf1_empty() c_int;
-pub extern fn typeahead_noflush(c: c_int) void;
-pub extern fn flush_buffers(flush_typeahead: flush_buffers_T) void;
-pub extern fn beep_flush() void;
-pub extern fn ResetRedobuff() void;
-pub extern fn CancelRedo() void;
-pub extern fn saveRedobuff(save_redo: [*c]save_redo_T) void;
-pub extern fn restoreRedobuff(save_redo: [*c]save_redo_T) void;
-pub extern fn AppendToRedobuff(s: [*c]const u8) void;
-pub extern fn AppendToRedobuffLit(str: [*c]const u8, len: c_int) void;
-pub extern fn AppendToRedobuffSpec(s: [*c]const u8) void;
-pub extern fn AppendCharToRedobuff(c: c_int) void;
-pub extern fn AppendNumberToRedobuff(n: c_long) void;
-pub extern fn stuffReadbuff(s: [*c]const u8) void;
-pub extern fn stuffRedoReadbuff(s: [*c]const u8) void;
-pub extern fn stuffReadbuffLen(s: [*c]const u8, len: ptrdiff_t) void;
-pub extern fn stuffReadbuffSpec(s: [*c]const u8) void;
-pub extern fn stuffcharReadbuff(c: c_int) void;
-pub extern fn stuffnumReadbuff(n: c_long) void;
-pub extern fn stuffescaped(arg: [*c]const u8, literally: bool) void;
-pub extern fn start_redo(count: c_long, old_redo: bool) c_int;
-pub extern fn start_redo_ins() c_int;
-pub extern fn stop_redo_ins() void;
-pub extern fn noremap_keys() bool;
-pub extern fn ins_typebuf(str: [*c]u8, noremap: c_int, offset: c_int, nottyped: bool, silent: bool) c_int;
-pub extern fn ins_char_typebuf(c: c_int, modifiers: c_int) c_int;
-pub extern fn typebuf_changed(tb_change_cnt: c_int) bool;
-pub extern fn typebuf_typed() c_int;
-pub extern fn typebuf_maplen() c_int;
-pub extern fn del_typebuf(len: c_int, offset: c_int) void;
-pub extern fn ungetchars(len: c_int) void;
-pub extern fn may_sync_undo() void;
-pub extern fn alloc_typebuf() void;
-pub extern fn free_typebuf() void;
-pub extern fn save_typebuf() void;
-pub extern fn save_typeahead(tp: [*c]tasave_T) void;
-pub extern fn restore_typeahead(tp: [*c]tasave_T) void;
-pub extern fn openscript(name: [*c]u8, directly: bool) void;
-pub extern fn using_script() c_int;
-pub extern fn before_blocking() void;
-pub extern fn merge_modifiers(c_arg: c_int, modifiers: [*c]c_int) c_int;
-pub extern fn vgetc() c_int;
-pub extern fn safe_vgetc() c_int;
-pub extern fn plain_vgetc() c_int;
-pub extern fn vpeekc() c_int;
-pub extern fn vpeekc_any() c_int;
-pub extern fn char_avail() c_int;
-pub extern fn f_getchar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_getcharstr(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn f_getcharmod(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
-pub extern fn vungetc(c: c_int) void;
-pub extern fn check_end_reg_executing(advance: bool) void;
-pub extern fn inchar(buf: [*c]u8, maxlen: c_int, wait_time: c_long) c_int;
-pub extern fn fix_input_buffer(buf: [*c]u8, len: c_int) c_int;
-pub extern fn getcmdkeycmd(promptc: c_int, cookie: ?*anyopaque, indent: c_int, do_concat: bool) [*c]u8;
-pub extern fn map_execute_lua(may_repeat: bool) bool;
 pub extern var default_grid: ScreenGrid;
 pub extern var resizing_screen: bool;
 pub extern var linebuf_char: [*c]schar_T;
@@ -16033,63 +16123,6 @@ pub fn win_hl_attr(arg_wp: [*c]win_T, arg_hlf: c_int) callconv(.C) c_int {
         if (tmp >= 0) break :blk (if ((wp.*.w_ns_hl_attr != null) and (ns_hl_fast < @as(c_int, 0))) wp.*.w_ns_hl_attr else hl_attr_active) + @intCast(usize, tmp) else break :blk (if ((wp.*.w_ns_hl_attr != null) and (ns_hl_fast < @as(c_int, 0))) wp.*.w_ns_hl_attr else hl_attr_active) - ~@bitCast(usize, @intCast(isize, tmp) +% -1);
     }).*;
 }
-pub extern var buffer_handles: Map_int_ptr_t;
-pub extern var window_handles: Map_int_ptr_t;
-pub extern var tabpage_handles: Map_int_ptr_t;
-pub const TryState = extern struct {
-    current_exception: [*c]except_T,
-    private_msg_list: [*c]msglist_T,
-    msg_list: [*c]const [*c]const msglist_T,
-    trylevel: c_int,
-    got_int: c_int,
-    did_throw: bool,
-    need_rethrow: c_int,
-    did_emsg: c_int,
-};
-pub extern fn try_enter(tstate: [*c]TryState) void;
-pub extern fn try_leave(tstate: [*c]const TryState, err: [*c]Error) bool;
-pub extern fn try_start() void;
-pub extern fn try_end(err: [*c]Error) bool;
-pub extern fn dict_get_value(dict: [*c]dict_T, key: String, err: [*c]Error) Object;
-pub extern fn dict_check_writable(dict: [*c]dict_T, key: String, del: bool, err: [*c]Error) [*c]dictitem_T;
-pub extern fn dict_set_var(dict: [*c]dict_T, key: String, value: Object, del: bool, retval: bool, err: [*c]Error) Object;
-pub extern fn find_buffer_by_handle(buffer: Buffer, err: [*c]Error) [*c]buf_T;
-pub extern fn find_window_by_handle(window: Window, err: [*c]Error) [*c]win_T;
-pub extern fn find_tab_by_handle(tabpage: Tabpage, err: [*c]Error) [*c]tabpage_T;
-pub extern fn cchar_to_string(c: u8) String;
-pub extern fn cstr_to_string(str: [*c]const u8) String;
-pub extern fn string_to_cstr(str: String) [*c]u8;
-pub extern fn cbuf_to_string(buf: [*c]const u8, size: usize) String;
-pub extern fn cstrn_to_string(str: [*c]const u8, maxsize: usize) String;
-pub extern fn cstrn_as_string(str: [*c]u8, maxsize: usize) String;
-pub extern fn cstr_as_string(str: [*c]u8) String;
-pub extern fn ga_take_string(ga: [*c]garray_T) String;
-pub extern fn string_to_array(input: String, crlf: bool) Array;
-pub extern fn buf_get_text(buf: [*c]buf_T, lnum: i64, start_col: i64, end_col: i64, err: [*c]Error) String;
-pub extern fn api_free_string(value: String) void;
-pub extern fn arena_array(arena: [*c]Arena, max_size: usize) Array;
-pub extern fn arena_dict(arena: [*c]Arena, max_size: usize) Dictionary;
-pub extern fn arena_string(arena: [*c]Arena, str: String) String;
-pub extern fn api_free_object(value: Object) void;
-pub extern fn api_free_array(value: Array) void;
-pub extern fn api_free_dictionary(value: Dictionary) void;
-pub extern fn api_clear_error(value: [*c]Error) void;
-pub extern fn api_metadata() Dictionary;
-pub extern fn copy_string(str: String, arena: [*c]Arena) String;
-pub extern fn copy_array(array: Array, arena: [*c]Arena) Array;
-pub extern fn copy_dictionary(dict: Dictionary, arena: [*c]Arena) Dictionary;
-pub extern fn copy_object(obj: Object, arena: [*c]Arena) Object;
-pub extern fn api_set_error(err: [*c]Error, errType: ErrorType, format: [*c]const u8, ...) void;
-pub extern fn api_object_to_bool(obj: Object, what: [*c]const u8, nil_value: bool, err: [*c]Error) bool;
-pub extern fn object_to_hl_id(obj: Object, what: [*c]const u8, err: [*c]Error) c_int;
-pub extern fn api_typename(t: ObjectType) [*c]u8;
-pub extern fn parse_hl_msg(chunks: Array, err: [*c]Error) HlMessage;
-pub extern fn api_dict_to_keydict(rv: ?*anyopaque, hashy: field_hash, dict: Dictionary, err: [*c]Error) bool;
-pub extern fn api_free_keydict(dict: ?*anyopaque, table: [*c]KeySetLink) void;
-pub extern fn set_mark(buf: [*c]buf_T, name: String, line: Integer, col: Integer, err: [*c]Error) bool;
-pub extern fn get_default_stl_hl(wp: [*c]win_T, use_winbar: bool, stc_hl_id: c_int) [*c]const u8;
-pub extern fn find_sid(channel_id: u64) c_int;
-pub extern fn api_set_sctx(channel_id: u64) sctx_T;
 pub const color_name_table_T = extern struct {
     name: [*c]u8,
     color: RgbValue,
@@ -16688,26 +16721,26 @@ pub const MOUSE_FOLD_CLOSE: c_int = 512;
 pub const MOUSE_FOLD_OPEN: c_int = 1024;
 pub const MOUSE_WINBAR: c_int = 2048;
 pub const MOUSE_STATUSCOL: c_int = 4096;
-const enum_unnamed_154 = c_uint;
+const enum_unnamed_155 = c_uint;
 pub const MOUSE_FOCUS: c_int = 1;
 pub const MOUSE_MAY_VIS: c_int = 2;
 pub const MOUSE_DID_MOVE: c_int = 4;
 pub const MOUSE_SETPOS: c_int = 8;
 pub const MOUSE_MAY_STOP_VIS: c_int = 16;
 pub const MOUSE_RELEASED: c_int = 32;
-const enum_unnamed_155 = c_uint;
+const enum_unnamed_156 = c_uint;
 pub const MOUSE_LEFT: c_int = 0;
 pub const MOUSE_MIDDLE: c_int = 1;
 pub const MOUSE_RIGHT: c_int = 2;
 pub const MOUSE_RELEASE: c_int = 3;
 pub const MOUSE_X1: c_int = 768;
 pub const MOUSE_X2: c_int = 1024;
-const enum_unnamed_156 = c_uint;
+const enum_unnamed_157 = c_uint;
 pub const MSCR_DOWN: c_int = 0;
 pub const MSCR_UP: c_int = 1;
 pub const MSCR_LEFT: c_int = -1;
 pub const MSCR_RIGHT: c_int = -2;
-const enum_unnamed_157 = c_int;
+const enum_unnamed_158 = c_int;
 pub extern fn do_mouse(oap: [*c]oparg_T, c: c_int, dir: c_int, count: c_long, fixindent: bool) bool;
 pub extern fn is_mouse_key(c: c_int) bool;
 pub extern fn reset_dragwin() void;
@@ -16805,7 +16838,7 @@ pub const mpack_sint32_t = c_int;
 pub const MPACK_OK: c_int = 0;
 pub const MPACK_EOF: c_int = 1;
 pub const MPACK_ERROR: c_int = 2;
-const enum_unnamed_158 = c_uint;
+const enum_unnamed_159 = c_uint;
 pub const MPACK_TOKEN_NIL: c_int = 1;
 pub const MPACK_TOKEN_BOOLEAN: c_int = 2;
 pub const MPACK_TOKEN_UINT: c_int = 3;
@@ -16845,7 +16878,7 @@ pub extern fn mpack_unpack_float_compat(t: mpack_token_t) f64;
 pub extern fn mpack_unpack_number(t: mpack_token_t) f64;
 pub const MPACK_EXCEPTION: c_int = -1;
 pub const MPACK_NOMEM: c_int = 3;
-const enum_unnamed_159 = c_int;
+const enum_unnamed_160 = c_int;
 pub const mpack_data_t = extern union {
     p: ?*anyopaque,
     u: mpack_uintmax_t,
@@ -16968,6 +17001,9 @@ pub fn op_reg_index(regname: c_int) callconv(.C) c_int {
         return -@as(c_int, 1);
     }
     return 0;
+}
+pub fn is_literal_register(regname: c_int) callconv(.C) bool {
+    return (regname == @as(c_int, '*')) or (regname == @as(c_int, '+'));
 }
 pub extern fn get_y_previous() [*c]yankreg_T;
 pub extern fn set_y_previous(yreg: [*c]yankreg_T) void;
@@ -17180,13 +17216,13 @@ pub const pumitem_T = extern struct {
     pum_info: [*c]u8,
 };
 pub extern var pum_grid: ScreenGrid;
-const struct_unnamed_160 = extern struct {
+const struct_unnamed_161 = extern struct {
     active: bool,
     item: c_int,
     insert: bool,
     finish: bool,
 };
-pub extern var pum_want: struct_unnamed_160;
+pub extern var pum_want: struct_unnamed_161;
 pub extern fn pum_display(array: [*c]pumitem_T, size: c_int, selected: c_int, array_changed: bool, cmd_startcol: c_int) void;
 pub extern fn pum_redraw() void;
 pub extern fn pum_undisplay(immediate: bool) void;
@@ -17530,6 +17566,7 @@ pub extern fn can_compound(slang: [*c]slang_T, word: [*c]const u8, flags: [*c]co
 pub extern fn match_compoundrule(slang: [*c]slang_T, compflags: [*c]const u8) bool;
 pub extern fn valid_word_prefix(totprefcnt: c_int, arridx: c_int, flags: c_int, word: [*c]u8, slang: [*c]slang_T, cond_req: bool) c_int;
 pub extern fn spell_valid_case(wordflags: c_int, treeflags: c_int) bool;
+pub extern fn spell_check_window(wp: [*c]win_T) bool;
 pub extern fn no_spell_checking(wp: [*c]win_T) bool;
 pub extern fn spell_move_to(wp: [*c]win_T, dir: c_int, allwords: bool, curline: bool, attrp: [*c]hlf_T) usize;
 pub extern fn spell_cat_line(buf: [*c]u8, line: [*c]u8, maxlen: c_int) void;
@@ -17553,7 +17590,7 @@ pub extern fn init_spell_chartab() void;
 pub extern fn spell_iswordp(p: [*c]const u8, wp: [*c]const win_T) bool;
 pub extern fn spell_iswordp_nmw(p: [*c]const u8, wp: [*c]win_T) bool;
 pub extern fn spell_casefold(wp: [*c]const win_T, str: [*c]u8, len: c_int, buf: [*c]u8, buflen: c_int) c_int;
-pub extern fn check_need_cap(lnum: linenr_T, col: colnr_T) bool;
+pub extern fn check_need_cap(wp: [*c]win_T, lnum: linenr_T, col: colnr_T) bool;
 pub extern fn ex_spellrepall(eap: [*c]exarg_T) void;
 pub extern fn onecap_copy(word: [*c]u8, wcopy: [*c]u8, upper: bool) void;
 pub extern fn allcap_copy(word: [*c]u8, wcopy: [*c]u8) void;
@@ -17781,8 +17818,8 @@ pub const TermKeyMouseEvent = c_uint;
 pub const TERMKEY_KEYMOD_SHIFT: c_int = 1;
 pub const TERMKEY_KEYMOD_ALT: c_int = 2;
 pub const TERMKEY_KEYMOD_CTRL: c_int = 4;
-const enum_unnamed_161 = c_uint;
-const union_unnamed_162 = extern union {
+const enum_unnamed_162 = c_uint;
+const union_unnamed_163 = extern union {
     codepoint: c_long,
     number: c_int,
     sym: TermKeySym,
@@ -17790,7 +17827,7 @@ const union_unnamed_162 = extern union {
 };
 pub const TermKeyKey = extern struct {
     type: TermKeyType,
-    code: union_unnamed_162,
+    code: union_unnamed_163,
     modifiers: c_int,
     utf8: [7]u8,
 };
@@ -17805,10 +17842,10 @@ pub const TERMKEY_FLAG_SPACESYMBOL: c_int = 32;
 pub const TERMKEY_FLAG_CTRLC: c_int = 64;
 pub const TERMKEY_FLAG_EINTR: c_int = 128;
 pub const TERMKEY_FLAG_NOSTART: c_int = 256;
-const enum_unnamed_163 = c_uint;
+const enum_unnamed_164 = c_uint;
 pub const TERMKEY_CANON_SPACESYMBOL: c_int = 1;
 pub const TERMKEY_CANON_DELBS: c_int = 2;
-const enum_unnamed_164 = c_uint;
+const enum_unnamed_165 = c_uint;
 pub extern fn termkey_check_version(major: c_int, minor: c_int) void;
 pub extern fn termkey_new(fd: c_int, flags: c_int) ?*TermKey;
 pub extern fn termkey_new_abstract(term: [*c]const u8, flags: c_int) ?*TermKey;
@@ -54344,20 +54381,20 @@ pub const ParserPosition = extern struct {
 };
 pub const kPTopStateParsingCommand: c_int = 0;
 pub const kPTopStateParsingExpression: c_int = 1;
-const enum_unnamed_165 = c_uint;
+const enum_unnamed_166 = c_uint;
 pub const kExprUnknown: c_int = 0;
-const enum_unnamed_168 = c_uint;
-const struct_unnamed_167 = extern struct {
-    type: enum_unnamed_168,
+const enum_unnamed_169 = c_uint;
+const struct_unnamed_168 = extern struct {
+    type: enum_unnamed_169,
 };
-const union_unnamed_166 = extern union {
-    expr: struct_unnamed_167,
+const union_unnamed_167 = extern union {
+    expr: struct_unnamed_168,
 };
 pub const ParserStateItem = extern struct {
-    type: enum_unnamed_165,
-    data: union_unnamed_166,
+    type: enum_unnamed_166,
+    data: union_unnamed_167,
 };
-const struct_unnamed_169 = extern struct {
+const struct_unnamed_170 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]ParserLine,
@@ -54366,7 +54403,7 @@ const struct_unnamed_169 = extern struct {
 pub const ParserInputReader = extern struct {
     get_line: ParserLineGetter,
     cookie: ?*anyopaque,
-    lines: struct_unnamed_169,
+    lines: struct_unnamed_170,
     conv: vimconv_T,
 };
 pub const ParserHighlightChunk = extern struct {
@@ -54380,7 +54417,7 @@ pub const ParserHighlight = extern struct {
     items: [*c]ParserHighlightChunk,
     init_array: [16]ParserHighlightChunk,
 };
-const struct_unnamed_170 = extern struct {
+const struct_unnamed_171 = extern struct {
     size: usize,
     capacity: usize,
     items: [*c]ParserStateItem,
@@ -54389,7 +54426,7 @@ const struct_unnamed_170 = extern struct {
 pub const ParserState = extern struct {
     reader: ParserInputReader,
     pos: ParserPosition,
-    stack: struct_unnamed_170,
+    stack: struct_unnamed_171,
     colors: [*c]ParserHighlight,
     can_continuate: bool,
 };
@@ -54398,7 +54435,7 @@ pub inline fn viml_parser_init(ret_pstate: [*c]ParserState, get_line: ParserLine
         .reader = ParserInputReader{
             .get_line = get_line,
             .cookie = cookie,
-            .lines = @import("std").mem.zeroes(struct_unnamed_169),
+            .lines = @import("std").mem.zeroes(struct_unnamed_170),
             .conv = vimconv_T{
                 .vc_type = CONV_NONE,
                 .vc_factor = @as(c_int, 1),
@@ -54410,13 +54447,13 @@ pub inline fn viml_parser_init(ret_pstate: [*c]ParserState, get_line: ParserLine
             .line = @bitCast(usize, @as(c_long, @as(c_int, 0))),
             .col = @bitCast(usize, @as(c_long, @as(c_int, 0))),
         },
-        .stack = @import("std").mem.zeroes(struct_unnamed_170),
+        .stack = @import("std").mem.zeroes(struct_unnamed_171),
         .colors = colors,
         .can_continuate = @as(c_int, 0) != 0,
     };
     _ = blk: {
         _ = blk_1: {
-            ret_pstate.*.reader.lines.capacity = (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))));
+            ret_pstate.*.reader.lines.capacity = (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)));
             break :blk_1 blk_2: {
                 const tmp = @bitCast(usize, @as(c_long, @as(c_int, 0)));
                 ret_pstate.*.reader.lines.size = tmp;
@@ -54431,7 +54468,7 @@ pub inline fn viml_parser_init(ret_pstate: [*c]ParserState, get_line: ParserLine
     };
     _ = blk: {
         _ = blk_1: {
-            ret_pstate.*.stack.capacity = (@sizeOf([16]ParserStateItem) / @sizeOf(ParserStateItem)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([16]ParserStateItem) % @sizeOf(ParserStateItem)) != 0))));
+            ret_pstate.*.stack.capacity = (@sizeOf([16]ParserStateItem) / @sizeOf(ParserStateItem)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserStateItem) % @sizeOf(ParserStateItem)) != 0)));
             break :blk_1 blk_2: {
                 const tmp = @bitCast(usize, @as(c_long, @as(c_int, 0)));
                 ret_pstate.*.stack.size = tmp;
@@ -54500,9 +54537,9 @@ pub fn viml_preader_get_line(preader: [*c]ParserInputReader, ret_pline: [*c]Pars
         (blk_1: {
             _ = if (preader.*.lines.size == preader.*.lines.capacity) blk_2: {
                 _ = blk_3: {
-                    preader.*.lines.capacity = if ((preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)))))) preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))));
+                    preader.*.lines.capacity = if ((preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))))) preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)));
                     break :blk_3 blk_4: {
-                        const tmp_5 = @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), if (preader.*.lines.capacity == ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)))))) if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) @ptrCast(?*anyopaque, preader.*.lines.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))), @ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) memcpy(xmalloc(preader.*.lines.capacity *% @sizeOf(ParserLine)), @ptrCast(?*const anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else xrealloc(@ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.capacity *% @sizeOf(ParserLine))));
+                        const tmp_5 = @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), if (preader.*.lines.capacity == ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))))) if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) @ptrCast(?*anyopaque, preader.*.lines.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))), @ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) memcpy(xmalloc(preader.*.lines.capacity *% @sizeOf(ParserLine)), @ptrCast(?*const anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else xrealloc(@ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.capacity *% @sizeOf(ParserLine))));
                         preader.*.lines.items = tmp_5;
                         break :blk_4 tmp_5;
                     };
@@ -54579,9 +54616,9 @@ pub inline fn viml_parser_highlight(pstate: [*c]ParserState, start: ParserPositi
         (blk_1: {
             _ = if (pstate.*.colors.*.size == pstate.*.colors.*.capacity) blk_2: {
                 _ = blk_3: {
-                    pstate.*.colors.*.capacity = if ((pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0)))))) pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0))));
+                    pstate.*.colors.*.capacity = if ((pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0))))) pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0)));
                     break :blk_3 blk_4: {
-                        const tmp_5 = @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), if (pstate.*.colors.*.capacity == ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @bitCast(usize, @as(c_long, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0)))))) if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) @ptrCast(?*anyopaque, pstate.*.colors.*.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))), @ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) memcpy(xmalloc(pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk)), @ptrCast(?*const anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else xrealloc(@ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk))));
+                        const tmp_5 = @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), if (pstate.*.colors.*.capacity == ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0))))) if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) @ptrCast(?*anyopaque, pstate.*.colors.*.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))), @ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) memcpy(xmalloc(pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk)), @ptrCast(?*const anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else xrealloc(@ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk))));
                         pstate.*.colors.*.items = tmp_5;
                         break :blk_4 tmp_5;
                     };
@@ -54600,65 +54637,65 @@ pub inline fn viml_parser_highlight(pstate: [*c]ParserState, start: ParserPositi
 }
 pub extern fn parser_simple_get_line(cookie: ?*anyopaque, ret_pline: [*c]ParserLine) void;
 pub const ExprASTNode = struct_expr_ast_node;
-const struct_unnamed_172 = extern struct {
+const struct_unnamed_173 = extern struct {
     name: c_int,
 };
-const struct_unnamed_174 = extern struct {
+const struct_unnamed_175 = extern struct {
     allow_dict: bool,
     allow_lambda: bool,
     allow_ident: bool,
 };
-const struct_unnamed_173 = extern struct {
-    type_guesses: struct_unnamed_174,
+const struct_unnamed_174 = extern struct {
+    type_guesses: struct_unnamed_175,
     opening_hl_idx: usize,
 };
-const struct_unnamed_175 = extern struct {
+const struct_unnamed_176 = extern struct {
     scope: ExprVarScope,
     ident: [*c]const u8,
     ident_len: usize,
 };
-const struct_unnamed_176 = extern struct {
+const struct_unnamed_177 = extern struct {
     got_colon: bool,
 };
-const struct_unnamed_177 = extern struct {
+const struct_unnamed_178 = extern struct {
     type: ExprComparisonType,
     ccs: ExprCaseCompareStrategy,
     inv: bool,
 };
-const struct_unnamed_178 = extern struct {
+const struct_unnamed_179 = extern struct {
     value: uvarnumber_T,
 };
-const struct_unnamed_179 = extern struct {
+const struct_unnamed_180 = extern struct {
     value: float_T,
 };
-const struct_unnamed_180 = extern struct {
+const struct_unnamed_181 = extern struct {
     value: [*c]u8,
     size: usize,
-};
-const struct_unnamed_181 = extern struct {
-    ident: [*c]const u8,
-    ident_len: usize,
-    scope: ExprOptScope,
 };
 const struct_unnamed_182 = extern struct {
     ident: [*c]const u8,
     ident_len: usize,
+    scope: ExprOptScope,
 };
 const struct_unnamed_183 = extern struct {
+    ident: [*c]const u8,
+    ident_len: usize,
+};
+const struct_unnamed_184 = extern struct {
     type: ExprAssignmentType,
 };
-const union_unnamed_171 = extern union {
-    reg: struct_unnamed_172,
-    fig: struct_unnamed_173,
-    @"var": struct_unnamed_175,
-    ter: struct_unnamed_176,
-    cmp: struct_unnamed_177,
-    num: struct_unnamed_178,
-    flt: struct_unnamed_179,
-    str: struct_unnamed_180,
-    opt: struct_unnamed_181,
-    env: struct_unnamed_182,
-    ass: struct_unnamed_183,
+const union_unnamed_172 = extern union {
+    reg: struct_unnamed_173,
+    fig: struct_unnamed_174,
+    @"var": struct_unnamed_176,
+    ter: struct_unnamed_177,
+    cmp: struct_unnamed_178,
+    num: struct_unnamed_179,
+    flt: struct_unnamed_180,
+    str: struct_unnamed_181,
+    opt: struct_unnamed_182,
+    env: struct_unnamed_183,
+    ass: struct_unnamed_184,
 };
 pub const struct_expr_ast_node = extern struct {
     type: ExprASTNodeType,
@@ -54666,7 +54703,7 @@ pub const struct_expr_ast_node = extern struct {
     next: [*c]ExprASTNode,
     start: ParserPosition,
     len: usize,
-    data: union_unnamed_171,
+    data: union_unnamed_172,
 };
 pub const kCCStrategyUseOption: c_int = 0;
 pub const kCCStrategyMatchCase: c_int = 35;
@@ -54725,7 +54762,7 @@ pub const kExprVarScopeTabpage: c_int = 116;
 pub const kExprVarScopeLocal: c_int = 108;
 pub const kExprVarScopeArguments: c_int = 97;
 pub const ExprVarScope = c_uint;
-const struct_unnamed_185 = extern struct {
+const struct_unnamed_186 = extern struct {
     type: ExprComparisonType,
     ccs: ExprCaseCompareStrategy,
     inv: bool,
@@ -54733,61 +54770,61 @@ const struct_unnamed_185 = extern struct {
 pub const kExprLexMulMul: c_int = 0;
 pub const kExprLexMulDiv: c_int = 1;
 pub const kExprLexMulMod: c_int = 2;
-const enum_unnamed_187 = c_uint;
-const struct_unnamed_186 = extern struct {
-    type: enum_unnamed_187,
-};
-const struct_unnamed_188 = extern struct {
-    closing: bool,
+const enum_unnamed_188 = c_uint;
+const struct_unnamed_187 = extern struct {
+    type: enum_unnamed_188,
 };
 const struct_unnamed_189 = extern struct {
-    name: c_int,
+    closing: bool,
 };
 const struct_unnamed_190 = extern struct {
-    closed: bool,
+    name: c_int,
 };
 const struct_unnamed_191 = extern struct {
+    closed: bool,
+};
+const struct_unnamed_192 = extern struct {
     name: [*c]const u8,
     len: usize,
     scope: ExprOptScope,
 };
-const struct_unnamed_192 = extern struct {
+const struct_unnamed_193 = extern struct {
     scope: ExprVarScope,
     autoload: bool,
 };
-const struct_unnamed_193 = extern struct {
+const struct_unnamed_194 = extern struct {
     type: LexExprTokenType,
     msg: [*c]const u8,
 };
-const union_unnamed_195 = extern union {
+const union_unnamed_196 = extern union {
     floating: float_T,
     integer: uvarnumber_T,
 };
-const struct_unnamed_194 = extern struct {
-    val: union_unnamed_195,
+const struct_unnamed_195 = extern struct {
+    val: union_unnamed_196,
     base: u8,
     is_float: bool,
 };
-const struct_unnamed_196 = extern struct {
+const struct_unnamed_197 = extern struct {
     type: ExprAssignmentType,
 };
-const union_unnamed_184 = extern union {
-    cmp: struct_unnamed_185,
-    mul: struct_unnamed_186,
-    brc: struct_unnamed_188,
-    reg: struct_unnamed_189,
-    str: struct_unnamed_190,
-    opt: struct_unnamed_191,
-    @"var": struct_unnamed_192,
-    err: struct_unnamed_193,
-    num: struct_unnamed_194,
-    ass: struct_unnamed_196,
+const union_unnamed_185 = extern union {
+    cmp: struct_unnamed_186,
+    mul: struct_unnamed_187,
+    brc: struct_unnamed_189,
+    reg: struct_unnamed_190,
+    str: struct_unnamed_191,
+    opt: struct_unnamed_192,
+    @"var": struct_unnamed_193,
+    err: struct_unnamed_194,
+    num: struct_unnamed_195,
+    ass: struct_unnamed_197,
 };
 pub const LexExprToken = extern struct {
     start: ParserPosition,
     len: usize,
     type: LexExprTokenType,
-    data: union_unnamed_184,
+    data: union_unnamed_185,
 };
 pub const kELFlagPeek: c_int = 1;
 pub const kELFlagForbidScope: c_int = 2;
@@ -54950,7 +54987,7 @@ pub const __PTHREAD_MUTEX_INITIALIZER = @compileError("unable to translate C exp
 pub const __PTHREAD_RWLOCK_ELISION_EXTRA = @compileError("unable to translate C expr: unexpected token '{'"); // /usr/include/bits/struct_rwlock.h:40:11
 pub const __ONCE_FLAG_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // /usr/include/bits/thread-shared-types.h:113:9
 pub const offsetof = @compileError("unable to translate macro: undefined identifier `__builtin_offsetof`"); // /home/lordmzte/.local/share/zupper/installs/master/lib/include/stddef.h:111:9
-pub const ENDIAN_INCLUDE_FILE = @compileError("unable to translate macro: undefined identifier `endian`"); // _nvim/build/cmake.config/auto/config.h:54:9
+pub const ENDIAN_INCLUDE_FILE = @compileError("unable to translate macro: undefined identifier `endian`"); // _nvim/build/cmake.config/auto/config.h:50:9
 pub const EXTERN = @compileError("unable to translate C expr: unexpected token 'extern'"); // ./_nvim/src/nvim/macros.h:9:10
 pub const INIT = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/macros.h:10:10
 pub const LANGMAP_ADJUST = @compileError("unable to translate C expr: unexpected token 'do'"); // ./_nvim/src/nvim/macros.h:66:9
@@ -55182,8 +55219,8 @@ pub const assert = @compileError("unable to translate macro: undefined identifie
 pub const __ASSERT_FUNCTION = @compileError("unable to translate macro: undefined identifier `__extension__`"); // /usr/include/assert.h:126:12
 pub const static_assert = @compileError("unable to translate C expr: unexpected token '_Static_assert'"); // /usr/include/assert.h:144:10
 pub const MT_INVALID_KEY = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/marktree.h:57:9
-pub const SHM_ALL_ABBREVIATIONS = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/option_defs.h:266:9
-pub const STL_ALL = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/option_defs.h:353:9
+pub const SHM_ALL_ABBREVIATIONS = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/option_defs.h:267:9
+pub const STL_ALL = @compileError("unable to translate C expr: expected ')' instead got '['"); // ./_nvim/src/nvim/option_defs.h:354:9
 pub const SGN_KEY_OFF = @compileError("unable to translate macro: undefined identifier `sg_name`"); // ./_nvim/src/nvim/sign_defs.h:19:9
 pub const bh_bnum = @compileError("unable to translate macro: undefined identifier `bh_hashitem`"); // ./_nvim/src/nvim/memfile_defs.h:65:9
 pub const nt_old_bnum = @compileError("unable to translate macro: undefined identifier `nt_hashitem`"); // ./_nvim/src/nvim/memfile_defs.h:85:9
@@ -55258,72 +55295,75 @@ pub const XX = @compileError("unable to translate macro: undefined identifier `U
 pub const UV_REQ_FIELDS = @compileError("unable to translate macro: undefined identifier `data`"); // /usr/include/uv.h:401:9
 pub const UV_HANDLE_FIELDS = @compileError("unable to translate macro: undefined identifier `data`"); // /usr/include/uv.h:432:9
 pub const UV_STREAM_FIELDS = @compileError("unable to translate macro: undefined identifier `write_queue_size`"); // /usr/include/uv.h:489:9
-pub const w_p_arab = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:132:9
-pub const w_p_bri = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:134:9
-pub const w_p_briopt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:136:9
-pub const w_p_diff = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:138:9
-pub const w_p_fdc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:140:9
-pub const w_p_fdc_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:142:9
-pub const w_p_fen = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:144:9
-pub const w_p_fen_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:147:9
-pub const w_p_fdi = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:149:9
-pub const w_p_fdl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:151:9
-pub const w_p_fdl_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:154:9
-pub const w_p_fdm = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:156:9
-pub const w_p_fdm_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:158:9
-pub const w_p_fml = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:160:9
-pub const w_p_fdn = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:162:9
-pub const w_p_fde = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:164:9
-pub const w_p_fdt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:166:9
-pub const w_p_fmr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:168:9
-pub const w_p_lbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:170:9
-pub const w_p_list = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:172:9
-pub const w_p_nu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:174:9
-pub const w_p_rnu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:176:9
-pub const w_p_ve = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:178:9
-pub const w_ve_flags = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:180:9
-pub const w_p_nuw = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:182:9
-pub const w_p_wfh = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:184:9
-pub const w_p_wfw = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:186:9
-pub const w_p_pvw = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:188:9
-pub const w_p_rl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:190:9
-pub const w_p_rlc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:192:9
-pub const w_p_scr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:194:9
-pub const w_p_sms = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:196:9
-pub const w_p_spell = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:198:9
-pub const w_p_cuc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:200:9
-pub const w_p_cul = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:202:9
-pub const w_p_culopt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:204:9
-pub const w_p_cc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:206:9
-pub const w_p_sbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:208:9
-pub const w_p_stc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:210:9
-pub const w_p_stl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:212:9
-pub const w_p_wbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:214:9
-pub const w_p_scb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:216:9
-pub const w_p_diff_saved = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:218:9
-pub const w_p_scb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:220:9
-pub const w_p_wrap = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:222:9
-pub const w_p_wrap_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:224:9
-pub const w_p_cocu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:226:9
-pub const w_p_cole = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:228:9
-pub const w_p_crb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:230:9
-pub const w_p_crb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:232:9
-pub const w_p_scl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:234:9
-pub const w_p_winhl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:236:9
-pub const w_p_lcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:238:9
-pub const w_p_fcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:240:9
-pub const w_p_winbl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:242:9
-pub const w_p_script_ctx = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:245:9
-pub const BUF_UPDATE_CALLBACKS_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:444:9
-pub const b_fnum = @compileError("unable to translate macro: undefined identifier `handle`"); // ./_nvim/src/nvim/buffer_defs.h:463:9
-pub const FLOAT_CONFIG_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:1045:9
-pub const CHANGEDTICK = @compileError("unable to translate macro: undefined identifier `Include`"); // ./_nvim/src/nvim/buffer_defs.h:1403:9
+pub const w_p_arab = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:130:9
+pub const w_p_bri = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:132:9
+pub const w_p_briopt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:134:9
+pub const w_p_diff = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:136:9
+pub const w_p_fdc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:138:9
+pub const w_p_fdc_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:140:9
+pub const w_p_fen = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:142:9
+pub const w_p_fen_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:145:9
+pub const w_p_fdi = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:147:9
+pub const w_p_fdl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:149:9
+pub const w_p_fdl_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:152:9
+pub const w_p_fdm = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:154:9
+pub const w_p_fdm_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:156:9
+pub const w_p_fml = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:158:9
+pub const w_p_fdn = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:160:9
+pub const w_p_fde = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:162:9
+pub const w_p_fdt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:164:9
+pub const w_p_fmr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:166:9
+pub const w_p_lbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:168:9
+pub const w_p_list = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:170:9
+pub const w_p_nu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:172:9
+pub const w_p_rnu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:174:9
+pub const w_p_ve = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:176:9
+pub const w_ve_flags = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:178:9
+pub const w_p_nuw = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:180:9
+pub const w_p_wfh = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:182:9
+pub const w_p_wfw = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:184:9
+pub const w_p_pvw = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:186:9
+pub const w_p_rl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:188:9
+pub const w_p_rlc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:190:9
+pub const w_p_scr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:192:9
+pub const w_p_sms = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:194:9
+pub const w_p_spell = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:196:9
+pub const w_p_cuc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:198:9
+pub const w_p_cul = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:200:9
+pub const w_p_culopt = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:202:9
+pub const w_p_cc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:204:9
+pub const w_p_sbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:206:9
+pub const w_p_stc = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:208:9
+pub const w_p_stl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:210:9
+pub const w_p_wbr = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:212:9
+pub const w_p_scb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:214:9
+pub const w_p_diff_saved = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:216:9
+pub const w_p_scb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:218:9
+pub const w_p_wrap = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:220:9
+pub const w_p_wrap_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:222:9
+pub const w_p_cocu = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:224:9
+pub const w_p_cole = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:226:9
+pub const w_p_crb = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:228:9
+pub const w_p_crb_save = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:230:9
+pub const w_p_scl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:232:9
+pub const w_p_winhl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:234:9
+pub const w_p_lcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:236:9
+pub const w_p_fcs = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:238:9
+pub const w_p_winbl = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:240:9
+pub const w_p_script_ctx = @compileError("unable to translate macro: undefined identifier `w_onebuf_opt`"); // ./_nvim/src/nvim/buffer_defs.h:243:9
+pub const BUF_UPDATE_CALLBACKS_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:442:9
+pub const b_fnum = @compileError("unable to translate macro: undefined identifier `handle`"); // ./_nvim/src/nvim/buffer_defs.h:461:9
+pub const FLOAT_CONFIG_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/buffer_defs.h:1043:9
+pub const CHANGEDTICK = @compileError("unable to translate macro: undefined identifier `Include`"); // ./_nvim/src/nvim/buffer_defs.h:1402:9
 pub const DECORATION_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/decoration.h:73:9
 pub const AUCMD_EXECUTABLE_INIT = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/ex_cmds_defs.h:125:9
 pub const cs_rettv = @compileError("unable to translate macro: undefined identifier `cs_pend`"); // ./_nvim/src/nvim/ex_cmds_defs.h:168:9
 pub const cs_exception = @compileError("unable to translate macro: undefined identifier `cs_pend`"); // ./_nvim/src/nvim/ex_cmds_defs.h:169:9
-pub const VA_EVENT_INIT = @compileError("unable to translate macro: undefined identifier `args`"); // ./_nvim/src/nvim/event/defs.h:16:9
-pub const multiqueue_put = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/event/multiqueue.h:12:9
+pub const RBUFFER_UNTIL_EMPTY = @compileError("unable to translate macro: undefined identifier `_r`"); // ./_nvim/src/nvim/rbuffer.h:43:9
+pub const RBUFFER_UNTIL_FULL = @compileError("unable to translate macro: undefined identifier `_r`"); // ./_nvim/src/nvim/rbuffer.h:49:9
+pub const RBUFFER_EACH = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/rbuffer.h:56:9
+pub const RBUFFER_EACH_REVERSE = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/rbuffer.h:64:9
+pub const CLEAR_POINTER = @compileError("unable to translate C expr: unexpected token '*'"); // ./_nvim/src/nvim/vim.h:195:9
 pub const KMEMPOOL_INIT = @compileError("unable to translate macro: undefined identifier `cnt`"); // _nvim/src/klib/klist.h:35:9
 pub const kmempool_t = @compileError("unable to translate macro: undefined identifier `kmp_`"); // _nvim/src/klib/klist.h:68:9
 pub const kmp_init = @compileError("unable to translate macro: undefined identifier `kmp_init_`"); // _nvim/src/klib/klist.h:69:9
@@ -55338,6 +55378,8 @@ pub const kl_destroy = @compileError("unable to translate macro: undefined ident
 pub const kl_push = @compileError("unable to translate macro: undefined identifier `kl_push_`"); // _nvim/src/klib/klist.h:134:9
 pub const kl_shift_at = @compileError("unable to translate macro: undefined identifier `kl_shift_at_`"); // _nvim/src/klib/klist.h:135:9
 pub const kl_iter_at = @compileError("unable to translate macro: undefined identifier `kl1_`"); // _nvim/src/klib/klist.h:141:9
+pub const VA_EVENT_INIT = @compileError("unable to translate macro: undefined identifier `args`"); // ./_nvim/src/nvim/event/defs.h:16:9
+pub const multiqueue_put = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/event/multiqueue.h:12:9
 pub const _NOOP = @compileError("unable to translate C expr: unexpected token 'Eof'"); // ./_nvim/src/nvim/event/loop.h:13:9
 pub const CREATE_EVENT = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/event/loop.h:46:9
 pub const LOOP_PROCESS_EVENTS_UNTIL = @compileError("unable to translate macro: undefined identifier `remaining`"); // ./_nvim/src/nvim/event/loop.h:59:9
@@ -55345,26 +55387,50 @@ pub const LOOP_PROCESS_EVENTS = @compileError("unable to translate C expr: unexp
 pub const MBYTE_NONE_CONV = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mbyte_defs.h:39:9
 pub const FOR_ALL_AUEVENTS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/autocmd.h:96:9
 pub const SCRIPT_ITEM = @compileError("unable to translate C expr: expected ')' instead got '*'"); // ./_nvim/src/nvim/runtime.h:89:9
-pub const FOR_ALL_FRAMES = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:410:9
-pub const FOR_ALL_TAB_WINDOWS = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // ./_nvim/src/nvim/globals.h:415:9
-pub const FOR_ALL_WINDOWS_IN_TAB = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:420:9
-pub const FOR_ALL_TABS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:452:9
-pub const FOR_ALL_BUFFERS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:461:9
-pub const FOR_ALL_BUFFERS_BACKWARDS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:463:9
-pub const FOR_ALL_BUF_WININFO = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:466:9
-pub const FOR_ALL_SIGNS_IN_BUF = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:470:9
-pub const list_log = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/eval/typval.h:84:10
-pub const list_write_log = @compileError("unable to translate C expr: expected ')' instead got '...'"); // ./_nvim/src/nvim/eval/typval.h:85:10
-pub const list_free_log = @compileError("unable to translate C expr: unexpected token 'Eof'"); // ./_nvim/src/nvim/eval/typval.h:86:10
-pub const TV_DICT_HI2DI = @compileError("unable to translate macro: undefined identifier `di_key`"); // ./_nvim/src/nvim/eval/typval.h:93:9
-pub const _TV_LIST_ITER_MOD = @compileError("unable to translate macro: undefined identifier `l_`"); // ./_nvim/src/nvim/eval/typval.h:416:9
-pub const TV_LIST_ITER = @compileError("unable to translate C expr: unexpected token ','"); // ./_nvim/src/nvim/eval/typval.h:436:9
-pub const TV_LIST_ITER_CONST = @compileError("unable to translate C expr: unexpected token 'const'"); // ./_nvim/src/nvim/eval/typval.h:447:9
-pub const TV_DICT_ITER = @compileError("unable to translate macro: undefined identifier `hi_`"); // ./_nvim/src/nvim/eval/typval.h:484:9
-pub const RBUFFER_UNTIL_EMPTY = @compileError("unable to translate macro: undefined identifier `_r`"); // ./_nvim/src/nvim/rbuffer.h:43:9
-pub const RBUFFER_UNTIL_FULL = @compileError("unable to translate macro: undefined identifier `_r`"); // ./_nvim/src/nvim/rbuffer.h:49:9
-pub const RBUFFER_EACH = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/rbuffer.h:56:9
-pub const RBUFFER_EACH_REVERSE = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/rbuffer.h:64:9
+pub const FOR_ALL_FRAMES = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:411:9
+pub const FOR_ALL_TAB_WINDOWS = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // ./_nvim/src/nvim/globals.h:416:9
+pub const FOR_ALL_WINDOWS_IN_TAB = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:421:9
+pub const FOR_ALL_TABS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:453:9
+pub const FOR_ALL_BUFFERS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:462:9
+pub const FOR_ALL_BUFFERS_BACKWARDS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:464:9
+pub const FOR_ALL_BUF_WININFO = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:467:9
+pub const FOR_ALL_SIGNS_IN_BUF = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:471:9
+pub const BOOLEAN_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:20:9
+pub const INTEGER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:24:9
+pub const FLOAT_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:28:9
+pub const STRING_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:32:9
+pub const BUFFER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:39:9
+pub const WINDOW_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:43:9
+pub const TABPAGE_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:47:9
+pub const ARRAY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:51:9
+pub const DICTIONARY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:55:9
+pub const LUAREF_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:59:9
+pub const PUT_BOOL = @compileError("unable to translate C expr: unexpected token ';'"); // _nvim/src/nvim/api/private/helpers.h:75:9
+pub const MAXSIZE_TEMP_ARRAY = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:83:9
+pub const MAXSIZE_TEMP_DICT = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:89:9
+pub const STATIC_CSTR_AS_STRING = @compileError("unable to translate C expr: unexpected token 'StringLiteral'"); // _nvim/src/nvim/api/private/helpers.h:97:9
+pub const api_init_string = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:113:9
+pub const api_init_object = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:117:9
+pub const api_init_array = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:118:9
+pub const api_init_dictionary = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:119:9
+pub const api_free_boolean = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:121:9
+pub const api_free_integer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:122:9
+pub const api_free_float = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:123:9
+pub const api_free_buffer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:124:9
+pub const api_free_window = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:125:9
+pub const api_free_tabpage = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:126:9
+pub const TRY_WRAP = @compileError("unable to translate macro: undefined identifier `saved_msg_list`"); // _nvim/src/nvim/api/private/helpers.h:155:9
+pub const TEXTLOCK_WRAP = @compileError("unable to translate macro: undefined identifier `save_cursor`"); // _nvim/src/nvim/api/private/helpers.h:168:9
+pub const FOREACH_ITEM = @compileError("unable to translate macro: undefined identifier `_index`"); // _nvim/src/nvim/api/private/helpers.h:178:9
+pub const WITH_SCRIPT_CONTEXT = @compileError("unable to translate macro: undefined identifier `save_current_sctx`"); // _nvim/src/nvim/api/private/helpers.h:189:9
+pub const BOOLEAN_OPTVAL = @compileError("unable to translate C expr: expected '=' instead got '.'"); // ./_nvim/src/nvim/option.h:16:9
+pub const NUMBER_OPTVAL = @compileError("unable to translate C expr: expected '=' instead got '.'"); // ./_nvim/src/nvim/option.h:17:9
+pub const STRING_OPTVAL = @compileError("unable to translate C expr: expected '=' instead got '.'"); // ./_nvim/src/nvim/option.h:18:9
+pub const TV_DICT_HI2DI = @compileError("unable to translate macro: undefined identifier `di_key`"); // ./_nvim/src/nvim/eval/typval.h:25:9
+pub const _TV_LIST_ITER_MOD = @compileError("unable to translate macro: undefined identifier `l_`"); // ./_nvim/src/nvim/eval/typval.h:343:9
+pub const TV_LIST_ITER = @compileError("unable to translate C expr: unexpected token ','"); // ./_nvim/src/nvim/eval/typval.h:362:9
+pub const TV_LIST_ITER_CONST = @compileError("unable to translate C expr: unexpected token 'const'"); // ./_nvim/src/nvim/eval/typval.h:373:9
+pub const TV_DICT_ITER = @compileError("unable to translate macro: undefined identifier `hi_`"); // ./_nvim/src/nvim/eval/typval.h:410:9
 pub const _msgpack_sync_decr_and_fetch = @compileError("unable to translate macro: undefined identifier `__sync_sub_and_fetch`"); // /usr/include/msgpack/sysdep.h:85:12
 pub const _msgpack_sync_incr_and_fetch = @compileError("unable to translate macro: undefined identifier `__sync_add_and_fetch`"); // /usr/include/msgpack/sysdep.h:86:12
 pub const _msgpack_load16 = @compileError("unable to translate C expr: unexpected token 'do'"); // /usr/include/msgpack/sysdep.h:174:9
@@ -55388,7 +55454,6 @@ pub const msgpack_pack_real_int32 = @compileError("unable to translate macro: un
 pub const msgpack_pack_real_int64 = @compileError("unable to translate macro: undefined identifier `buf`"); // /usr/include/msgpack/pack_template.h:221:9
 pub const MSGPACK_STR = @compileError("unable to translate C expr: unexpected token '#'"); // /usr/include/msgpack/version.h:28:9
 pub const MSGPACK_VERSION_I = @compileError("unable to translate C expr: unexpected token 'StringLiteral'"); // /usr/include/msgpack/version.h:29:9
-pub const CLEAR_POINTER = @compileError("unable to translate C expr: unexpected token '*'"); // ./_nvim/src/nvim/vim.h:195:9
 pub const TCGETS2 = @compileError("unable to translate macro: undefined identifier `termios2`"); // /usr/include/asm-generic/ioctls.h:61:9
 pub const TCSETS2 = @compileError("unable to translate macro: undefined identifier `termios2`"); // /usr/include/asm-generic/ioctls.h:62:9
 pub const TCSETSW2 = @compileError("unable to translate macro: undefined identifier `termios2`"); // /usr/include/asm-generic/ioctls.h:63:9
@@ -55414,33 +55479,6 @@ pub const SET_XFMARK = @compileError("unable to translate macro: undefined ident
 pub const RESET_XFMARK = @compileError("unable to translate macro: undefined identifier `xfmarkp__`"); // ./_nvim/src/nvim/mark.h:50:9
 pub const WIN_EXECUTE = @compileError("unable to translate macro: undefined identifier `wp_`"); // ./_nvim/src/nvim/eval/window.h:29:9
 pub const HL_SET_DEFAULT_COLORS = @compileError("unable to translate macro: undefined identifier `dark_`"); // ./_nvim/src/nvim/highlight.h:26:9
-pub const BOOLEAN_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:20:9
-pub const INTEGER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:25:9
-pub const FLOAT_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:29:9
-pub const STRING_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:33:9
-pub const BUFFER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:40:9
-pub const WINDOW_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:44:9
-pub const TABPAGE_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:48:9
-pub const ARRAY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:52:9
-pub const DICTIONARY_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:56:9
-pub const LUAREF_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:60:9
-pub const PUT_BOOL = @compileError("unable to translate C expr: unexpected token ';'"); // _nvim/src/nvim/api/private/helpers.h:76:9
-pub const MAXSIZE_TEMP_ARRAY = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:84:9
-pub const MAXSIZE_TEMP_DICT = @compileError("unable to translate macro: undefined identifier `__items`"); // _nvim/src/nvim/api/private/helpers.h:90:9
-pub const api_init_string = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:114:9
-pub const api_init_object = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:118:9
-pub const api_init_array = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:119:9
-pub const api_init_dictionary = @compileError("unable to translate C expr: unexpected token '='"); // _nvim/src/nvim/api/private/helpers.h:120:9
-pub const api_free_boolean = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:122:9
-pub const api_free_integer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:123:9
-pub const api_free_float = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:124:9
-pub const api_free_buffer = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:125:9
-pub const api_free_window = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:126:9
-pub const api_free_tabpage = @compileError("unable to translate C expr: unexpected token 'Eof'"); // _nvim/src/nvim/api/private/helpers.h:127:9
-pub const TRY_WRAP = @compileError("unable to translate macro: undefined identifier `saved_msg_list`"); // _nvim/src/nvim/api/private/helpers.h:156:9
-pub const TEXTLOCK_WRAP = @compileError("unable to translate macro: undefined identifier `save_cursor`"); // _nvim/src/nvim/api/private/helpers.h:169:9
-pub const FOREACH_ITEM = @compileError("unable to translate macro: undefined identifier `_index`"); // _nvim/src/nvim/api/private/helpers.h:179:9
-pub const WITH_SCRIPT_CONTEXT = @compileError("unable to translate macro: undefined identifier `save_current_sctx`"); // _nvim/src/nvim/api/private/helpers.h:190:9
 pub const RINGBUF_FORALL = @compileError("unable to translate macro: undefined identifier `_length_fa_`"); // ./_nvim/src/nvim/lib/ringbuf.h:42:9
 pub const RINGBUF_ITER_BACK = @compileError("unable to translate macro: undefined identifier `_length_ib_`"); // ./_nvim/src/nvim/lib/ringbuf.h:57:9
 pub const RINGBUF_TYPEDEF = @compileError("unable to translate macro: undefined identifier `buf`"); // ./_nvim/src/nvim/lib/ringbuf.h:69:9
@@ -55820,6 +55858,7 @@ pub const __XSAVEOPT__ = @as(c_int, 1);
 pub const __XSAVEC__ = @as(c_int, 1);
 pub const __XSAVES__ = @as(c_int, 1);
 pub const __CLFLUSHOPT__ = @as(c_int, 1);
+pub const __SGX__ = @as(c_int, 1);
 pub const __INVPCID__ = @as(c_int, 1);
 pub const __CRC32__ = @as(c_int, 1);
 pub const __AVX2__ = @as(c_int, 1);
@@ -58223,6 +58262,7 @@ pub const VARNUMBER_MIN = INT64_MIN;
 pub const PRIdVARNUMBER = PRId64;
 pub const CALLBACK_NONE = @import("std").zig.c_translation.cast(Callback, CALLBACK_INIT);
 pub const PRIdSCID = "d";
+pub const NVIM_EXTMARK_DEFS_H = "";
 pub const NVIM_GRID_DEFS_H = "";
 pub const MAX_MCO = @as(c_int, 6);
 pub const NVIM_HIGHLIGHT_DEFS_H = "";
@@ -58400,7 +58440,6 @@ pub const MT_FLAG_RIGHT_GRAVITY = @import("std").zig.c_translation.cast(u16, @as
 pub const MT_FLAG_LAST = @import("std").zig.c_translation.cast(u16, @as(c_int, 1)) << @as(c_int, 15);
 pub const MT_FLAG_EXTERNAL_MASK = (MT_FLAG_DECOR_MASK | MT_FLAG_RIGHT_GRAVITY) | MT_FLAG_HL_EOL;
 pub const MARKTREE_END_FLAG = @import("std").zig.c_translation.cast(u64, @as(c_int, 1)) << @as(c_int, 63);
-pub const NVIM_EXTMARK_DEFS_H = "";
 pub const NVIM_OPTION_DEFS_H = "";
 pub const P_BOOL = @as(c_uint, 0x01);
 pub const P_NUM = @as(c_uint, 0x02);
@@ -58446,7 +58485,7 @@ pub const SREQ_GLOBAL = @as(c_int, 0);
 pub const SREQ_WIN = @as(c_int, 1);
 pub const SREQ_BUF = @as(c_int, 2);
 pub const HIGHLIGHT_INIT = "8:SpecialKey,~:EndOfBuffer,z:TermCursor,Z:TermCursorNC,@:NonText,d:Directory,e:ErrorMsg," ++ "i:IncSearch,l:Search,y:CurSearch,m:MoreMsg,M:ModeMsg,n:LineNr,a:LineNrAbove,b:LineNrBelow," ++ "N:CursorLineNr,G:CursorLineSign,O:CursorLineFold" ++ "r:Question,s:StatusLine,S:StatusLineNC,c:VertSplit,t:Title,v:Visual,V:VisualNOS,w:WarningMsg," ++ "W:WildMenu,f:Folded,F:FoldColumn,A:DiffAdd,C:DiffChange,D:DiffDelete,T:DiffText,>:SignColumn," ++ "-:Conceal,B:SpellBad,P:SpellCap,R:SpellRare,L:SpellLocal,+:Pmenu,=:PmenuSel," ++ "[:PmenuKind,]:PmenuKindSel,{:PmenuExtra,}:PmenuExtraSel,x:PmenuSbar,X:PmenuThumb," ++ "*:TabLine,#:TabLineSel,_:TabLineFill,!:CursorColumn,.:CursorLine,o:ColorColumn," ++ "q:QuickFixLine,0:Whitespace,I:NormalNC";
-pub const DFLT_EFM = "%*[^\"]\"%f\"%*\\D%l: %m,\"%f\"%*\\D%l: %m,%-G%f:%l: (Each undeclared identifier is reported only once,%-G%f:%l: for each function it appears in.),%-GIn file included from %f:%l:%c:,%-GIn file included from %f:%l:%c\\,,%-GIn file included from %f:%l:%c,%-GIn file included from %f:%l,%-G%*[ ]from %f:%l:%c,%-G%*[ ]from %f:%l:,%-G%*[ ]from %f:%l\\,,%-G%*[ ]from %f:%l,%f:%l:%c:%m,%f(%l):%m,%f:%l:%m,\"%f\"\\, line %l%*\\D%c%*[^ ] %m,%D%*\\a[%*\\d]: Entering directory %*[`']%f',%X%*\\a[%*\\d]: Leaving directory %*[`']%f',%D%*\\a: Entering directory %*[`']%f',%X%*\\a: Leaving directory %*[`']%f',%DMaking %*\\a in %f,%f|%l| %m";
+pub const DFLT_EFM = "%*[^\"]\"%f\"%*\\D%l: %m,\"%f\"%*\\D%l: %m,%-Gg%\\?make[%*\\d]: *** [%f:%l:%m,%-Gg%\\?make: *** [%f:%l:%m,%-G%f:%l: (Each undeclared identifier is reported only once,%-G%f:%l: for each function it appears in.),%-GIn file included from %f:%l:%c:,%-GIn file included from %f:%l:%c\\,,%-GIn file included from %f:%l:%c,%-GIn file included from %f:%l,%-G%*[ ]from %f:%l:%c,%-G%*[ ]from %f:%l:,%-G%*[ ]from %f:%l\\,,%-G%*[ ]from %f:%l,%f:%l:%c:%m,%f(%l):%m,%f:%l:%m,\"%f\"\\, line %l%*\\D%c%*[^ ] %m,%D%*\\a[%*\\d]: Entering directory %*[`']%f',%X%*\\a[%*\\d]: Leaving directory %*[`']%f',%D%*\\a: Entering directory %*[`']%f',%X%*\\a: Leaving directory %*[`']%f',%DMaking %*\\a in %f,%f|%l| %m";
 pub const DFLT_GREPFORMAT = "%f:%l:%m,%f:%l%m,%f  %l%m";
 pub const FF_DOS = "dos";
 pub const FF_MAC = "mac";
@@ -59889,17 +59928,35 @@ pub const NVIM_API_DEPRECATED_H = "";
 pub const NVIM_API_EXTMARK_H = "";
 pub const NVIM_API_OPTIONS_H = "";
 pub const NVIM_OPTION_H = "";
-pub const BCO_ENTER = @as(c_int, 1);
-pub const BCO_ALWAYS = @as(c_int, 2);
-pub const BCO_NOHELP = @as(c_int, 4);
-pub const MAX_NUMBERWIDTH = @as(c_int, 20);
-pub const NVIM_API_TABPAGE_H = "";
-pub const NVIM_API_UI_H = "";
-pub const NVIM_UI_H = "";
-pub const NVIM_EVENT_MULTIQUEUE_H = "";
-pub const NVIM_EVENT_DEFS_H = "";
-pub const EVENT_HANDLER_MAX_ARGC = @as(c_int, 10);
-pub const NVIM_GLOBALS_H = "";
+pub const NVIM_API_PRIVATE_HELPERS_H = "";
+pub const NVIM_EX_EVAL_DEFS_H = "";
+pub const NVIM_GETCHAR_H = "";
+pub const NVIM_OS_FILEIO_H = "";
+pub const NVIM_RBUFFER_H = "";
+pub const NVIM_VIM_H = "";
+pub const SESSION_FILE = "Session.vim";
+pub const MAX_MSG_HIST_LEN = @as(c_int, 200);
+pub const SYS_OPTWIN_FILE = "$VIMRUNTIME/optwin.vim";
+pub const RUNTIME_DIRNAME = "runtime";
+pub const HAVE_PATHDEF = "";
+pub const MAX_TYPENR = @import("std").zig.c_translation.promoteIntLiteral(c_int, 65535, .decimal);
+pub const ROOT_UID = @as(c_int, 0);
+pub const NVIM_GETTEXT_H = "";
+pub const _LIBINTL_H = @as(c_int, 1);
+pub const __USE_GNU_GETTEXT = @as(c_int, 1);
+pub inline fn __GNU_GETTEXT_SUPPORTED_REVISION(major: anytype) @TypeOf(if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1)) {
+    return if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1);
+}
+pub inline fn @"_"(x: anytype) @TypeOf(gettext(x)) {
+    return gettext(x);
+}
+pub inline fn N_(x: anytype) @TypeOf(x) {
+    return x;
+}
+pub inline fn NGETTEXT(x: anytype, xs: anytype, n: anytype) @TypeOf(ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n))) {
+    return ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n));
+}
+pub const NVIM_KEYCODES_H = "";
 pub const NVIM_ASCII_H = "";
 pub inline fn CHAR_ORD(x: anytype) @TypeOf(if (@import("std").zig.c_translation.cast(u8, x) < 'a') @import("std").zig.c_translation.cast(u8, x) - 'A' else @import("std").zig.c_translation.cast(u8, x) - 'a') {
     return if (@import("std").zig.c_translation.cast(u8, x) < 'a') @import("std").zig.c_translation.cast(u8, x) - 'A' else @import("std").zig.c_translation.cast(u8, x) - 'a';
@@ -59972,352 +60029,6 @@ pub const Ctrl_HAT = @as(c_int, 30);
 pub const Ctrl__ = @as(c_int, 31);
 pub const PATHSEP = '/';
 pub const PATHSEPSTR = "/";
-pub const NVIM_EVENT_LOOP_H = "";
-pub const _AC_KLIST_H = "";
-pub inline fn kl_val(iter: anytype) @TypeOf(iter.*.data) {
-    return iter.*.data;
-}
-pub inline fn kl_next(iter: anytype) @TypeOf(iter.*.next) {
-    return iter.*.next;
-}
-pub inline fn kl_begin(kl: anytype) @TypeOf(kl.*.head) {
-    return kl.*.head;
-}
-pub inline fn kl_end(kl: anytype) @TypeOf(kl.*.tail) {
-    return kl.*.tail;
-}
-pub inline fn kl_shift(name: anytype, kl: anytype) @TypeOf(kl_shift_at(name, kl, &kl.*.head)) {
-    return kl_shift_at(name, kl, &kl.*.head);
-}
-pub inline fn kl_empty(kl: anytype) @TypeOf(kl.*.size == @as(c_int, 0)) {
-    return kl.*.size == @as(c_int, 0);
-}
-pub inline fn kl_iter(name: anytype, kl: anytype, p: anytype) @TypeOf(kl_iter_at(name, kl, p, NULL)) {
-    return kl_iter_at(name, kl, p, NULL);
-}
-pub const NVIM_EX_EVAL_DEFS_H = "";
-pub const NVIM_ICONV_H = "";
-pub const _ICONV_H = @as(c_int, 1);
-pub const ICONV_ERRNO = errno;
-pub const ICONV_E2BIG = E2BIG;
-pub const ICONV_EINVAL = EINVAL;
-pub const ICONV_EILSEQ = EILSEQ;
-pub const NVIM_MBYTE_H = "";
-pub const NVIM_MBYTE_DEFS_H = "";
-pub inline fn MB_BYTE2LEN(b: anytype) @TypeOf(utf8len_tab[@intCast(usize, b)]) {
-    return utf8len_tab[@intCast(usize, b)];
-}
-pub inline fn MB_BYTE2LEN_CHECK(b: anytype) @TypeOf(if ((b < @as(c_int, 0)) or (b > @as(c_int, 255))) @as(c_int, 1) else utf8len_tab[@intCast(usize, b)]) {
-    return if ((b < @as(c_int, 0)) or (b > @as(c_int, 255))) @as(c_int, 1) else utf8len_tab[@intCast(usize, b)];
-}
-pub const NVIM_MENU_DEFS_H = "";
-pub const MNU_HIDDEN_CHAR = ']';
-pub const NVIM_RUNTIME_H = "";
-pub const NVIM_AUTOCMD_H = "";
-pub const AUGROUP_DEFAULT = -@as(c_int, 1);
-pub const AUGROUP_ERROR = -@as(c_int, 2);
-pub const AUGROUP_ALL = -@as(c_int, 3);
-pub const AUGROUP_DELETED = -@as(c_int, 4);
-pub const BUFLOCAL_PAT_LEN = @as(c_int, 25);
-pub const SOURCING_NAME = @import("std").zig.c_translation.cast([*c]estack_T, exestack.ga_data)[@intCast(usize, exestack.ga_len - @as(c_int, 1))].es_name;
-pub const SOURCING_LNUM = @import("std").zig.c_translation.cast([*c]estack_T, exestack.ga_data)[@intCast(usize, exestack.ga_len - @as(c_int, 1))].es_lnum;
-pub inline fn SCRIPT_ID_VALID(id: anytype) @TypeOf((id > @as(c_int, 0)) and (id <= script_items.ga_len)) {
-    return (id > @as(c_int, 0)) and (id <= script_items.ga_len);
-}
-pub const DOSO_NONE = @as(c_int, 0);
-pub const DOSO_VIMRC = @as(c_int, 1);
-pub const DIP_ALL = @as(c_int, 0x01);
-pub const DIP_DIR = @as(c_int, 0x02);
-pub const DIP_ERR = @as(c_int, 0x04);
-pub const DIP_START = @as(c_int, 0x08);
-pub const DIP_OPT = @as(c_int, 0x10);
-pub const DIP_NORTP = @as(c_int, 0x20);
-pub const DIP_NOAFTER = @as(c_int, 0x40);
-pub const DIP_AFTER = @as(c_int, 0x80);
-pub const DIP_DIRFILE = @as(c_int, 0x200);
-pub const IOSIZE = @as(c_int, 1024) + @as(c_int, 1);
-pub const MSG_BUF_LEN = @as(c_int, 480);
-pub const MSG_BUF_CLEN = @import("std").zig.c_translation.MacroArithmetic.div(MSG_BUF_LEN, @as(c_int, 6));
-pub const _PATHSEPSTR = "/";
-pub const FILETYPE_FILE = "filetype.lua filetype.vim";
-pub const FTPLUGIN_FILE = "ftplugin.vim";
-pub const INDENT_FILE = "indent.vim";
-pub const FTOFF_FILE = "ftoff.vim";
-pub const FTPLUGOF_FILE = "ftplugof.vim";
-pub const INDOFF_FILE = "indoff.vim";
-pub const DFLT_ERRORFILE = "errors.err";
-pub const SYS_VIMRC_FILE = "$VIM" ++ _PATHSEPSTR ++ "sysinit.vim";
-pub const DFLT_HELPFILE = "$VIMRUNTIME" ++ _PATHSEPSTR ++ "doc" ++ _PATHSEPSTR ++ "help.txt";
-pub const SYNTAX_FNAME = "$VIMRUNTIME" ++ _PATHSEPSTR ++ "syntax" ++ _PATHSEPSTR ++ "%s.vim";
-pub const EXRC_FILE = ".exrc";
-pub const VIMRC_FILE = ".nvimrc";
-pub const VIMRC_LUA_FILE = ".nvim.lua";
-pub const NO_SCREEN = @as(c_int, 2);
-pub const NO_BUFFERS = @as(c_int, 1);
-pub const DFLT_COLS = @as(c_int, 80);
-pub const DFLT_ROWS = @as(c_int, 24);
-pub const vim_lseek = lseek;
-pub const vim_ftell = ftello;
-pub const vim_fseek = fseeko;
-pub const globvarht = globvardict.dv_hashtab;
-pub const PROF_NONE = @as(c_int, 0);
-pub const PROF_YES = @as(c_int, 1);
-pub const PROF_PAUSED = @as(c_int, 2);
-pub const SID_MODELINE = -@as(c_int, 1);
-pub const SID_CMDARG = -@as(c_int, 2);
-pub const SID_CARG = -@as(c_int, 3);
-pub const SID_ENV = -@as(c_int, 4);
-pub const SID_ERROR = -@as(c_int, 5);
-pub const SID_NONE = -@as(c_int, 6);
-pub const SID_WINLAYOUT = -@as(c_int, 7);
-pub const SID_LUA = -@as(c_int, 8);
-pub const SID_API_CLIENT = -@as(c_int, 9);
-pub const SID_STR = -@as(c_int, 10);
-pub const ONE_WINDOW = firstwin == lastwin;
-pub const aucmd_win = aucmd_win_vec.items;
-pub const AUCMD_WIN_COUNT = @import("std").zig.c_translation.cast(c_int, aucmd_win_vec.size);
-pub const DBCS_JPN = @as(c_int, 932);
-pub const DBCS_JPNU = @as(c_int, 9932);
-pub const DBCS_KOR = @as(c_int, 949);
-pub const DBCS_KORU = @as(c_int, 9949);
-pub const DBCS_CHS = @as(c_int, 936);
-pub const DBCS_CHSU = @as(c_int, 9936);
-pub const DBCS_CHT = @as(c_int, 950);
-pub const DBCS_CHTU = @as(c_int, 9950);
-pub const DBCS_2BYTE = @as(c_int, 1);
-pub const DBCS_DEBUG = -@as(c_int, 1);
-pub const SEA_NONE = @as(c_int, 0);
-pub const SEA_DIALOG = @as(c_int, 1);
-pub const SEA_QUIT = @as(c_int, 2);
-pub const SEA_RECOVER = @as(c_int, 3);
-pub const MODE_MAX_LENGTH = @as(c_int, 4);
-pub const STL_IN_ICON = @as(c_int, 1);
-pub const STL_IN_TITLE = @as(c_int, 2);
-pub const MIN_CD_SCOPE = kCdScopeWindow;
-pub const MAX_CD_SCOPE = kCdScopeGlobal;
-pub const kUIGlobalCount = kUILinegrid;
-pub const UI_BUF_SIZE = @as(c_int, 4096);
-pub const EVENT_BUF_SIZE = @as(c_int, 256);
-pub const NVIM_API_VIM_H = "";
-pub const NVIM_API_VIMSCRIPT_H = "";
-pub const NVIM_API_WIN_CONFIG_H = "";
-pub const NVIM_API_WINDOW_H = "";
-pub const NVIM_ARABIC_H = "";
-pub inline fn ARABIC_CHAR(ch: anytype) @TypeOf((ch & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFF00, .hexadecimal)) == @as(c_int, 0x0600)) {
-    return (ch & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFF00, .hexadecimal)) == @as(c_int, 0x0600);
-}
-pub const NVIM_ARGLIST_H = "";
-pub const NVIM_BUFFER_H = "";
-pub const NVIM_EVAL_TYPVAL_H = "";
-pub const NVIM_GETTEXT_H = "";
-pub const _LIBINTL_H = @as(c_int, 1);
-pub const __USE_GNU_GETTEXT = @as(c_int, 1);
-pub inline fn __GNU_GETTEXT_SUPPORTED_REVISION(major: anytype) @TypeOf(if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1)) {
-    return if (major == @as(c_int, 0)) @as(c_int, 1) else -@as(c_int, 1);
-}
-pub inline fn @"_"(x: anytype) @TypeOf(gettext(x)) {
-    return gettext(x);
-}
-pub inline fn N_(x: anytype) @TypeOf(x) {
-    return x;
-}
-pub inline fn NGETTEXT(x: anytype, xs: anytype, n: anytype) @TypeOf(ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n))) {
-    return ngettext(x, xs, @import("std").zig.c_translation.cast(c_ulong, n));
-}
-pub const NVIM_MESSAGE_H = "";
-pub const VIM_GENERIC = @as(c_int, 0);
-pub const VIM_ERROR = @as(c_int, 1);
-pub const VIM_WARNING = @as(c_int, 2);
-pub const VIM_INFO = @as(c_int, 3);
-pub const VIM_QUESTION = @as(c_int, 4);
-pub const VIM_LAST_TYPE = @as(c_int, 4);
-pub const VIM_YES = @as(c_int, 2);
-pub const VIM_NO = @as(c_int, 3);
-pub const VIM_CANCEL = @as(c_int, 4);
-pub const VIM_ALL = @as(c_int, 5);
-pub const VIM_DISCARDALL = @as(c_int, 6);
-pub inline fn TV_LIST_ITEM_TV(li: anytype) @TypeOf(&li.*.li_tv) {
-    return &li.*.li_tv;
-}
-pub inline fn TV_LIST_ITEM_NEXT(l: anytype, li: anytype) @TypeOf(li.*.li_next) {
-    _ = @TypeOf(l);
-    return li.*.li_next;
-}
-pub inline fn TV_LIST_ITEM_PREV(l: anytype, li: anytype) @TypeOf(li.*.li_prev) {
-    _ = @TypeOf(l);
-    return li.*.li_prev;
-}
-pub const TV_TRANSLATE = SIZE_MAX;
-pub const TV_CSTRING = SIZE_MAX - @as(c_int, 1);
-pub const NVIM_MEMLINE_H = "";
-pub const NVIM_BUFFER_UPDATES_H = "";
-pub const NVIM_EXTMARK_H = "";
-pub const NVIM_BUFWRITE_H = "";
-pub const NVIM_CHANGE_H = "";
-pub const OPENLINE_DELSPACES = @as(c_int, 0x01);
-pub const OPENLINE_DO_COM = @as(c_int, 0x02);
-pub const OPENLINE_KEEPTRAIL = @as(c_int, 0x04);
-pub const OPENLINE_MARKFIX = @as(c_int, 0x08);
-pub const OPENLINE_COM_LIST = @as(c_int, 0x10);
-pub const OPENLINE_FORMAT = @as(c_int, 0x20);
-pub const NVIM_CHANNEL_H = "";
-pub const NVIM_EVENT_LIBUV_PROCESS_H = "";
-pub const NVIM_EVENT_PROCESS_H = "";
-pub const NVIM_EVENT_RSTREAM_H = "";
-pub const NVIM_EVENT_STREAM_H = "";
-pub const NVIM_RBUFFER_H = "";
-pub const NVIM_EVENT_WSTREAM_H = "";
-pub const NVIM_EVENT_SOCKET_H = "";
-pub const ADDRESS_MAX_SIZE = @as(c_int, 256);
-pub const NVIM_MAIN_H = "";
-pub const MAX_ARG_CMDS = @as(c_int, 10);
-pub const NVIM_MSGPACK_RPC_CHANNEL_DEFS_H = "";
-pub const MSGPACK_UTIL_H = "";
-pub const MSGPACK_UNUSED = @import("std").zig.c_translation.Macros.DISCARD;
-pub const MSGPACK_OBJECT_H = "";
-pub const MSGPACK_ZONE_H = "";
-pub const MSGPACK_SYSDEP_H = "";
-pub const MSGPACK_ENDIAN_BIG_BYTE = @as(c_int, 0);
-pub const MSGPACK_ENDIAN_LITTLE_BYTE = @as(c_int, 1);
-pub const MSGPACK_DLLEXPORT = "";
-pub const _BYTESWAP_H = @as(c_int, 1);
-pub inline fn bswap_16(x: anytype) @TypeOf(__bswap_16(x)) {
-    return __bswap_16(x);
-}
-pub inline fn bswap_32(x: anytype) @TypeOf(__bswap_32(x)) {
-    return __bswap_32(x);
-}
-pub inline fn bswap_64(x: anytype) @TypeOf(__bswap_64(x)) {
-    return __bswap_64(x);
-}
-pub inline fn _msgpack_be16(x: anytype) @TypeOf(ntohs(@import("std").zig.c_translation.cast(u16, x))) {
-    return ntohs(@import("std").zig.c_translation.cast(u16, x));
-}
-pub inline fn _msgpack_be32(x: anytype) @TypeOf(ntohl(@import("std").zig.c_translation.cast(u32, x))) {
-    return ntohl(@import("std").zig.c_translation.cast(u32, x));
-}
-pub inline fn _msgpack_be64(x: anytype) @TypeOf(bswap_64(x)) {
-    return bswap_64(x);
-}
-pub const MSGPACK_ZONE_CHUNK_SIZE = @as(c_int, 8192);
-pub const MSGPACK_ZONE_ALIGN = @import("std").zig.c_translation.sizeof(?*anyopaque);
-pub const MSGPACK_PACK_H = "";
-pub const MSGPACK_PACK_DEFINE_H = "";
-pub const MSGPACK_TIMESTAMP_H = "";
-pub inline fn TAKE8_8(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
-    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
-}
-pub inline fn TAKE8_16(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
-    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
-}
-pub inline fn TAKE8_32(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
-    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
-}
-pub inline fn TAKE8_64(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
-    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
-}
-pub const MSGPACK_UNPACKER_H = "";
-pub const MSGPACK_UNPACKER_INIT_BUFFER_SIZE = @as(c_int, 64) * @as(c_int, 1024);
-pub const MSGPACK_UNPACKER_RESERVE_SIZE = @as(c_int, 32) * @as(c_int, 1024);
-pub const MSGPACK_SBUFFER_H = "";
-pub const MSGPACK_SBUFFER_INIT_SIZE = @as(c_int, 8192);
-pub const MSGPACK_VREFBUFFER_H = "";
-pub const _SYS_UIO_H = @as(c_int, 1);
-pub const _BITS_UIO_LIM_H = @as(c_int, 1);
-pub const __IOV_MAX = @as(c_int, 1024);
-pub const UIO_MAXIOV = __IOV_MAX;
-pub const MSGPACK_VREFBUFFER_REF_SIZE = @as(c_int, 32);
-pub const MSGPACK_VREFBUFFER_CHUNK_SIZE = @as(c_int, 8192);
-pub const MSGPACK_VERSION_H = "";
-pub const MSGPACK_VERSION_MAJOR = @as(c_int, 5);
-pub const MSGPACK_VERSION_MINOR = @as(c_int, 0);
-pub const MSGPACK_VERSION_REVISION = @as(c_int, 0);
-pub const MSGPACK_VERSION = MSGPACK_VERSION_I(MSGPACK_VERSION_MAJOR, MSGPACK_VERSION_MINOR, MSGPACK_VERSION_REVISION);
-pub const NVIM_API_PRIVATE_DISPATCH_H = "";
-pub inline fn api_free_keydict_context(x: anytype) @TypeOf(api_free_keydict(x, context_table)) {
-    return api_free_keydict(x, context_table);
-}
-pub inline fn api_free_keydict_set_decoration_provider(x: anytype) @TypeOf(api_free_keydict(x, set_decoration_provider_table)) {
-    return api_free_keydict(x, set_decoration_provider_table);
-}
-pub inline fn api_free_keydict_set_extmark(x: anytype) @TypeOf(api_free_keydict(x, set_extmark_table)) {
-    return api_free_keydict(x, set_extmark_table);
-}
-pub inline fn api_free_keydict_keymap(x: anytype) @TypeOf(api_free_keydict(x, keymap_table)) {
-    return api_free_keydict(x, keymap_table);
-}
-pub inline fn api_free_keydict_get_commands(x: anytype) @TypeOf(api_free_keydict(x, get_commands_table)) {
-    return api_free_keydict(x, get_commands_table);
-}
-pub inline fn api_free_keydict_user_command(x: anytype) @TypeOf(api_free_keydict(x, user_command_table)) {
-    return api_free_keydict(x, user_command_table);
-}
-pub inline fn api_free_keydict_float_config(x: anytype) @TypeOf(api_free_keydict(x, float_config_table)) {
-    return api_free_keydict(x, float_config_table);
-}
-pub inline fn api_free_keydict_runtime(x: anytype) @TypeOf(api_free_keydict(x, runtime_table)) {
-    return api_free_keydict(x, runtime_table);
-}
-pub inline fn api_free_keydict_eval_statusline(x: anytype) @TypeOf(api_free_keydict(x, eval_statusline_table)) {
-    return api_free_keydict(x, eval_statusline_table);
-}
-pub inline fn api_free_keydict_option(x: anytype) @TypeOf(api_free_keydict(x, option_table)) {
-    return api_free_keydict(x, option_table);
-}
-pub inline fn api_free_keydict_highlight(x: anytype) @TypeOf(api_free_keydict(x, highlight_table)) {
-    return api_free_keydict(x, highlight_table);
-}
-pub inline fn api_free_keydict_highlight_cterm(x: anytype) @TypeOf(api_free_keydict(x, highlight_cterm_table)) {
-    return api_free_keydict(x, highlight_cterm_table);
-}
-pub inline fn api_free_keydict_get_highlight(x: anytype) @TypeOf(api_free_keydict(x, get_highlight_table)) {
-    return api_free_keydict(x, get_highlight_table);
-}
-pub inline fn api_free_keydict_clear_autocmds(x: anytype) @TypeOf(api_free_keydict(x, clear_autocmds_table)) {
-    return api_free_keydict(x, clear_autocmds_table);
-}
-pub inline fn api_free_keydict_create_autocmd(x: anytype) @TypeOf(api_free_keydict(x, create_autocmd_table)) {
-    return api_free_keydict(x, create_autocmd_table);
-}
-pub inline fn api_free_keydict_exec_autocmds(x: anytype) @TypeOf(api_free_keydict(x, exec_autocmds_table)) {
-    return api_free_keydict(x, exec_autocmds_table);
-}
-pub inline fn api_free_keydict_get_autocmds(x: anytype) @TypeOf(api_free_keydict(x, get_autocmds_table)) {
-    return api_free_keydict(x, get_autocmds_table);
-}
-pub inline fn api_free_keydict_create_augroup(x: anytype) @TypeOf(api_free_keydict(x, create_augroup_table)) {
-    return api_free_keydict(x, create_augroup_table);
-}
-pub inline fn api_free_keydict_cmd(x: anytype) @TypeOf(api_free_keydict(x, cmd_table)) {
-    return api_free_keydict(x, cmd_table);
-}
-pub inline fn api_free_keydict_cmd_magic(x: anytype) @TypeOf(api_free_keydict(x, cmd_magic_table)) {
-    return api_free_keydict(x, cmd_magic_table);
-}
-pub inline fn api_free_keydict_cmd_mods(x: anytype) @TypeOf(api_free_keydict(x, cmd_mods_table)) {
-    return api_free_keydict(x, cmd_mods_table);
-}
-pub inline fn api_free_keydict_cmd_mods_filter(x: anytype) @TypeOf(api_free_keydict(x, cmd_mods_filter_table)) {
-    return api_free_keydict(x, cmd_mods_filter_table);
-}
-pub inline fn api_free_keydict_cmd_opts(x: anytype) @TypeOf(api_free_keydict(x, cmd_opts_table)) {
-    return api_free_keydict(x, cmd_opts_table);
-}
-pub inline fn api_free_keydict_echo_opts(x: anytype) @TypeOf(api_free_keydict(x, echo_opts_table)) {
-    return api_free_keydict(x, echo_opts_table);
-}
-pub inline fn api_free_keydict_exec_opts(x: anytype) @TypeOf(api_free_keydict(x, exec_opts_table)) {
-    return api_free_keydict(x, exec_opts_table);
-}
-pub const NVIM_VIM_H = "";
-pub const SESSION_FILE = "Session.vim";
-pub const MAX_MSG_HIST_LEN = @as(c_int, 200);
-pub const SYS_OPTWIN_FILE = "$VIMRUNTIME/optwin.vim";
-pub const RUNTIME_DIRNAME = "runtime";
-pub const HAVE_PATHDEF = "";
-pub const MAX_TYPENR = @import("std").zig.c_translation.promoteIntLiteral(c_int, 65535, .decimal);
-pub const ROOT_UID = @as(c_int, 0);
-pub const NVIM_KEYCODES_H = "";
 pub const NVIM_STRINGS_H = "";
 pub const K_NUL = @as(c_int, 0xce);
 pub const K_SPECIAL = @as(c_int, 0x80);
@@ -60615,6 +60326,18 @@ pub inline fn STRCAT(d: anytype, s: anytype) @TypeOf(strcat(@import("std").zig.c
     return strcat(@import("std").zig.c_translation.cast([*c]u8, d), @import("std").zig.c_translation.cast([*c]u8, s));
 }
 pub const AUTOLOAD_CHAR = '#';
+pub const NVIM_MESSAGE_H = "";
+pub const VIM_GENERIC = @as(c_int, 0);
+pub const VIM_ERROR = @as(c_int, 1);
+pub const VIM_WARNING = @as(c_int, 2);
+pub const VIM_INFO = @as(c_int, 3);
+pub const VIM_QUESTION = @as(c_int, 4);
+pub const VIM_LAST_TYPE = @as(c_int, 4);
+pub const VIM_YES = @as(c_int, 2);
+pub const VIM_NO = @as(c_int, 3);
+pub const VIM_CANCEL = @as(c_int, 4);
+pub const VIM_ALL = @as(c_int, 5);
+pub const VIM_DISCARDALL = @as(c_int, 6);
 pub inline fn PERROR(msg_1: anytype) anyopaque {
     return @import("std").zig.c_translation.cast(anyopaque, semsg("%s: %s", msg_1, strerror(errno)));
 }
@@ -60647,9 +60370,416 @@ pub inline fn os_errmsg(str: anytype) @TypeOf(fprintf(stderr, "%s", str)) {
 pub inline fn os_msg(str: anytype) @TypeOf(printf("%s", str)) {
     return printf("%s", str);
 }
+pub const NVIM_GLOBALS_H = "";
+pub const NVIM_EVENT_LOOP_H = "";
+pub const _AC_KLIST_H = "";
+pub inline fn kl_val(iter: anytype) @TypeOf(iter.*.data) {
+    return iter.*.data;
+}
+pub inline fn kl_next(iter: anytype) @TypeOf(iter.*.next) {
+    return iter.*.next;
+}
+pub inline fn kl_begin(kl: anytype) @TypeOf(kl.*.head) {
+    return kl.*.head;
+}
+pub inline fn kl_end(kl: anytype) @TypeOf(kl.*.tail) {
+    return kl.*.tail;
+}
+pub inline fn kl_shift(name: anytype, kl: anytype) @TypeOf(kl_shift_at(name, kl, &kl.*.head)) {
+    return kl_shift_at(name, kl, &kl.*.head);
+}
+pub inline fn kl_empty(kl: anytype) @TypeOf(kl.*.size == @as(c_int, 0)) {
+    return kl.*.size == @as(c_int, 0);
+}
+pub inline fn kl_iter(name: anytype, kl: anytype, p: anytype) @TypeOf(kl_iter_at(name, kl, p, NULL)) {
+    return kl_iter_at(name, kl, p, NULL);
+}
+pub const NVIM_EVENT_MULTIQUEUE_H = "";
+pub const NVIM_EVENT_DEFS_H = "";
+pub const EVENT_HANDLER_MAX_ARGC = @as(c_int, 10);
+pub const NVIM_ICONV_H = "";
+pub const _ICONV_H = @as(c_int, 1);
+pub const ICONV_ERRNO = errno;
+pub const ICONV_E2BIG = E2BIG;
+pub const ICONV_EINVAL = EINVAL;
+pub const ICONV_EILSEQ = EILSEQ;
+pub const NVIM_MBYTE_H = "";
+pub const NVIM_MBYTE_DEFS_H = "";
+pub inline fn MB_BYTE2LEN(b: anytype) @TypeOf(utf8len_tab[@intCast(usize, b)]) {
+    return utf8len_tab[@intCast(usize, b)];
+}
+pub inline fn MB_BYTE2LEN_CHECK(b: anytype) @TypeOf(if ((b < @as(c_int, 0)) or (b > @as(c_int, 255))) @as(c_int, 1) else utf8len_tab[@intCast(usize, b)]) {
+    return if ((b < @as(c_int, 0)) or (b > @as(c_int, 255))) @as(c_int, 1) else utf8len_tab[@intCast(usize, b)];
+}
+pub const NVIM_MENU_DEFS_H = "";
+pub const MNU_HIDDEN_CHAR = ']';
+pub const NVIM_RUNTIME_H = "";
+pub const NVIM_AUTOCMD_H = "";
+pub const AUGROUP_DEFAULT = -@as(c_int, 1);
+pub const AUGROUP_ERROR = -@as(c_int, 2);
+pub const AUGROUP_ALL = -@as(c_int, 3);
+pub const AUGROUP_DELETED = -@as(c_int, 4);
+pub const BUFLOCAL_PAT_LEN = @as(c_int, 25);
+pub const SOURCING_NAME = @import("std").zig.c_translation.cast([*c]estack_T, exestack.ga_data)[@intCast(usize, exestack.ga_len - @as(c_int, 1))].es_name;
+pub const SOURCING_LNUM = @import("std").zig.c_translation.cast([*c]estack_T, exestack.ga_data)[@intCast(usize, exestack.ga_len - @as(c_int, 1))].es_lnum;
+pub inline fn SCRIPT_ID_VALID(id: anytype) @TypeOf((id > @as(c_int, 0)) and (id <= script_items.ga_len)) {
+    return (id > @as(c_int, 0)) and (id <= script_items.ga_len);
+}
+pub const DOSO_NONE = @as(c_int, 0);
+pub const DOSO_VIMRC = @as(c_int, 1);
+pub const DIP_ALL = @as(c_int, 0x01);
+pub const DIP_DIR = @as(c_int, 0x02);
+pub const DIP_ERR = @as(c_int, 0x04);
+pub const DIP_START = @as(c_int, 0x08);
+pub const DIP_OPT = @as(c_int, 0x10);
+pub const DIP_NORTP = @as(c_int, 0x20);
+pub const DIP_NOAFTER = @as(c_int, 0x40);
+pub const DIP_AFTER = @as(c_int, 0x80);
+pub const DIP_DIRFILE = @as(c_int, 0x200);
+pub const IOSIZE = @as(c_int, 1024) + @as(c_int, 1);
+pub const MSG_BUF_LEN = @as(c_int, 480);
+pub const MSG_BUF_CLEN = @import("std").zig.c_translation.MacroArithmetic.div(MSG_BUF_LEN, @as(c_int, 6));
+pub const _PATHSEPSTR = "/";
+pub const FILETYPE_FILE = "filetype.lua filetype.vim";
+pub const FTPLUGIN_FILE = "ftplugin.vim";
+pub const INDENT_FILE = "indent.vim";
+pub const FTOFF_FILE = "ftoff.vim";
+pub const FTPLUGOF_FILE = "ftplugof.vim";
+pub const INDOFF_FILE = "indoff.vim";
+pub const DFLT_ERRORFILE = "errors.err";
+pub const SYS_VIMRC_FILE = "$VIM" ++ _PATHSEPSTR ++ "sysinit.vim";
+pub const DFLT_HELPFILE = "$VIMRUNTIME" ++ _PATHSEPSTR ++ "doc" ++ _PATHSEPSTR ++ "help.txt";
+pub const SYNTAX_FNAME = "$VIMRUNTIME" ++ _PATHSEPSTR ++ "syntax" ++ _PATHSEPSTR ++ "%s.vim";
+pub const EXRC_FILE = ".exrc";
+pub const VIMRC_FILE = ".nvimrc";
+pub const VIMRC_LUA_FILE = ".nvim.lua";
+pub const NO_SCREEN = @as(c_int, 2);
+pub const NO_BUFFERS = @as(c_int, 1);
+pub const DFLT_COLS = @as(c_int, 80);
+pub const DFLT_ROWS = @as(c_int, 24);
+pub const vim_lseek = lseek;
+pub const vim_ftell = ftello;
+pub const vim_fseek = fseeko;
+pub const globvarht = globvardict.dv_hashtab;
+pub const PROF_NONE = @as(c_int, 0);
+pub const PROF_YES = @as(c_int, 1);
+pub const PROF_PAUSED = @as(c_int, 2);
+pub const SID_MODELINE = -@as(c_int, 1);
+pub const SID_CMDARG = -@as(c_int, 2);
+pub const SID_CARG = -@as(c_int, 3);
+pub const SID_ENV = -@as(c_int, 4);
+pub const SID_ERROR = -@as(c_int, 5);
+pub const SID_NONE = -@as(c_int, 6);
+pub const SID_WINLAYOUT = -@as(c_int, 7);
+pub const SID_LUA = -@as(c_int, 8);
+pub const SID_API_CLIENT = -@as(c_int, 9);
+pub const SID_STR = -@as(c_int, 10);
+pub const ONE_WINDOW = firstwin == lastwin;
+pub const aucmd_win = aucmd_win_vec.items;
+pub const AUCMD_WIN_COUNT = @import("std").zig.c_translation.cast(c_int, aucmd_win_vec.size);
+pub const DBCS_JPN = @as(c_int, 932);
+pub const DBCS_JPNU = @as(c_int, 9932);
+pub const DBCS_KOR = @as(c_int, 949);
+pub const DBCS_KORU = @as(c_int, 9949);
+pub const DBCS_CHS = @as(c_int, 936);
+pub const DBCS_CHSU = @as(c_int, 9936);
+pub const DBCS_CHT = @as(c_int, 950);
+pub const DBCS_CHTU = @as(c_int, 9950);
+pub const DBCS_2BYTE = @as(c_int, 1);
+pub const DBCS_DEBUG = -@as(c_int, 1);
+pub const SEA_NONE = @as(c_int, 0);
+pub const SEA_DIALOG = @as(c_int, 1);
+pub const SEA_QUIT = @as(c_int, 2);
+pub const SEA_RECOVER = @as(c_int, 3);
+pub const MODE_MAX_LENGTH = @as(c_int, 4);
+pub const STL_IN_ICON = @as(c_int, 1);
+pub const STL_IN_TITLE = @as(c_int, 2);
+pub const MIN_CD_SCOPE = kCdScopeWindow;
+pub const MAX_CD_SCOPE = kCdScopeGlobal;
 pub const LOWEST_WIN_ID = @as(c_int, 1000);
 pub const REPLACE_CR_NCHAR = -@as(c_int, 1);
 pub const REPLACE_NL_NCHAR = -@as(c_int, 2);
+pub const KEYLEN_PART_KEY = -@as(c_int, 1);
+pub const KEYLEN_PART_MAP = -@as(c_int, 2);
+pub inline fn OBJECT_OBJ(o: anytype) @TypeOf(o) {
+    return o;
+}
+pub inline fn CSTR_AS_OBJ(s: anytype) @TypeOf(STRING_OBJ(cstr_as_string(s))) {
+    return STRING_OBJ(cstr_as_string(s));
+}
+pub inline fn CSTR_TO_OBJ(s: anytype) @TypeOf(STRING_OBJ(cstr_to_string(s))) {
+    return STRING_OBJ(cstr_to_string(s));
+}
+pub const NIL = @import("std").zig.c_translation.cast(Object, OBJECT_INIT);
+pub const NULL_STRING = @import("std").zig.c_translation.cast(String, STRING_INIT);
+pub inline fn HAS_KEY(o: anytype) @TypeOf(o.type != kObjectTypeNil) {
+    return o.type != kObjectTypeNil;
+}
+pub inline fn PUT(dict: anytype, k: anytype, v: anytype) @TypeOf(kv_push(dict, @import("std").mem.zeroInit(KeyValuePair, .{
+    .key = cstr_to_string(k),
+    .value = v,
+}))) {
+    return kv_push(dict, @import("std").mem.zeroInit(KeyValuePair, .{
+        .key = cstr_to_string(k),
+        .value = v,
+    }));
+}
+pub inline fn PUT_C(dict: anytype, k: anytype, v: anytype) @TypeOf(kv_push_c(dict, @import("std").mem.zeroInit(KeyValuePair, .{
+    .key = cstr_as_string(k),
+    .value = v,
+}))) {
+    return kv_push_c(dict, @import("std").mem.zeroInit(KeyValuePair, .{
+        .key = cstr_as_string(k),
+        .value = v,
+    }));
+}
+pub inline fn ADD(array: anytype, item: anytype) @TypeOf(kv_push(array, item)) {
+    return kv_push(array, item);
+}
+pub inline fn ADD_C(array: anytype, item: anytype) @TypeOf(kv_push_c(array, item)) {
+    return kv_push_c(array, item);
+}
+pub inline fn cbuf_as_string(d: anytype, s: anytype) String {
+    return @import("std").mem.zeroInit(String, .{
+        .data = d,
+        .size = s,
+    });
+}
+pub inline fn STATIC_CSTR_TO_STRING(s: anytype) String {
+    return @import("std").mem.zeroInit(String, .{
+        .data = xmemdupz(s, @import("std").zig.c_translation.sizeof(s) - @as(c_int, 1)),
+        .size = @import("std").zig.c_translation.sizeof(s) - @as(c_int, 1),
+    });
+}
+pub inline fn STATIC_CSTR_AS_OBJ(s: anytype) @TypeOf(STRING_OBJ(STATIC_CSTR_AS_STRING(s))) {
+    return STRING_OBJ(STATIC_CSTR_AS_STRING(s));
+}
+pub inline fn STATIC_CSTR_TO_OBJ(s: anytype) @TypeOf(STRING_OBJ(STATIC_CSTR_TO_STRING(s))) {
+    return STRING_OBJ(STATIC_CSTR_TO_STRING(s));
+}
+pub const api_init_boolean = "";
+pub const api_init_integer = "";
+pub const api_init_float = "";
+pub const api_init_buffer = "";
+pub const api_init_window = "";
+pub const api_init_tabpage = "";
+pub inline fn handle_get_buffer(h: anytype) @TypeOf(pmap_get(c_int)(&buffer_handles, h)) {
+    return pmap_get(c_int)(&buffer_handles, h);
+}
+pub inline fn handle_get_window(h: anytype) @TypeOf(pmap_get(c_int)(&window_handles, h)) {
+    return pmap_get(c_int)(&window_handles, h);
+}
+pub inline fn handle_get_tabpage(h: anytype) @TypeOf(pmap_get(c_int)(&tabpage_handles, h)) {
+    return pmap_get(c_int)(&tabpage_handles, h);
+}
+pub const BCO_ENTER = @as(c_int, 1);
+pub const BCO_ALWAYS = @as(c_int, 2);
+pub const BCO_NOHELP = @as(c_int, 4);
+pub const MAX_NUMBERWIDTH = @as(c_int, 20);
+pub const NIL_OPTVAL = @import("std").mem.zeroInit(OptVal, .{
+    .type = kOptValTypeNil,
+});
+pub inline fn CSTR_AS_OPTVAL(s: anytype) @TypeOf(STRING_OPTVAL(cstr_as_string(s))) {
+    return STRING_OPTVAL(cstr_as_string(s));
+}
+pub inline fn CSTR_TO_OPTVAL(s: anytype) @TypeOf(STRING_OPTVAL(cstr_to_string(s))) {
+    return STRING_OPTVAL(cstr_to_string(s));
+}
+pub inline fn STATIC_CSTR_AS_OPTVAL(s: anytype) @TypeOf(STRING_OPTVAL(STATIC_CSTR_AS_STRING(s))) {
+    return STRING_OPTVAL(STATIC_CSTR_AS_STRING(s));
+}
+pub inline fn STATIC_CSTR_TO_OPTVAL(s: anytype) @TypeOf(STRING_OPTVAL(STATIC_CSTR_TO_STRING(s))) {
+    return STRING_OPTVAL(STATIC_CSTR_TO_STRING(s));
+}
+pub const NVIM_API_TABPAGE_H = "";
+pub const NVIM_API_UI_H = "";
+pub const NVIM_UI_H = "";
+pub const kUIGlobalCount = kUILinegrid;
+pub const UI_BUF_SIZE = @as(c_int, 4096);
+pub const EVENT_BUF_SIZE = @as(c_int, 256);
+pub const NVIM_API_VIM_H = "";
+pub const NVIM_API_VIMSCRIPT_H = "";
+pub const NVIM_API_WIN_CONFIG_H = "";
+pub const NVIM_API_WINDOW_H = "";
+pub const NVIM_ARABIC_H = "";
+pub inline fn ARABIC_CHAR(ch: anytype) @TypeOf((ch & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFF00, .hexadecimal)) == @as(c_int, 0x0600)) {
+    return (ch & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFF00, .hexadecimal)) == @as(c_int, 0x0600);
+}
+pub const NVIM_ARGLIST_H = "";
+pub const NVIM_BUFFER_H = "";
+pub const NVIM_EVAL_TYPVAL_H = "";
+pub inline fn TV_LIST_ITEM_TV(li: anytype) @TypeOf(&li.*.li_tv) {
+    return &li.*.li_tv;
+}
+pub inline fn TV_LIST_ITEM_NEXT(l: anytype, li: anytype) @TypeOf(li.*.li_next) {
+    _ = @TypeOf(l);
+    return li.*.li_next;
+}
+pub inline fn TV_LIST_ITEM_PREV(l: anytype, li: anytype) @TypeOf(li.*.li_prev) {
+    _ = @TypeOf(l);
+    return li.*.li_prev;
+}
+pub const TV_TRANSLATE = SIZE_MAX;
+pub const TV_CSTRING = SIZE_MAX - @as(c_int, 1);
+pub const NVIM_MEMLINE_H = "";
+pub const NVIM_BUFFER_UPDATES_H = "";
+pub const NVIM_EXTMARK_H = "";
+pub const NVIM_BUFWRITE_H = "";
+pub const NVIM_CHANGE_H = "";
+pub const OPENLINE_DELSPACES = @as(c_int, 0x01);
+pub const OPENLINE_DO_COM = @as(c_int, 0x02);
+pub const OPENLINE_KEEPTRAIL = @as(c_int, 0x04);
+pub const OPENLINE_MARKFIX = @as(c_int, 0x08);
+pub const OPENLINE_COM_LIST = @as(c_int, 0x10);
+pub const OPENLINE_FORMAT = @as(c_int, 0x20);
+pub const NVIM_CHANNEL_H = "";
+pub const NVIM_EVENT_LIBUV_PROCESS_H = "";
+pub const NVIM_EVENT_PROCESS_H = "";
+pub const NVIM_EVENT_RSTREAM_H = "";
+pub const NVIM_EVENT_STREAM_H = "";
+pub const NVIM_EVENT_WSTREAM_H = "";
+pub const NVIM_EVENT_SOCKET_H = "";
+pub const ADDRESS_MAX_SIZE = @as(c_int, 256);
+pub const NVIM_MAIN_H = "";
+pub const MAX_ARG_CMDS = @as(c_int, 10);
+pub const NVIM_MSGPACK_RPC_CHANNEL_DEFS_H = "";
+pub const MSGPACK_UTIL_H = "";
+pub const MSGPACK_UNUSED = @import("std").zig.c_translation.Macros.DISCARD;
+pub const MSGPACK_OBJECT_H = "";
+pub const MSGPACK_ZONE_H = "";
+pub const MSGPACK_SYSDEP_H = "";
+pub const MSGPACK_ENDIAN_BIG_BYTE = @as(c_int, 0);
+pub const MSGPACK_ENDIAN_LITTLE_BYTE = @as(c_int, 1);
+pub const MSGPACK_DLLEXPORT = "";
+pub const _BYTESWAP_H = @as(c_int, 1);
+pub inline fn bswap_16(x: anytype) @TypeOf(__bswap_16(x)) {
+    return __bswap_16(x);
+}
+pub inline fn bswap_32(x: anytype) @TypeOf(__bswap_32(x)) {
+    return __bswap_32(x);
+}
+pub inline fn bswap_64(x: anytype) @TypeOf(__bswap_64(x)) {
+    return __bswap_64(x);
+}
+pub inline fn _msgpack_be16(x: anytype) @TypeOf(ntohs(@import("std").zig.c_translation.cast(u16, x))) {
+    return ntohs(@import("std").zig.c_translation.cast(u16, x));
+}
+pub inline fn _msgpack_be32(x: anytype) @TypeOf(ntohl(@import("std").zig.c_translation.cast(u32, x))) {
+    return ntohl(@import("std").zig.c_translation.cast(u32, x));
+}
+pub inline fn _msgpack_be64(x: anytype) @TypeOf(bswap_64(x)) {
+    return bswap_64(x);
+}
+pub const MSGPACK_ZONE_CHUNK_SIZE = @as(c_int, 8192);
+pub const MSGPACK_ZONE_ALIGN = @import("std").zig.c_translation.sizeof(?*anyopaque);
+pub const MSGPACK_PACK_H = "";
+pub const MSGPACK_PACK_DEFINE_H = "";
+pub const MSGPACK_TIMESTAMP_H = "";
+pub inline fn TAKE8_8(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
+    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
+}
+pub inline fn TAKE8_16(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
+    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
+}
+pub inline fn TAKE8_32(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
+    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
+}
+pub inline fn TAKE8_64(d: anytype) @TypeOf(@import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))]) {
+    return @import("std").zig.c_translation.cast([*c]u8, &d)[@intCast(usize, @as(c_int, 0))];
+}
+pub const MSGPACK_UNPACKER_H = "";
+pub const MSGPACK_UNPACKER_INIT_BUFFER_SIZE = @as(c_int, 64) * @as(c_int, 1024);
+pub const MSGPACK_UNPACKER_RESERVE_SIZE = @as(c_int, 32) * @as(c_int, 1024);
+pub const MSGPACK_SBUFFER_H = "";
+pub const MSGPACK_SBUFFER_INIT_SIZE = @as(c_int, 8192);
+pub const MSGPACK_VREFBUFFER_H = "";
+pub const _SYS_UIO_H = @as(c_int, 1);
+pub const _BITS_UIO_LIM_H = @as(c_int, 1);
+pub const __IOV_MAX = @as(c_int, 1024);
+pub const UIO_MAXIOV = __IOV_MAX;
+pub const MSGPACK_VREFBUFFER_REF_SIZE = @as(c_int, 32);
+pub const MSGPACK_VREFBUFFER_CHUNK_SIZE = @as(c_int, 8192);
+pub const MSGPACK_VERSION_H = "";
+pub const MSGPACK_VERSION_MAJOR = @as(c_int, 5);
+pub const MSGPACK_VERSION_MINOR = @as(c_int, 0);
+pub const MSGPACK_VERSION_REVISION = @as(c_int, 0);
+pub const MSGPACK_VERSION = MSGPACK_VERSION_I(MSGPACK_VERSION_MAJOR, MSGPACK_VERSION_MINOR, MSGPACK_VERSION_REVISION);
+pub const NVIM_API_PRIVATE_DISPATCH_H = "";
+pub inline fn api_free_keydict_context(x: anytype) @TypeOf(api_free_keydict(x, context_table)) {
+    return api_free_keydict(x, context_table);
+}
+pub inline fn api_free_keydict_set_decoration_provider(x: anytype) @TypeOf(api_free_keydict(x, set_decoration_provider_table)) {
+    return api_free_keydict(x, set_decoration_provider_table);
+}
+pub inline fn api_free_keydict_set_extmark(x: anytype) @TypeOf(api_free_keydict(x, set_extmark_table)) {
+    return api_free_keydict(x, set_extmark_table);
+}
+pub inline fn api_free_keydict_keymap(x: anytype) @TypeOf(api_free_keydict(x, keymap_table)) {
+    return api_free_keydict(x, keymap_table);
+}
+pub inline fn api_free_keydict_get_commands(x: anytype) @TypeOf(api_free_keydict(x, get_commands_table)) {
+    return api_free_keydict(x, get_commands_table);
+}
+pub inline fn api_free_keydict_user_command(x: anytype) @TypeOf(api_free_keydict(x, user_command_table)) {
+    return api_free_keydict(x, user_command_table);
+}
+pub inline fn api_free_keydict_float_config(x: anytype) @TypeOf(api_free_keydict(x, float_config_table)) {
+    return api_free_keydict(x, float_config_table);
+}
+pub inline fn api_free_keydict_runtime(x: anytype) @TypeOf(api_free_keydict(x, runtime_table)) {
+    return api_free_keydict(x, runtime_table);
+}
+pub inline fn api_free_keydict_eval_statusline(x: anytype) @TypeOf(api_free_keydict(x, eval_statusline_table)) {
+    return api_free_keydict(x, eval_statusline_table);
+}
+pub inline fn api_free_keydict_option(x: anytype) @TypeOf(api_free_keydict(x, option_table)) {
+    return api_free_keydict(x, option_table);
+}
+pub inline fn api_free_keydict_highlight(x: anytype) @TypeOf(api_free_keydict(x, highlight_table)) {
+    return api_free_keydict(x, highlight_table);
+}
+pub inline fn api_free_keydict_highlight_cterm(x: anytype) @TypeOf(api_free_keydict(x, highlight_cterm_table)) {
+    return api_free_keydict(x, highlight_cterm_table);
+}
+pub inline fn api_free_keydict_get_highlight(x: anytype) @TypeOf(api_free_keydict(x, get_highlight_table)) {
+    return api_free_keydict(x, get_highlight_table);
+}
+pub inline fn api_free_keydict_clear_autocmds(x: anytype) @TypeOf(api_free_keydict(x, clear_autocmds_table)) {
+    return api_free_keydict(x, clear_autocmds_table);
+}
+pub inline fn api_free_keydict_create_autocmd(x: anytype) @TypeOf(api_free_keydict(x, create_autocmd_table)) {
+    return api_free_keydict(x, create_autocmd_table);
+}
+pub inline fn api_free_keydict_exec_autocmds(x: anytype) @TypeOf(api_free_keydict(x, exec_autocmds_table)) {
+    return api_free_keydict(x, exec_autocmds_table);
+}
+pub inline fn api_free_keydict_get_autocmds(x: anytype) @TypeOf(api_free_keydict(x, get_autocmds_table)) {
+    return api_free_keydict(x, get_autocmds_table);
+}
+pub inline fn api_free_keydict_create_augroup(x: anytype) @TypeOf(api_free_keydict(x, create_augroup_table)) {
+    return api_free_keydict(x, create_augroup_table);
+}
+pub inline fn api_free_keydict_cmd(x: anytype) @TypeOf(api_free_keydict(x, cmd_table)) {
+    return api_free_keydict(x, cmd_table);
+}
+pub inline fn api_free_keydict_cmd_magic(x: anytype) @TypeOf(api_free_keydict(x, cmd_magic_table)) {
+    return api_free_keydict(x, cmd_magic_table);
+}
+pub inline fn api_free_keydict_cmd_mods(x: anytype) @TypeOf(api_free_keydict(x, cmd_mods_table)) {
+    return api_free_keydict(x, cmd_mods_table);
+}
+pub inline fn api_free_keydict_cmd_mods_filter(x: anytype) @TypeOf(api_free_keydict(x, cmd_mods_filter_table)) {
+    return api_free_keydict(x, cmd_mods_filter_table);
+}
+pub inline fn api_free_keydict_cmd_opts(x: anytype) @TypeOf(api_free_keydict(x, cmd_opts_table)) {
+    return api_free_keydict(x, cmd_opts_table);
+}
+pub inline fn api_free_keydict_echo_opts(x: anytype) @TypeOf(api_free_keydict(x, echo_opts_table)) {
+    return api_free_keydict(x, echo_opts_table);
+}
+pub inline fn api_free_keydict_exec_opts(x: anytype) @TypeOf(api_free_keydict(x, exec_opts_table)) {
+    return api_free_keydict(x, exec_opts_table);
+}
 pub const NVIM_OS_PTY_PROCESS_H = "";
 pub const NVIM_OS_PTY_PROCESS_UNIX_H = "";
 pub const _SYS_IOCTL_H = @as(c_int, 1);
@@ -60939,7 +61069,6 @@ pub const NVIM_EVAL_DECODE_H = "";
 pub const NVIM_EVAL_ENCODE_H = "";
 pub const NVIM_EVAL_H = "";
 pub const NVIM_EVENT_TIME_H = "";
-pub const NVIM_OS_FILEIO_H = "";
 pub const NVIM_OS_STDPATHS_DEFS_H = "";
 pub const COPYID_INC = @as(c_int, 2);
 pub const COPYID_MASK = ~@as(c_int, 0x1);
@@ -61047,96 +61176,12 @@ pub const READ_NOFILE = @as(c_int, 0x100);
 pub const CONV_RESTLEN = @as(c_int, 30);
 pub const WRITEBUFSIZE = @as(c_int, 8192);
 pub const ICONV_MULT = @as(c_int, 8);
-pub const NVIM_GETCHAR_H = "";
-pub const KEYLEN_PART_KEY = -@as(c_int, 1);
-pub const KEYLEN_PART_MAP = -@as(c_int, 2);
 pub const NVIM_GRID_H = "";
 pub const DEFAULT_GRID_HANDLE = @as(c_int, 1);
 pub const NVIM_HELP_H = "";
 pub const NVIM_HIGHLIGHT_H = "";
 pub const HLATTRS_DICT_SIZE = @as(c_int, 16);
 pub const NVIM_HIGHLIGHT_GROUP_H = "";
-pub const NVIM_API_PRIVATE_HELPERS_H = "";
-pub inline fn OBJECT_OBJ(o: anytype) @TypeOf(o) {
-    return o;
-}
-pub inline fn BOOL(b: anytype) @TypeOf(BOOLEAN_OBJ(b)) {
-    return BOOLEAN_OBJ(b);
-}
-pub inline fn CSTR_AS_OBJ(s: anytype) @TypeOf(STRING_OBJ(cstr_as_string(s))) {
-    return STRING_OBJ(cstr_as_string(s));
-}
-pub inline fn CSTR_TO_OBJ(s: anytype) @TypeOf(STRING_OBJ(cstr_to_string(s))) {
-    return STRING_OBJ(cstr_to_string(s));
-}
-pub const NIL = @import("std").zig.c_translation.cast(Object, OBJECT_INIT);
-pub const NULL_STRING = @import("std").zig.c_translation.cast(String, STRING_INIT);
-pub inline fn HAS_KEY(o: anytype) @TypeOf(o.type != kObjectTypeNil) {
-    return o.type != kObjectTypeNil;
-}
-pub inline fn PUT(dict: anytype, k: anytype, v: anytype) @TypeOf(kv_push(dict, @import("std").mem.zeroInit(KeyValuePair, .{
-    .key = cstr_to_string(k),
-    .value = v,
-}))) {
-    return kv_push(dict, @import("std").mem.zeroInit(KeyValuePair, .{
-        .key = cstr_to_string(k),
-        .value = v,
-    }));
-}
-pub inline fn PUT_C(dict: anytype, k: anytype, v: anytype) @TypeOf(kv_push_c(dict, @import("std").mem.zeroInit(KeyValuePair, .{
-    .key = cstr_as_string(k),
-    .value = v,
-}))) {
-    return kv_push_c(dict, @import("std").mem.zeroInit(KeyValuePair, .{
-        .key = cstr_as_string(k),
-        .value = v,
-    }));
-}
-pub inline fn ADD(array: anytype, item: anytype) @TypeOf(kv_push(array, item)) {
-    return kv_push(array, item);
-}
-pub inline fn ADD_C(array: anytype, item: anytype) @TypeOf(kv_push_c(array, item)) {
-    return kv_push_c(array, item);
-}
-pub inline fn cbuf_as_string(d: anytype, s: anytype) String {
-    return @import("std").mem.zeroInit(String, .{
-        .data = d,
-        .size = s,
-    });
-}
-pub inline fn STATIC_CSTR_AS_STRING(s: anytype) String {
-    return @import("std").mem.zeroInit(String, .{
-        .data = s,
-        .size = @import("std").zig.c_translation.sizeof(s) - @as(c_int, 1),
-    });
-}
-pub inline fn STATIC_CSTR_TO_STRING(s: anytype) String {
-    return @import("std").mem.zeroInit(String, .{
-        .data = xmemdupz(s, @import("std").zig.c_translation.sizeof(s) - @as(c_int, 1)),
-        .size = @import("std").zig.c_translation.sizeof(s) - @as(c_int, 1),
-    });
-}
-pub inline fn STATIC_CSTR_AS_OBJ(s: anytype) @TypeOf(STRING_OBJ(STATIC_CSTR_AS_STRING(s))) {
-    return STRING_OBJ(STATIC_CSTR_AS_STRING(s));
-}
-pub inline fn STATIC_CSTR_TO_OBJ(s: anytype) @TypeOf(STRING_OBJ(STATIC_CSTR_TO_STRING(s))) {
-    return STRING_OBJ(STATIC_CSTR_TO_STRING(s));
-}
-pub const api_init_boolean = "";
-pub const api_init_integer = "";
-pub const api_init_float = "";
-pub const api_init_buffer = "";
-pub const api_init_window = "";
-pub const api_init_tabpage = "";
-pub inline fn handle_get_buffer(h: anytype) @TypeOf(pmap_get(c_int)(&buffer_handles, h)) {
-    return pmap_get(c_int)(&buffer_handles, h);
-}
-pub inline fn handle_get_window(h: anytype) @TypeOf(pmap_get(c_int)(&window_handles, h)) {
-    return pmap_get(c_int)(&window_handles, h);
-}
-pub inline fn handle_get_tabpage(h: anytype) @TypeOf(pmap_get(c_int)(&tabpage_handles, h)) {
-    return pmap_get(c_int)(&tabpage_handles, h);
-}
 pub const MAX_HL_ID = @as(c_int, 20000);
 pub const NVIM_INDENT_H = "";
 pub const SIN_CHANGED = @as(c_int, 1);
@@ -61545,9 +61590,9 @@ pub const dict_watcher = struct_dict_watcher;
 pub const typval_vval_union = union_typval_vval_union;
 pub const ht_stack_S = struct_ht_stack_S;
 pub const list_stack_S = struct_list_stack_S;
+pub const undo_object = struct_undo_object;
 pub const attr_entry = struct_attr_entry;
 pub const mtnode_s = struct_mtnode_s;
-pub const undo_object = struct_undo_object;
 pub const vimoption = struct_vimoption;
 pub const foldinfo = struct_foldinfo;
 pub const stl_hlrec = struct_stl_hlrec;
@@ -61669,35 +61714,36 @@ pub const exarg = struct_exarg;
 pub const aucmd_executable_t = struct_aucmd_executable_t;
 pub const cmdname = struct_cmdname;
 pub const eslist_elem = struct_eslist_elem;
+pub const msglist = struct_msglist;
+pub const vim_exception = struct_vim_exception;
+pub const cleanup_stuff = struct_cleanup_stuff;
+pub const rbuffer = struct_rbuffer;
+pub const key_extra = enum_key_extra;
+pub const msg_hist = struct_msg_hist;
+pub const file_comparison = enum_file_comparison;
 pub const message = struct_message;
 pub const multiqueue = struct_multiqueue;
 pub const __kl1_WatcherPtr = struct___kl1_WatcherPtr;
 pub const loop = struct_loop;
-pub const msglist = struct_msglist;
-pub const vim_exception = struct_vim_exception;
-pub const cleanup_stuff = struct_cleanup_stuff;
 pub const VimMenu = struct_VimMenu;
 pub const auto_event = enum_auto_event;
 pub const AutoPatCmd_S = struct_AutoPatCmd_S;
 pub const nvim_stats_s = struct_nvim_stats_s;
 pub const caller_scope = struct_caller_scope;
+pub const RemapValues = enum_RemapValues;
 pub const ui_t = struct_ui_t;
 pub const ui_event_callback = struct_ui_event_callback;
-pub const msg_hist = struct_msg_hist;
 pub const getf_values = enum_getf_values;
 pub const getf_retvalues = enum_getf_retvalues;
 pub const bln_values = enum_bln_values;
 pub const dobuf_action_values = enum_dobuf_action_values;
 pub const dobuf_start_values = enum_dobuf_start_values;
 pub const bfa_values = enum_bfa_values;
-pub const rbuffer = struct_rbuffer;
 pub const stream = struct_stream;
 pub const wbuffer = struct_wbuffer;
 pub const process = struct_process;
 pub const libuv_process = struct_libuv_process;
 pub const socket_watcher = struct_socket_watcher;
-pub const key_extra = enum_key_extra;
-pub const file_comparison = enum_file_comparison;
 pub const winsize = struct_winsize;
 pub const pty_process = struct_pty_process;
 pub const mpack_value_s = struct_mpack_value_s;
@@ -61711,7 +61757,6 @@ pub const time_watcher = struct_time_watcher;
 pub const lval_S = struct_lval_S;
 pub const funccal_entry = struct_funccal_entry;
 pub const signal_watcher = struct_signal_watcher;
-pub const RemapValues = enum_RemapValues;
 pub const ucmd = struct_ucmd;
 pub const map_arguments = struct_map_arguments;
 pub const mpack_node_s = struct_mpack_node_s;
