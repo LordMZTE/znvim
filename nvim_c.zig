@@ -1627,9 +1627,9 @@ pub extern fn tcgetsid(__fd: c_int) __pid_t;
 pub fn _memcpy_free(noalias dest: ?*anyopaque, noalias src: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque {
     _ = memcpy(dest, src, size);
     while (true) {
-        var ptr_: [*c]?*anyopaque = @intToPtr([*c]?*anyopaque, @ptrToInt(&src));
+        var ptr_: [*c]?*anyopaque = @ptrFromInt([*c]?*anyopaque, @intFromPtr(&src));
         xfree(ptr_.*);
-        ptr_.* = @intToPtr(?*anyopaque, @as(c_int, 0));
+        ptr_.* = @ptrFromInt(?*anyopaque, @as(c_int, 0));
         _ = ptr_.*;
         if (!false) break;
     }
@@ -3064,7 +3064,7 @@ pub extern fn hash_hash(key: [*c]const u8) hash_T;
 pub extern fn hash_hash_len(key: [*c]const u8, len: usize) hash_T;
 pub extern fn _hash_key_removed() [*c]const u8;
 pub fn QUEUE_EMPTY(q: [*c]const QUEUE) callconv(.C) c_int {
-    return @boolToInt(q == @ptrCast([*c]const QUEUE, @alignCast(@import("std").meta.alignment([*c]const QUEUE), q.*.next)));
+    return @intFromBool(q == @ptrCast([*c]const QUEUE, @alignCast(@import("std").meta.alignment([*c]const QUEUE), q.*.next)));
 }
 pub fn QUEUE_INIT(q: [*c]QUEUE) callconv(.C) void {
     q.*.next = q;
@@ -4199,7 +4199,7 @@ pub fn mt_lookup_id(arg_ns: u32, arg_id: u32, arg_enda: bool) callconv(.C) u64 {
     var ns = arg_ns;
     var id = arg_id;
     var enda = arg_enda;
-    return ((@bitCast(u64, @as(c_ulong, ns)) << @intCast(@import("std").math.Log2Int(u64), 32)) | @bitCast(u64, @as(c_ulong, id))) | (if (@as(c_int, @boolToInt(enda)) != 0) @bitCast(u64, @as(c_long, @as(c_int, 1))) << @intCast(@import("std").math.Log2Int(u64), 63) else @bitCast(u64, @as(c_long, @as(c_int, 0))));
+    return ((@bitCast(u64, @as(c_ulong, ns)) << @intCast(@import("std").math.Log2Int(u64), 32)) | @bitCast(u64, @as(c_ulong, id))) | (if (@as(c_int, @intFromBool(enda)) != 0) @bitCast(u64, @as(c_long, @as(c_int, 1))) << @intCast(@import("std").math.Log2Int(u64), 63) else @bitCast(u64, @as(c_long, @as(c_int, 0))));
 }
 pub fn mt_lookup_key(arg_key: mtkey_t) callconv(.C) u64 {
     var key = arg_key;
@@ -4215,7 +4215,7 @@ pub fn mt_end(arg_key: mtkey_t) callconv(.C) bool {
 }
 pub fn mt_start(arg_key: mtkey_t) callconv(.C) bool {
     var key = arg_key;
-    return (@as(c_int, @boolToInt(mt_paired(key))) != 0) and !mt_end(key);
+    return (@as(c_int, @intFromBool(mt_paired(key))) != 0) and !mt_end(key);
 }
 pub fn mt_right(arg_key: mtkey_t) callconv(.C) bool {
     var key = arg_key;
@@ -4236,7 +4236,7 @@ pub fn mt_flags(arg_right_gravity: bool, arg_decor_level: u8) callconv(.C) u16 {
             };
         };
     };
-    return @bitCast(u16, @truncate(c_short, (if (@as(c_int, @boolToInt(right_gravity)) != 0) @bitCast(c_int, @as(c_uint, @bitCast(u16, @truncate(c_short, @as(c_int, 1))))) << @intCast(@import("std").math.Log2Int(c_int), 14) else @as(c_int, 0)) | (@bitCast(c_int, @as(c_uint, decor_level)) << @intCast(@import("std").math.Log2Int(c_int), 4))));
+    return @bitCast(u16, @truncate(c_short, (if (@as(c_int, @intFromBool(right_gravity)) != 0) @bitCast(c_int, @as(c_uint, @bitCast(u16, @truncate(c_short, @as(c_int, 1))))) << @intCast(@import("std").math.Log2Int(c_int), 14) else @as(c_int, 0)) | (@bitCast(c_int, @as(c_uint, decor_level)) << @intCast(@import("std").math.Log2Int(c_int), 4))));
 }
 pub const MarkTree = extern struct {
     root: [*c]mtnode_t,
@@ -4814,7 +4814,7 @@ const union_unnamed_59 = extern union {
     string: [*c]const u8,
 };
 pub const optset_T = extern struct {
-    os_varp: [*c]u8,
+    os_varp: ?*anyopaque,
     os_idx: c_int,
     os_flags: c_int,
     os_oldval: union_unnamed_58,
@@ -4840,10 +4840,10 @@ pub const struct_vimoption = extern struct {
     fullname: [*c]u8,
     shortname: [*c]u8,
     flags: u32,
-    @"var": [*c]u8,
+    @"var": ?*anyopaque,
     indir: idopt_T,
     opt_did_set_cb: opt_did_set_cb_T,
-    def_val: [*c]u8,
+    def_val: ?*anyopaque,
     last_set: LastSet,
 };
 pub const vimoption_T = struct_vimoption;
@@ -8466,7 +8466,7 @@ pub const kFileNonBlocking: c_int = 128;
 pub const kFileMkDir: c_int = 256;
 pub const FileOpenFlags = c_uint;
 pub fn file_eof(fp: [*c]const FileDescriptor) callconv(.C) bool {
-    return (@as(c_int, @boolToInt(fp.*.eof)) != 0) and (rbuffer_size(fp.*.rv) == @bitCast(usize, @as(c_long, @as(c_int, 0))));
+    return (@as(c_int, @intFromBool(fp.*.eof)) != 0) and (rbuffer_size(fp.*.rv) == @bitCast(usize, @as(c_long, @as(c_int, 0))));
 }
 pub fn file_fd(fp: [*c]const FileDescriptor) callconv(.C) c_int {
     return fp.*.fd;
@@ -8506,7 +8506,7 @@ pub inline fn ascii_iswhite(arg_c: c_int) bool {
 }
 pub inline fn ascii_iswhite_or_nul(arg_c: c_int) bool {
     var c = arg_c;
-    return (@as(c_int, @boolToInt(ascii_iswhite(c))) != 0) or (c == @as(c_int, '\x00'));
+    return (@as(c_int, @intFromBool(ascii_iswhite(c))) != 0) or (c == @as(c_int, '\x00'));
 }
 pub inline fn ascii_isdigit(arg_c: c_int) bool {
     var c = arg_c;
@@ -8518,7 +8518,7 @@ pub inline fn ascii_isxdigit(arg_c: c_int) bool {
 }
 pub inline fn ascii_isident(arg_c: c_int) bool {
     var c = arg_c;
-    return ((((@bitCast(c_uint, c) >= @bitCast(c_uint, @as(c_int, 'A'))) and (@bitCast(c_uint, c) <= @bitCast(c_uint, @as(c_int, 'Z')))) or ((@bitCast(c_uint, c) >= @bitCast(c_uint, @as(c_int, 'a'))) and (@bitCast(c_uint, c) <= @bitCast(c_uint, @as(c_int, 'z'))))) or (@as(c_int, @boolToInt(ascii_isdigit(c))) != 0)) or (c == @as(c_int, '_'));
+    return ((((@bitCast(c_uint, c) >= @bitCast(c_uint, @as(c_int, 'A'))) and (@bitCast(c_uint, c) <= @bitCast(c_uint, @as(c_int, 'Z')))) or ((@bitCast(c_uint, c) >= @bitCast(c_uint, @as(c_int, 'a'))) and (@bitCast(c_uint, c) <= @bitCast(c_uint, @as(c_int, 'z'))))) or (@as(c_int, @intFromBool(ascii_isdigit(c))) != 0)) or (c == @as(c_int, '_'));
 }
 pub inline fn ascii_isbdigit(arg_c: c_int) bool {
     var c = arg_c;
@@ -9003,7 +9003,7 @@ pub fn kmp_destroy_WatcherPtr(arg_mp: [*c]kmp_WatcherPtr_t) callconv(.C) void {
             while (true) {
                 var ptr_: [*c]?*anyopaque = @ptrCast([*c]?*anyopaque, @alignCast(@import("std").meta.alignment([*c]?*anyopaque), &mp.*.buf[k]));
                 xfree(ptr_.*);
-                ptr_.* = @intToPtr(?*anyopaque, @as(c_int, 0));
+                ptr_.* = @ptrFromInt(?*anyopaque, @as(c_int, 0));
                 _ = ptr_.*;
                 if (!false) break;
             }
@@ -9012,14 +9012,14 @@ pub fn kmp_destroy_WatcherPtr(arg_mp: [*c]kmp_WatcherPtr_t) callconv(.C) void {
     while (true) {
         var ptr_: [*c]?*anyopaque = @ptrCast([*c]?*anyopaque, @alignCast(@import("std").meta.alignment([*c]?*anyopaque), &mp.*.buf));
         xfree(ptr_.*);
-        ptr_.* = @intToPtr(?*anyopaque, @as(c_int, 0));
+        ptr_.* = @ptrFromInt(?*anyopaque, @as(c_int, 0));
         _ = ptr_.*;
         if (!false) break;
     }
     while (true) {
         var ptr_: [*c]?*anyopaque = @ptrCast([*c]?*anyopaque, @alignCast(@import("std").meta.alignment([*c]?*anyopaque), &mp));
         xfree(ptr_.*);
-        ptr_.* = @intToPtr(?*anyopaque, @as(c_int, 0));
+        ptr_.* = @ptrFromInt(?*anyopaque, @as(c_int, 0));
         _ = ptr_.*;
         if (!false) break;
     }
@@ -9082,7 +9082,7 @@ pub fn kl_destroy_WatcherPtr(arg_kl: [*c]kl_WatcherPtr_t) callconv(.C) void {
     while (true) {
         var ptr_: [*c]?*anyopaque = @ptrCast([*c]?*anyopaque, @alignCast(@import("std").meta.alignment([*c]?*anyopaque), &kl));
         xfree(ptr_.*);
-        ptr_.* = @intToPtr(?*anyopaque, @as(c_int, 0));
+        ptr_.* = @ptrFromInt(?*anyopaque, @as(c_int, 0));
         _ = ptr_.*;
         if (!false) break;
     }
@@ -9251,7 +9251,7 @@ pub fn mb_strcmp_ic(arg_ic: bool, arg_s1: [*c]const u8, arg_s2: [*c]const u8) ca
     var ic = arg_ic;
     var s1 = arg_s1;
     var s2 = arg_s2;
-    return if (@as(c_int, @boolToInt(ic)) != 0) mb_stricmp(s1, s2) else strcmp(s1, s2);
+    return if (@as(c_int, @intFromBool(ic)) != 0) mb_stricmp(s1, s2) else strcmp(s1, s2);
 }
 pub const MENU_INDEX_INVALID: c_int = -1;
 pub const MENU_INDEX_NORMAL: c_int = 0;
@@ -9366,60 +9366,61 @@ pub const EVENT_LSPATTACH: c_int = 70;
 pub const EVENT_LSPDETACH: c_int = 71;
 pub const EVENT_LSPREQUEST: c_int = 72;
 pub const EVENT_LSPTOKENUPDATE: c_int = 73;
-pub const EVENT_MENUPOPUP: c_int = 74;
-pub const EVENT_MODECHANGED: c_int = 75;
-pub const EVENT_OPTIONSET: c_int = 76;
-pub const EVENT_QUICKFIXCMDPOST: c_int = 77;
-pub const EVENT_QUICKFIXCMDPRE: c_int = 78;
-pub const EVENT_QUITPRE: c_int = 79;
-pub const EVENT_RECORDINGENTER: c_int = 80;
-pub const EVENT_RECORDINGLEAVE: c_int = 81;
-pub const EVENT_REMOTEREPLY: c_int = 82;
-pub const EVENT_SEARCHWRAPPED: c_int = 83;
-pub const EVENT_SESSIONLOADPOST: c_int = 84;
-pub const EVENT_SHELLCMDPOST: c_int = 85;
-pub const EVENT_SHELLFILTERPOST: c_int = 86;
-pub const EVENT_SIGNAL: c_int = 87;
-pub const EVENT_SOURCECMD: c_int = 88;
-pub const EVENT_SOURCEPOST: c_int = 89;
-pub const EVENT_SOURCEPRE: c_int = 90;
-pub const EVENT_SPELLFILEMISSING: c_int = 91;
-pub const EVENT_STDINREADPOST: c_int = 92;
-pub const EVENT_STDINREADPRE: c_int = 93;
-pub const EVENT_SWAPEXISTS: c_int = 94;
-pub const EVENT_SYNTAX: c_int = 95;
-pub const EVENT_TABCLOSED: c_int = 96;
-pub const EVENT_TABENTER: c_int = 97;
-pub const EVENT_TABLEAVE: c_int = 98;
-pub const EVENT_TABNEW: c_int = 99;
-pub const EVENT_TABNEWENTERED: c_int = 100;
-pub const EVENT_TERMCHANGED: c_int = 101;
-pub const EVENT_TERMCLOSE: c_int = 102;
-pub const EVENT_TERMENTER: c_int = 103;
-pub const EVENT_TERMLEAVE: c_int = 104;
-pub const EVENT_TERMOPEN: c_int = 105;
-pub const EVENT_TERMRESPONSE: c_int = 106;
-pub const EVENT_TEXTCHANGED: c_int = 107;
-pub const EVENT_TEXTCHANGEDI: c_int = 108;
-pub const EVENT_TEXTCHANGEDP: c_int = 109;
-pub const EVENT_TEXTCHANGEDT: c_int = 110;
-pub const EVENT_TEXTYANKPOST: c_int = 111;
-pub const EVENT_UIENTER: c_int = 112;
-pub const EVENT_UILEAVE: c_int = 113;
-pub const EVENT_USER: c_int = 114;
-pub const EVENT_VIMENTER: c_int = 115;
-pub const EVENT_VIMLEAVE: c_int = 116;
-pub const EVENT_VIMLEAVEPRE: c_int = 117;
-pub const EVENT_VIMRESIZED: c_int = 118;
-pub const EVENT_VIMRESUME: c_int = 119;
-pub const EVENT_VIMSUSPEND: c_int = 120;
-pub const EVENT_WINCLOSED: c_int = 121;
-pub const EVENT_WINENTER: c_int = 122;
-pub const EVENT_WINLEAVE: c_int = 123;
-pub const EVENT_WINNEW: c_int = 124;
-pub const EVENT_WINRESIZED: c_int = 125;
-pub const EVENT_WINSCROLLED: c_int = 126;
-pub const NUM_EVENTS: c_int = 127;
+pub const EVENT_LSPPROGRESS: c_int = 74;
+pub const EVENT_MENUPOPUP: c_int = 75;
+pub const EVENT_MODECHANGED: c_int = 76;
+pub const EVENT_OPTIONSET: c_int = 77;
+pub const EVENT_QUICKFIXCMDPOST: c_int = 78;
+pub const EVENT_QUICKFIXCMDPRE: c_int = 79;
+pub const EVENT_QUITPRE: c_int = 80;
+pub const EVENT_RECORDINGENTER: c_int = 81;
+pub const EVENT_RECORDINGLEAVE: c_int = 82;
+pub const EVENT_REMOTEREPLY: c_int = 83;
+pub const EVENT_SEARCHWRAPPED: c_int = 84;
+pub const EVENT_SESSIONLOADPOST: c_int = 85;
+pub const EVENT_SHELLCMDPOST: c_int = 86;
+pub const EVENT_SHELLFILTERPOST: c_int = 87;
+pub const EVENT_SIGNAL: c_int = 88;
+pub const EVENT_SOURCECMD: c_int = 89;
+pub const EVENT_SOURCEPOST: c_int = 90;
+pub const EVENT_SOURCEPRE: c_int = 91;
+pub const EVENT_SPELLFILEMISSING: c_int = 92;
+pub const EVENT_STDINREADPOST: c_int = 93;
+pub const EVENT_STDINREADPRE: c_int = 94;
+pub const EVENT_SWAPEXISTS: c_int = 95;
+pub const EVENT_SYNTAX: c_int = 96;
+pub const EVENT_TABCLOSED: c_int = 97;
+pub const EVENT_TABENTER: c_int = 98;
+pub const EVENT_TABLEAVE: c_int = 99;
+pub const EVENT_TABNEW: c_int = 100;
+pub const EVENT_TABNEWENTERED: c_int = 101;
+pub const EVENT_TERMCHANGED: c_int = 102;
+pub const EVENT_TERMCLOSE: c_int = 103;
+pub const EVENT_TERMENTER: c_int = 104;
+pub const EVENT_TERMLEAVE: c_int = 105;
+pub const EVENT_TERMOPEN: c_int = 106;
+pub const EVENT_TERMRESPONSE: c_int = 107;
+pub const EVENT_TEXTCHANGED: c_int = 108;
+pub const EVENT_TEXTCHANGEDI: c_int = 109;
+pub const EVENT_TEXTCHANGEDP: c_int = 110;
+pub const EVENT_TEXTCHANGEDT: c_int = 111;
+pub const EVENT_TEXTYANKPOST: c_int = 112;
+pub const EVENT_UIENTER: c_int = 113;
+pub const EVENT_UILEAVE: c_int = 114;
+pub const EVENT_USER: c_int = 115;
+pub const EVENT_VIMENTER: c_int = 116;
+pub const EVENT_VIMLEAVE: c_int = 117;
+pub const EVENT_VIMLEAVEPRE: c_int = 118;
+pub const EVENT_VIMRESIZED: c_int = 119;
+pub const EVENT_VIMRESUME: c_int = 120;
+pub const EVENT_VIMSUSPEND: c_int = 121;
+pub const EVENT_WINCLOSED: c_int = 122;
+pub const EVENT_WINENTER: c_int = 123;
+pub const EVENT_WINLEAVE: c_int = 124;
+pub const EVENT_WINNEW: c_int = 125;
+pub const EVENT_WINRESIZED: c_int = 126;
+pub const EVENT_WINSCROLLED: c_int = 127;
+pub const NUM_EVENTS: c_int = 128;
 pub const enum_auto_event = c_uint;
 pub const event_T = enum_auto_event;
 pub const AutoPatCmd = struct_AutoPatCmd_S;
@@ -10615,15 +10616,14 @@ pub extern fn get_option(opt_idx: c_int) [*c]vimoption_T;
 pub extern fn set_option_value(name: [*c]const u8, value: OptVal, opt_flags: c_int) [*c]const u8;
 pub extern fn set_option_value_give_err(name: [*c]const u8, value: OptVal, opt_flags: c_int) void;
 pub extern fn is_option_allocated(name: [*c]const u8) bool;
-pub extern fn is_string_option(name: [*c]const u8) bool;
 pub extern fn find_key_option_len(arg_arg: [*c]const u8, len: usize, has_lt: bool) c_int;
 pub extern fn ui_refresh_options() void;
 pub extern fn makeset(fd: [*c]FILE, opt_flags: c_int, local_only: c_int) c_int;
 pub extern fn makefoldset(fd: [*c]FILE) c_int;
 pub extern fn unset_global_local_option(name: [*c]u8, from: ?*anyopaque) void;
-pub extern fn get_varp_scope_from(p: [*c]vimoption_T, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
-pub extern fn get_varp_scope(p: [*c]vimoption_T, scope: c_int) [*c]u8;
-pub extern fn get_option_varp_scope_from(opt_idx: c_int, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) [*c]u8;
+pub extern fn get_varp_scope_from(p: [*c]vimoption_T, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) ?*anyopaque;
+pub extern fn get_varp_scope(p: [*c]vimoption_T, scope: c_int) ?*anyopaque;
+pub extern fn get_option_varp_scope_from(opt_idx: c_int, scope: c_int, buf: [*c]buf_T, win: [*c]win_T) ?*anyopaque;
 pub extern fn get_option_did_set_cb(opt_idx: c_int) opt_did_set_cb_T;
 pub extern fn get_equalprg() [*c]u8;
 pub extern fn win_copy_options(wp_from: [*c]win_T, wp_to: [*c]win_T) void;
@@ -11031,7 +11031,7 @@ pub extern fn f_argidx(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFun
 pub extern fn f_arglistid(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn f_argv(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub inline fn tv_list_ref(l: [*c]list_T) void {
-    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return;
     }
     l.*.lv_refcount += 1;
@@ -11042,13 +11042,13 @@ pub inline fn tv_list_set_ret(tv: [*c]typval_T, l: [*c]list_T) void {
     tv_list_ref(l);
 }
 pub fn tv_list_locked(l: [*c]const list_T) callconv(.C) VarLockStatus {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return @bitCast(c_uint, VAR_FIXED);
     }
     return l.*.lv_lock;
 }
 pub fn tv_list_set_lock(l: [*c]list_T, lock: VarLockStatus) callconv(.C) void {
-    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (l == @ptrCast([*c]list_T, @alignCast(@import("std").meta.alignment([*c]list_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         _ = blk: {
             _ = @sizeOf(c_int);
             break :blk blk_1: {
@@ -11065,7 +11065,7 @@ pub fn tv_list_set_copyid(l: [*c]list_T, copyid: c_int) callconv(.C) void {
     l.*.lv_copyID = copyid;
 }
 pub fn tv_list_len(l: [*c]const list_T) callconv(.C) c_int {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return 0;
     }
     return l.*.lv_len;
@@ -11090,13 +11090,13 @@ pub fn tv_list_has_watchers(l: [*c]const list_T) callconv(.C) bool {
     return (l != null) and (l.*.lv_watch != null);
 }
 pub fn tv_list_first(l: [*c]const list_T) callconv(.C) [*c]listitem_T {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return null;
     }
     return l.*.lv_first;
 }
 pub fn tv_list_last(l: [*c]const list_T) callconv(.C) [*c]listitem_T {
-    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (l == @ptrCast([*c]const list_T, @alignCast(@import("std").meta.alignment([*c]const list_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return null;
     }
     return l.*.lv_last;
@@ -11104,12 +11104,12 @@ pub fn tv_list_last(l: [*c]const list_T) callconv(.C) [*c]listitem_T {
 pub inline fn tv_dict_set_ret(tv: [*c]typval_T, d: [*c]dict_T) void {
     tv.*.v_type = @bitCast(c_uint, VAR_DICT);
     tv.*.vval.v_dict = d;
-    if (d != @ptrCast([*c]dict_T, @alignCast(@import("std").meta.alignment([*c]dict_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (d != @ptrCast([*c]dict_T, @alignCast(@import("std").meta.alignment([*c]dict_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         d.*.dv_refcount += 1;
     }
 }
 pub fn tv_dict_len(d: [*c]const dict_T) callconv(.C) c_long {
-    if (d == @ptrCast([*c]const dict_T, @alignCast(@import("std").meta.alignment([*c]const dict_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (d == @ptrCast([*c]const dict_T, @alignCast(@import("std").meta.alignment([*c]const dict_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return 0;
     }
     return @bitCast(c_long, d.*.dv_hashtab.ht_used);
@@ -11120,12 +11120,12 @@ pub fn tv_dict_is_watched(d: [*c]const dict_T) callconv(.C) bool {
 pub inline fn tv_blob_set_ret(tv: [*c]typval_T, b: [*c]blob_T) void {
     tv.*.v_type = @bitCast(c_uint, VAR_BLOB);
     tv.*.vval.v_blob = b;
-    if (b != @ptrCast([*c]blob_T, @alignCast(@import("std").meta.alignment([*c]blob_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (b != @ptrCast([*c]blob_T, @alignCast(@import("std").meta.alignment([*c]blob_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         b.*.bv_refcount += 1;
     }
 }
 pub fn tv_blob_len(b: [*c]const blob_T) callconv(.C) c_int {
-    if (b == @ptrCast([*c]const blob_T, @alignCast(@import("std").meta.alignment([*c]const blob_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (b == @ptrCast([*c]const blob_T, @alignCast(@import("std").meta.alignment([*c]const blob_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return 0;
     }
     return b.*.bv_ga.ga_len;
@@ -11146,7 +11146,7 @@ pub inline fn tv_blob_set(blob: [*c]blob_T, arg_idx: c_int, arg_c: u8) void {
     }).* = c;
 }
 pub fn tv_init(tv: [*c]typval_T) callconv(.C) void {
-    if (tv != @ptrCast([*c]typval_T, @alignCast(@import("std").meta.alignment([*c]typval_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (tv != @ptrCast([*c]typval_T, @alignCast(@import("std").meta.alignment([*c]typval_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         _ = memset(@ptrCast(?*anyopaque, tv), @as(c_int, 0), @sizeOf(typval_T));
     }
 }
@@ -11158,7 +11158,7 @@ pub fn tv_get_float_chk(tv: [*c]const typval_T, ret_f: [*c]float_T) callconv(.C)
         return @as(c_int, 1) != 0;
     }
     if (tv.*.v_type == @bitCast(c_uint, VAR_NUMBER)) {
-        ret_f.* = @intToFloat(float_T, tv.*.vval.v_number);
+        ret_f.* = @floatFromInt(float_T, tv.*.vval.v_number);
         return @as(c_int, 1) != 0;
     }
     _ = semsg("%s", gettext("E808: Number or Float required"));
@@ -11196,6 +11196,9 @@ pub extern fn tv_list_append_string(l: [*c]list_T, str: [*c]const u8, len: isize
 pub extern fn tv_list_append_allocated_string(l: [*c]list_T, str: [*c]u8) void;
 pub extern fn tv_list_append_number(l: [*c]list_T, n: varnumber_T) void;
 pub extern fn tv_list_copy(conv: [*c]const vimconv_T, orig: [*c]list_T, deep: bool, copyID: c_int) [*c]list_T;
+pub extern fn tv_list_check_range_index_one(l: [*c]list_T, n1: [*c]c_long, quiet: bool) [*c]listitem_T;
+pub extern fn tv_list_check_range_index_two(l: [*c]list_T, n1: [*c]c_long, li1: [*c]const listitem_T, n2: [*c]c_long, quiet: bool) c_int;
+pub extern fn tv_list_assign_range(dest: [*c]list_T, src: [*c]list_T, idx1_arg: c_long, idx2: c_long, empty_idx2: bool, op: [*c]const u8, varname: [*c]const u8) c_int;
 pub extern fn tv_list_flatten(list: [*c]list_T, first: [*c]listitem_T, maxitems: c_long, maxdepth: c_long) void;
 pub extern fn tv_list_extend(l1: [*c]list_T, l2: [*c]list_T, bef: [*c]listitem_T) void;
 pub extern fn tv_list_concat(l1: [*c]list_T, l2: [*c]list_T, tv: [*c]typval_T) c_int;
@@ -11212,6 +11215,7 @@ pub extern fn tv_list_item_sort(l: [*c]list_T, ptrs: [*c]ListSortItem, item_comp
 pub extern fn tv_list_find(l: [*c]list_T, n: c_int) [*c]listitem_T;
 pub extern fn tv_list_find_nr(l: [*c]list_T, n: c_int, ret_error: [*c]bool) varnumber_T;
 pub extern fn tv_list_find_str(l: [*c]list_T, n: c_int) [*c]const u8;
+pub extern fn tv_list_find_index(l: [*c]list_T, idx: [*c]c_long) [*c]listitem_T;
 pub extern fn tv_list_idx_of_item(l: [*c]const list_T, item: [*c]const listitem_T) c_long;
 pub extern fn tv_dict_watcher_add(dict: [*c]dict_T, key_pattern: [*c]const u8, key_pattern_len: usize, callback: Callback) void;
 pub extern fn tv_callback_equal(cb1: [*c]const Callback, cb2: [*c]const Callback) bool;
@@ -11474,7 +11478,7 @@ pub inline fn buf_set_changedtick(buf: [*c]buf_T, changedtick: varnumber_T) void
     _ = blk: {
         _ = @sizeOf(c_int);
         break :blk blk_1: {
-            break :blk_1 if (changedtick_di != @ptrCast([*c]dictitem_T, @alignCast(@import("std").meta.alignment([*c]dictitem_T), @intToPtr(?*anyopaque, @as(c_int, 0))))) {} else {
+            break :blk_1 if (changedtick_di != @ptrCast([*c]dictitem_T, @alignCast(@import("std").meta.alignment([*c]dictitem_T), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {} else {
                 __assert_fail("changedtick_di != NULL", "./_nvim/src/nvim/buffer.h", @bitCast(c_uint, @as(c_int, 92)), "void buf_set_changedtick(buf_T *const, const varnumber_T)");
             };
         };
@@ -11819,7 +11823,7 @@ pub fn process_init(arg_loop_1: [*c]Loop, arg_type: ProcessType, arg_data: ?*any
 pub fn process_is_stopped(arg_proc: [*c]Process) callconv(.C) bool {
     var proc = arg_proc;
     var exited: bool = proc.*.status >= @as(c_int, 0);
-    return (@as(c_int, @boolToInt(exited)) != 0) or (proc.*.stopped_time != @bitCast(u64, @as(c_long, @as(c_int, 0))));
+    return (@as(c_int, @intFromBool(exited)) != 0) or (proc.*.stopped_time != @bitCast(u64, @as(c_long, @as(c_int, 0))));
 }
 pub extern fn process_spawn(proc: [*c]Process, in: bool, out: bool, err: bool) c_int;
 pub extern fn process_teardown(loop: [*c]Loop) void;
@@ -11946,8 +11950,8 @@ pub extern fn msgpack_zone_free(zone: [*c]msgpack_zone) void;
 pub fn msgpack_zone_malloc(arg_zone: [*c]msgpack_zone, arg_size: usize) callconv(.C) ?*anyopaque {
     var zone = arg_zone;
     var size = arg_size;
-    var aligned: [*c]u8 = @intToPtr([*c]u8, @intCast(usize, @ptrToInt(zone.*.chunk_list.ptr + (@sizeOf(?*anyopaque) -% @bitCast(c_ulong, @as(c_long, @as(c_int, 1)))))) & ~@bitCast(usize, @sizeOf(?*anyopaque) -% @bitCast(c_ulong, @as(c_long, @as(c_int, 1)))));
-    var adjusted_size: usize = size +% @bitCast(usize, @divExact(@bitCast(c_long, @ptrToInt(aligned) -% @ptrToInt(zone.*.chunk_list.ptr)), @sizeOf(u8)));
+    var aligned: [*c]u8 = @ptrFromInt([*c]u8, @intCast(usize, @intFromPtr(zone.*.chunk_list.ptr + (@sizeOf(?*anyopaque) -% @bitCast(c_ulong, @as(c_long, @as(c_int, 1)))))) & ~@bitCast(usize, @sizeOf(?*anyopaque) -% @bitCast(c_ulong, @as(c_long, @as(c_int, 1)))));
+    var adjusted_size: usize = size +% @bitCast(usize, @divExact(@bitCast(c_long, @intFromPtr(aligned) -% @intFromPtr(zone.*.chunk_list.ptr)), @sizeOf(u8)));
     if (zone.*.chunk_list.free >= adjusted_size) {
         zone.*.chunk_list.free -%= adjusted_size;
         zone.*.chunk_list.ptr += adjusted_size;
@@ -11956,10 +11960,10 @@ pub fn msgpack_zone_malloc(arg_zone: [*c]msgpack_zone, arg_size: usize) callconv
     {
         var ptr: ?*anyopaque = msgpack_zone_malloc_expand(zone, size +% (@sizeOf(?*anyopaque) -% @bitCast(c_ulong, @as(c_long, @as(c_int, 1)))));
         if (ptr != null) {
-            return @ptrCast(?*anyopaque, @intToPtr([*c]u8, @intCast(usize, @ptrToInt(ptr)) & ~@bitCast(usize, @sizeOf(?*anyopaque) -% @bitCast(c_ulong, @as(c_long, @as(c_int, 1))))));
+            return @ptrCast(?*anyopaque, @ptrFromInt([*c]u8, @intCast(usize, @intFromPtr(ptr)) & ~@bitCast(usize, @sizeOf(?*anyopaque) -% @bitCast(c_ulong, @as(c_long, @as(c_int, 1))))));
         }
     }
-    return @intToPtr(?*anyopaque, @as(c_int, 0));
+    return @ptrFromInt(?*anyopaque, @as(c_int, 0));
 }
 pub fn msgpack_zone_malloc_no_align(arg_zone: [*c]msgpack_zone, arg_size: usize) callconv(.C) ?*anyopaque {
     var zone = arg_zone;
@@ -13510,7 +13514,7 @@ pub fn msgpack_unpacked_init(arg_result: [*c]msgpack_unpacked) callconv(.C) void
 }
 pub fn msgpack_unpacked_destroy(arg_result: [*c]msgpack_unpacked) callconv(.C) void {
     var result = arg_result;
-    if (result.*.zone != @ptrCast([*c]msgpack_zone, @alignCast(@import("std").meta.alignment([*c]msgpack_zone), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (result.*.zone != @ptrCast([*c]msgpack_zone, @alignCast(@import("std").meta.alignment([*c]msgpack_zone), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         msgpack_zone_free(result.*.zone);
         result.*.zone = null;
         _ = memset(@ptrCast(?*anyopaque, &result.*.data), @as(c_int, 0), @sizeOf(msgpack_object));
@@ -13518,7 +13522,7 @@ pub fn msgpack_unpacked_destroy(arg_result: [*c]msgpack_unpacked) callconv(.C) v
 }
 pub fn msgpack_unpacked_release_zone(arg_result: [*c]msgpack_unpacked) callconv(.C) [*c]msgpack_zone {
     var result = arg_result;
-    if (result.*.zone != @ptrCast([*c]msgpack_zone, @alignCast(@import("std").meta.alignment([*c]msgpack_zone), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (result.*.zone != @ptrCast([*c]msgpack_zone, @alignCast(@import("std").meta.alignment([*c]msgpack_zone), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         var z: [*c]msgpack_zone = result.*.zone;
         result.*.zone = null;
         return z;
@@ -13560,7 +13564,7 @@ pub fn msgpack_sbuffer_new() callconv(.C) [*c]msgpack_sbuffer {
 }
 pub fn msgpack_sbuffer_free(arg_sbuf: [*c]msgpack_sbuffer) callconv(.C) void {
     var sbuf = arg_sbuf;
-    if (sbuf == @ptrCast([*c]msgpack_sbuffer, @alignCast(@import("std").meta.alignment([*c]msgpack_sbuffer), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (sbuf == @ptrCast([*c]msgpack_sbuffer, @alignCast(@import("std").meta.alignment([*c]msgpack_sbuffer), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return;
     }
     msgpack_sbuffer_destroy(sbuf);
@@ -13642,7 +13646,7 @@ pub fn msgpack_vrefbuffer_new(arg_ref_size: usize, arg_chunk_size: usize) callco
     var ref_size = arg_ref_size;
     var chunk_size = arg_chunk_size;
     var vbuf: [*c]msgpack_vrefbuffer = @ptrCast([*c]msgpack_vrefbuffer, @alignCast(@import("std").meta.alignment([*c]msgpack_vrefbuffer), malloc(@sizeOf(msgpack_vrefbuffer))));
-    if (vbuf == @ptrCast([*c]msgpack_vrefbuffer, @alignCast(@import("std").meta.alignment([*c]msgpack_vrefbuffer), @intToPtr(?*anyopaque, @as(c_int, 0))))) return null;
+    if (vbuf == @ptrCast([*c]msgpack_vrefbuffer, @alignCast(@import("std").meta.alignment([*c]msgpack_vrefbuffer), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) return null;
     if (!msgpack_vrefbuffer_init(vbuf, ref_size, chunk_size)) {
         free(@ptrCast(?*anyopaque, vbuf));
         return null;
@@ -13651,7 +13655,7 @@ pub fn msgpack_vrefbuffer_new(arg_ref_size: usize, arg_chunk_size: usize) callco
 }
 pub fn msgpack_vrefbuffer_free(arg_vbuf: [*c]msgpack_vrefbuffer) callconv(.C) void {
     var vbuf = arg_vbuf;
-    if (vbuf == @ptrCast([*c]msgpack_vrefbuffer, @alignCast(@import("std").meta.alignment([*c]msgpack_vrefbuffer), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (vbuf == @ptrCast([*c]msgpack_vrefbuffer, @alignCast(@import("std").meta.alignment([*c]msgpack_vrefbuffer), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         return;
     }
     msgpack_vrefbuffer_destroy(vbuf);
@@ -13684,7 +13688,7 @@ pub fn msgpack_vrefbuffer_vec(arg_vref: [*c]const msgpack_vrefbuffer) callconv(.
 }
 pub fn msgpack_vrefbuffer_veclen(arg_vref: [*c]const msgpack_vrefbuffer) callconv(.C) usize {
     var vref = arg_vref;
-    return @bitCast(usize, @divExact(@bitCast(c_long, @ptrToInt(vref.*.tail) -% @ptrToInt(vref.*.array)), @sizeOf(msgpack_iovec)));
+    return @bitCast(usize, @divExact(@bitCast(c_long, @intFromPtr(vref.*.tail) -% @intFromPtr(vref.*.array)), @sizeOf(msgpack_iovec)));
 }
 pub extern fn msgpack_vrefbuffer_append_copy(vbuf: [*c]msgpack_vrefbuffer, buf: [*c]const u8, len: usize) c_int;
 pub extern fn msgpack_vrefbuffer_append_ref(vbuf: [*c]msgpack_vrefbuffer, buf: [*c]const u8, len: usize) c_int;
@@ -15252,7 +15256,7 @@ pub fn encode_init_lrstate(list: [*c]const list_T) callconv(.C) ListReaderState 
         .list = list,
         .li = tv_list_first(list),
         .offset = @bitCast(usize, @as(c_long, @as(c_int, 0))),
-        .li_length = if ((&tv_list_first(list).*.li_tv).*.vval.v_string == @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), @intToPtr(?*anyopaque, @as(c_int, 0))))) @bitCast(c_ulong, @as(c_long, @as(c_int, 0))) else strlen((&tv_list_first(list).*.li_tv).*.vval.v_string),
+        .li_length = if ((&tv_list_first(list).*.li_tv).*.vval.v_string == @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) @bitCast(c_ulong, @as(c_long, @as(c_int, 0))) else strlen((&tv_list_first(list).*.li_tv).*.vval.v_string),
     };
 }
 pub const encode_bool_var_names: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
@@ -15351,7 +15355,7 @@ pub inline fn tv_strlen(tv: [*c]const typval_T) usize {
             };
         };
     };
-    return if (tv.*.vval.v_string == @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), @intToPtr(?*anyopaque, @as(c_int, 0))))) @bitCast(c_ulong, @as(c_long, @as(c_int, 0))) else strlen(tv.*.vval.v_string);
+    return if (tv.*.vval.v_string == @ptrCast([*c]u8, @alignCast(@import("std").meta.alignment([*c]u8), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) @bitCast(c_ulong, @as(c_long, @as(c_int, 0))) else strlen(tv.*.vval.v_string);
 }
 pub const funccal_entry_T = struct_funccal_entry;
 pub const struct_funccal_entry = extern struct {
@@ -15481,7 +15485,7 @@ pub extern fn f_settabwinvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: E
 pub extern fn f_setwinvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub extern fn f_setbufvar(argvars: [*c]typval_T, rettv: [*c]typval_T, fptr: EvalFuncData) void;
 pub fn mark_global_index(name: u8) callconv(.C) c_int {
-    return if ((@bitCast(c_uint, @as(c_uint, name)) >= @bitCast(c_uint, @as(c_int, 'A'))) and (@bitCast(c_uint, @as(c_uint, name)) <= @bitCast(c_uint, @as(c_int, 'Z')))) @bitCast(c_int, @as(c_uint, name)) - @as(c_int, 'A') else if (@as(c_int, @boolToInt(ascii_isdigit(@bitCast(c_int, @as(c_uint, name))))) != 0) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + (@bitCast(c_int, @as(c_uint, name)) - @as(c_int, '0')) else -@as(c_int, 1);
+    return if ((@bitCast(c_uint, @as(c_uint, name)) >= @bitCast(c_uint, @as(c_int, 'A'))) and (@bitCast(c_uint, @as(c_uint, name)) <= @bitCast(c_uint, @as(c_int, 'Z')))) @bitCast(c_int, @as(c_uint, name)) - @as(c_int, 'A') else if (@as(c_int, @intFromBool(ascii_isdigit(@bitCast(c_int, @as(c_uint, name))))) != 0) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + (@bitCast(c_int, @as(c_uint, name)) - @as(c_int, '0')) else -@as(c_int, 1);
 }
 pub fn mark_local_index(name: u8) callconv(.C) c_int {
     return if ((@bitCast(c_uint, @as(c_uint, name)) >= @bitCast(c_uint, @as(c_int, 'a'))) and (@bitCast(c_uint, @as(c_uint, name)) <= @bitCast(c_uint, @as(c_int, 'z')))) @bitCast(c_int, @as(c_uint, name)) - @as(c_int, 'a') else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '"')) (@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1) else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '^')) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + @as(c_int, 1) else if (@bitCast(c_int, @as(c_uint, name)) == @as(c_int, '.')) ((@as(c_int, 'z') - @as(c_int, 'a')) + @as(c_int, 1)) + @as(c_int, 2) else -@as(c_int, 1);
@@ -15506,7 +15510,7 @@ pub inline fn equalpos(arg_a: pos_T, arg_b: pos_T) bool {
 pub inline fn ltoreq(arg_a: pos_T, arg_b: pos_T) bool {
     var a = arg_a;
     var b = arg_b;
-    return (@as(c_int, @boolToInt(lt(a, b))) != 0) or (@as(c_int, @boolToInt(equalpos(a, b))) != 0);
+    return (@as(c_int, @intFromBool(lt(a, b))) != 0) or (@as(c_int, @intFromBool(equalpos(a, b))) != 0);
 }
 pub inline fn clearpos(arg_a: [*c]pos_T) void {
     var a = arg_a;
@@ -54453,7 +54457,7 @@ pub inline fn viml_parser_init(ret_pstate: [*c]ParserState, get_line: ParserLine
     };
     _ = blk: {
         _ = blk_1: {
-            ret_pstate.*.reader.lines.capacity = (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)));
+            ret_pstate.*.reader.lines.capacity = (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @intFromBool(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)));
             break :blk_1 blk_2: {
                 const tmp = @bitCast(usize, @as(c_long, @as(c_int, 0)));
                 ret_pstate.*.reader.lines.size = tmp;
@@ -54468,7 +54472,7 @@ pub inline fn viml_parser_init(ret_pstate: [*c]ParserState, get_line: ParserLine
     };
     _ = blk: {
         _ = blk_1: {
-            ret_pstate.*.stack.capacity = (@sizeOf([16]ParserStateItem) / @sizeOf(ParserStateItem)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserStateItem) % @sizeOf(ParserStateItem)) != 0)));
+            ret_pstate.*.stack.capacity = (@sizeOf([16]ParserStateItem) / @sizeOf(ParserStateItem)) / @as(usize, @intFromBool(!((@sizeOf([16]ParserStateItem) % @sizeOf(ParserStateItem)) != 0)));
             break :blk_1 blk_2: {
                 const tmp = @bitCast(usize, @as(c_long, @as(c_int, 0)));
                 ret_pstate.*.stack.size = tmp;
@@ -54488,7 +54492,7 @@ pub inline fn viml_parser_destroy(pstate: [*c]ParserState) void {
         while (i < pstate.*.reader.lines.size) : (i +%= 1) {
             var pline: ParserLine = pstate.*.reader.lines.items[i];
             if (pline.allocated) {
-                xfree(@intToPtr(?*anyopaque, @ptrToInt(pline.data)));
+                xfree(@ptrFromInt(?*anyopaque, @intFromPtr(pline.data)));
             }
         }
     }
@@ -54497,7 +54501,7 @@ pub inline fn viml_parser_destroy(pstate: [*c]ParserState) void {
             while (true) {
                 var ptr_: [*c]?*anyopaque = @ptrCast([*c]?*anyopaque, @alignCast(@import("std").meta.alignment([*c]?*anyopaque), &pstate.*.reader.lines.items));
                 xfree(ptr_.*);
-                ptr_.* = @intToPtr(?*anyopaque, @as(c_int, 0));
+                ptr_.* = @ptrFromInt(?*anyopaque, @as(c_int, 0));
                 _ = ptr_.*;
                 if (!false) break;
             }
@@ -54509,7 +54513,7 @@ pub inline fn viml_parser_destroy(pstate: [*c]ParserState) void {
             while (true) {
                 var ptr_: [*c]?*anyopaque = @ptrCast([*c]?*anyopaque, @alignCast(@import("std").meta.alignment([*c]?*anyopaque), &pstate.*.stack.items));
                 xfree(ptr_.*);
-                ptr_.* = @intToPtr(?*anyopaque, @as(c_int, 0));
+                ptr_.* = @ptrFromInt(?*anyopaque, @as(c_int, 0));
                 _ = ptr_.*;
                 if (!false) break;
             }
@@ -54526,9 +54530,9 @@ pub fn viml_preader_get_line(preader: [*c]ParserInputReader, ret_pline: [*c]Pars
             .size = pline.size,
             .allocated = @as(c_int, 1) != 0,
         };
-        cpline.data = string_convert(&preader.*.conv, @intToPtr([*c]u8, @ptrToInt(pline.data)), &cpline.size);
+        cpline.data = string_convert(&preader.*.conv, @ptrFromInt([*c]u8, @intFromPtr(pline.data)), &cpline.size);
         if (pline.allocated) {
-            xfree(@intToPtr(?*anyopaque, @ptrToInt(pline.data)));
+            xfree(@ptrFromInt(?*anyopaque, @intFromPtr(pline.data)));
         }
         pline = cpline;
     }
@@ -54537,9 +54541,9 @@ pub fn viml_preader_get_line(preader: [*c]ParserInputReader, ret_pline: [*c]Pars
         (blk_1: {
             _ = if (preader.*.lines.size == preader.*.lines.capacity) blk_2: {
                 _ = blk_3: {
-                    preader.*.lines.capacity = if ((preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))))) preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)));
+                    preader.*.lines.capacity = if ((preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @intFromBool(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))))) preader.*.lines.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @intFromBool(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0)));
                     break :blk_3 blk_4: {
-                        const tmp_5 = @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), if (preader.*.lines.capacity == ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @boolToInt(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))))) if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) @ptrCast(?*anyopaque, preader.*.lines.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))), @ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) memcpy(xmalloc(preader.*.lines.capacity *% @sizeOf(ParserLine)), @ptrCast(?*const anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else xrealloc(@ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.capacity *% @sizeOf(ParserLine))));
+                        const tmp_5 = @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), if (preader.*.lines.capacity == ((@sizeOf([4]ParserLine) / @sizeOf(ParserLine)) / @as(usize, @intFromBool(!((@sizeOf([4]ParserLine) % @sizeOf(ParserLine)) != 0))))) if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) @ptrCast(?*anyopaque, preader.*.lines.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))), @ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else if (preader.*.lines.items == @ptrCast([*c]ParserLine, @alignCast(@import("std").meta.alignment([*c]ParserLine), &preader.*.lines.init_array))) memcpy(xmalloc(preader.*.lines.capacity *% @sizeOf(ParserLine)), @ptrCast(?*const anyopaque, preader.*.lines.items), preader.*.lines.size *% @sizeOf(ParserLine)) else xrealloc(@ptrCast(?*anyopaque, preader.*.lines.items), preader.*.lines.capacity *% @sizeOf(ParserLine))));
                         preader.*.lines.items = tmp_5;
                         break :blk_4 tmp_5;
                     };
@@ -54572,11 +54576,11 @@ pub inline fn viml_parser_get_remaining_line(pstate: [*c]ParserState, ret_pline:
             };
         };
     };
-    if (ret_pline.*.data != @ptrCast([*c]const u8, @alignCast(@import("std").meta.alignment([*c]const u8), @intToPtr(?*anyopaque, @as(c_int, 0))))) {
+    if (ret_pline.*.data != @ptrCast([*c]const u8, @alignCast(@import("std").meta.alignment([*c]const u8), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) {
         ret_pline.*.data += pstate.*.pos.col;
         ret_pline.*.size -%= pstate.*.pos.col;
     }
-    return ret_pline.*.data != @ptrCast([*c]const u8, @alignCast(@import("std").meta.alignment([*c]const u8), @intToPtr(?*anyopaque, @as(c_int, 0))));
+    return ret_pline.*.data != @ptrCast([*c]const u8, @alignCast(@import("std").meta.alignment([*c]const u8), @ptrFromInt(?*anyopaque, @as(c_int, 0))));
 }
 pub inline fn viml_parser_advance(pstate: [*c]ParserState, len: usize) void {
     _ = blk: {
@@ -54596,7 +54600,7 @@ pub inline fn viml_parser_advance(pstate: [*c]ParserState, len: usize) void {
     }
 }
 pub inline fn viml_parser_highlight(pstate: [*c]ParserState, start: ParserPosition, len: usize, group: [*c]const u8) void {
-    if ((pstate.*.colors == @ptrCast([*c]ParserHighlight, @alignCast(@import("std").meta.alignment([*c]ParserHighlight), @intToPtr(?*anyopaque, @as(c_int, 0))))) or (len == @bitCast(usize, @as(c_long, @as(c_int, 0))))) {
+    if ((pstate.*.colors == @ptrCast([*c]ParserHighlight, @alignCast(@import("std").meta.alignment([*c]ParserHighlight), @ptrFromInt(?*anyopaque, @as(c_int, 0))))) or (len == @bitCast(usize, @as(c_long, @as(c_int, 0))))) {
         return;
     }
     _ = blk: {
@@ -54616,9 +54620,9 @@ pub inline fn viml_parser_highlight(pstate: [*c]ParserState, start: ParserPositi
         (blk_1: {
             _ = if (pstate.*.colors.*.size == pstate.*.colors.*.capacity) blk_2: {
                 _ = blk_3: {
-                    pstate.*.colors.*.capacity = if ((pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0))))) pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0)));
+                    pstate.*.colors.*.capacity = if ((pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1)) > ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @intFromBool(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0))))) pstate.*.colors.*.capacity << @intCast(@import("std").math.Log2Int(usize), 1) else (@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @intFromBool(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0)));
                     break :blk_3 blk_4: {
-                        const tmp_5 = @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), if (pstate.*.colors.*.capacity == ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @boolToInt(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0))))) if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) @ptrCast(?*anyopaque, pstate.*.colors.*.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))), @ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) memcpy(xmalloc(pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk)), @ptrCast(?*const anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else xrealloc(@ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk))));
+                        const tmp_5 = @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), if (pstate.*.colors.*.capacity == ((@sizeOf([16]ParserHighlightChunk) / @sizeOf(ParserHighlightChunk)) / @as(usize, @intFromBool(!((@sizeOf([16]ParserHighlightChunk) % @sizeOf(ParserHighlightChunk)) != 0))))) if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) @ptrCast(?*anyopaque, pstate.*.colors.*.items) else _memcpy_free(@ptrCast(?*anyopaque, @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))), @ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else if (pstate.*.colors.*.items == @ptrCast([*c]ParserHighlightChunk, @alignCast(@import("std").meta.alignment([*c]ParserHighlightChunk), &pstate.*.colors.*.init_array))) memcpy(xmalloc(pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk)), @ptrCast(?*const anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.size *% @sizeOf(ParserHighlightChunk)) else xrealloc(@ptrCast(?*anyopaque, pstate.*.colors.*.items), pstate.*.colors.*.capacity *% @sizeOf(ParserHighlightChunk))));
                         pstate.*.colors.*.items = tmp_5;
                         break :blk_4 tmp_5;
                     };
@@ -55387,14 +55391,14 @@ pub const LOOP_PROCESS_EVENTS = @compileError("unable to translate C expr: unexp
 pub const MBYTE_NONE_CONV = @compileError("unable to translate C expr: unexpected token '{'"); // ./_nvim/src/nvim/mbyte_defs.h:39:9
 pub const FOR_ALL_AUEVENTS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/autocmd.h:96:9
 pub const SCRIPT_ITEM = @compileError("unable to translate C expr: expected ')' instead got '*'"); // ./_nvim/src/nvim/runtime.h:89:9
-pub const FOR_ALL_FRAMES = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:411:9
-pub const FOR_ALL_TAB_WINDOWS = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // ./_nvim/src/nvim/globals.h:416:9
-pub const FOR_ALL_WINDOWS_IN_TAB = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:421:9
-pub const FOR_ALL_TABS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:453:9
-pub const FOR_ALL_BUFFERS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:462:9
-pub const FOR_ALL_BUFFERS_BACKWARDS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:464:9
-pub const FOR_ALL_BUF_WININFO = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:467:9
-pub const FOR_ALL_SIGNS_IN_BUF = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:471:9
+pub const FOR_ALL_FRAMES = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:418:9
+pub const FOR_ALL_TAB_WINDOWS = @compileError("unable to translate C expr: unexpected token 'Identifier'"); // ./_nvim/src/nvim/globals.h:423:9
+pub const FOR_ALL_WINDOWS_IN_TAB = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:428:9
+pub const FOR_ALL_TABS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:460:9
+pub const FOR_ALL_BUFFERS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:469:9
+pub const FOR_ALL_BUFFERS_BACKWARDS = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:471:9
+pub const FOR_ALL_BUF_WININFO = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:474:9
+pub const FOR_ALL_SIGNS_IN_BUF = @compileError("unable to translate C expr: unexpected token 'for'"); // ./_nvim/src/nvim/globals.h:478:9
 pub const BOOLEAN_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:20:9
 pub const INTEGER_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:24:9
 pub const FLOAT_OBJ = @compileError("unable to translate C expr: expected '=' instead got '.'"); // _nvim/src/nvim/api/private/helpers.h:28:9
@@ -55505,7 +55509,7 @@ pub const __clang__ = @as(c_int, 1);
 pub const __clang_major__ = @as(c_int, 16);
 pub const __clang_minor__ = @as(c_int, 0);
 pub const __clang_patchlevel__ = @as(c_int, 1);
-pub const __clang_version__ = "16.0.1 (https://github.com/ziglang/zig-bootstrap 710c5d12660235bc4eac103a8c6677c61f0a9ded)";
+pub const __clang_version__ = "16.0.1 (https://github.com/ziglang/zig-bootstrap bf1b2cdb83141ad9336eec42160c9fe87f90198d)";
 pub const __GNUC__ = @as(c_int, 4);
 pub const __GNUC_MINOR__ = @as(c_int, 2);
 pub const __GNUC_PATCHLEVEL__ = @as(c_int, 1);
@@ -55522,7 +55526,7 @@ pub const __OPENCL_MEMORY_SCOPE_DEVICE = @as(c_int, 2);
 pub const __OPENCL_MEMORY_SCOPE_ALL_SVM_DEVICES = @as(c_int, 3);
 pub const __OPENCL_MEMORY_SCOPE_SUB_GROUP = @as(c_int, 4);
 pub const __PRAGMA_REDEFINE_EXTNAME = @as(c_int, 1);
-pub const __VERSION__ = "Clang 16.0.1 (https://github.com/ziglang/zig-bootstrap 710c5d12660235bc4eac103a8c6677c61f0a9ded)";
+pub const __VERSION__ = "Clang 16.0.1 (https://github.com/ziglang/zig-bootstrap bf1b2cdb83141ad9336eec42160c9fe87f90198d)";
 pub const __OBJC_BOOL_IS_BOOL = @as(c_int, 0);
 pub const __CONSTANT_CFSTRINGS__ = @as(c_int, 1);
 pub const __clang_literal_encoding__ = "UTF-8";
@@ -55858,7 +55862,6 @@ pub const __XSAVEOPT__ = @as(c_int, 1);
 pub const __XSAVEC__ = @as(c_int, 1);
 pub const __XSAVES__ = @as(c_int, 1);
 pub const __CLFLUSHOPT__ = @as(c_int, 1);
-pub const __SGX__ = @as(c_int, 1);
 pub const __INVPCID__ = @as(c_int, 1);
 pub const __CRC32__ = @as(c_int, 1);
 pub const __AVX2__ = @as(c_int, 1);

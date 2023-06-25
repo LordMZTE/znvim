@@ -50,7 +50,7 @@ pub const TypVal = union(enum) {
             .bool => |v| .{
                 .v_type = c.VAR_BOOL,
                 .v_lock = c.VAR_UNLOCKED,
-                .vval = .{ .v_bool = @boolToInt(v) },
+                .vval = .{ .v_bool = @intFromBool(v) },
             },
             .special => |v| .{
                 .v_type = c.VAR_SPECIAL,
@@ -170,11 +170,11 @@ pub const TriState = enum(c_int) {
     }
 
     pub inline fn fromNvim(n: c.TriState) TriState {
-        return @intToEnum(TriState, n);
+        return @enumFromInt(TriState, n);
     }
 
     pub inline fn toNvim(self: TriState) c.TriState {
-        return @enumToInt(self);
+        return @intFromEnum(self);
     }
 };
 
@@ -192,7 +192,7 @@ pub const OptionValue = union(enum) {
         both = 0,
 
         pub inline fn toNvim(self: Scope) c_int {
-            return @enumToInt(self);
+            return @intFromEnum(self);
         }
     };
 
