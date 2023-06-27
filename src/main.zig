@@ -170,7 +170,7 @@ pub const TriState = enum(c_int) {
     }
 
     pub inline fn fromNvim(n: c.TriState) TriState {
-        return @enumFromInt(TriState, n);
+        return @enumFromInt(n);
     }
 
     pub inline fn toNvim(self: TriState) c.TriState {
