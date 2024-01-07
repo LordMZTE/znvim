@@ -5,12 +5,13 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const nvim_c_mod = b.addModule("nvim_c", .{
-        .source_file = .{ .path = "nvim_c.zig" },
+        .root_source_file = .{ .path = "nvim_c.zig" },
+        .link_libc = true,
     });
 
     _ = b.addModule("znvim", .{
-        .source_file = .{ .path = "src/main.zig" },
-        .dependencies = &.{.{ .name = "nvim_c", .module = nvim_c_mod }},
+        .root_source_file = .{ .path = "src/main.zig" },
+        .imports = &.{.{ .name = "nvim_c", .module = nvim_c_mod }},
     });
 
     const main_tests = b.addTest(.{
@@ -19,7 +20,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    main_tests.addModule("nvim_c", nvim_c_mod);
+    main_tests.root_module.addImport("nvim_c", nvim_c_mod);
 
     const run_main_tests = b.addRunArtifact(main_tests);
 
