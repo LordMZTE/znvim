@@ -240,13 +240,19 @@ pub const OptionValue = union(enum) {
 
     /// Gets the option for a given scope and key.
     pub inline fn get(key: [*:0]const u8, scope: Scope) OptionValue {
-        return OptionValue.fromNvim(c.get_option_value(key, null, scope.toNvim(), null));
+        const idx = c.find_option(key);
+        if (idx == c.kOptInvalid) return .nil;
+        return OptionValue.fromNvim(c.get_option_value(idx, scope.toNvim()));
     }
 
     /// Sets the option to this value for a given key and scope.
     /// Returns null on success and an error message on error.
     pub inline fn set(self: OptionValue, key: [*:0]const u8, scope: Scope) ?[*:0]const u8 {
-        return c.set_option_value(key, self.toNvim(), scope.toNvim());
+        const idx = c.find_option(key);
+        if (idx == c.kOptInvalid)
+            return "No such option!";
+
+        return c.set_option_value(idx, self.toNvim(), scope.toNvim());
     }
 
     /// Sets the option to this value for a given key and scope.
