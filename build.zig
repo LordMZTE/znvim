@@ -5,17 +5,17 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const nvim_c_mod = b.addModule("nvim_c", .{
-        .root_source_file = .{ .path = "nvim_c.zig" },
+        .root_source_file = b.path("nvim_c.zig"),
         .link_libc = true,
     });
 
     _ = b.addModule("znvim", .{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .imports = &.{.{ .name = "nvim_c", .module = nvim_c_mod }},
     });
 
     const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
